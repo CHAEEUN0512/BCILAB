@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Thank You, Prof. Kim · BCI LAB</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Pretendard:wght@300;400;500;600;700&family=Gaegu:wght@400;700&family=Nanum+Pen+Script&family=Gowun+Dodum&family=Hi+Melody&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --mint: #A0E5D9;
+    --mint-deep: #4FBFA8;
+    --sky: #00A6E6;
+    --sky-deep: #0088C2;
+    --ink: #0E1A24;
+    --paper: #FAFCFD;
+    --line: rgba(14,26,36,0.08);
+    --muted: #6B7B85;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Pretendard', 'Inter', -apple-system, sans-serif;
+    font-feature-settings: 'ss01', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  body { min-height: 100vh; }
+
+  /* — Hero — */
+  .hero {
+    position: relative;
+    padding: 22px 24px 22px;
+    background: linear-gradient(180deg, #ffffff 0%, var(--paper) 100%);
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 18% 22%, rgba(160,229,217,0.55) 0%, transparent 45%),
+      radial-gradient(circle at 88% 8%, rgba(0,166,230,0.18) 0%, transparent 40%);
+    pointer-events: none;
+  }
+  .hero-meta {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 0.12em;
+    color: var(--muted);
+    text-transform: uppercase;
+    position: relative;
+  }
+  .hero-meta .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--sky); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+  .hero h1 {
+    position: relative;
+    margin-top: 14px;
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+  .hero h1 .accent { color: var(--sky); display: block; }
+  .hero h1 .small { font-size: 17px; font-weight: 500; color: var(--muted); margin-top: 8px; display: block; letter-spacing: 0; }
+  .hero p.lede {
+    position: relative;
+    margin-top: 16px;
+    font-size: 14.5px;
+    line-height: 1.65;
+    color: var(--ink);
+    max-width: 320px;
+  }
+
+  /* EEG line under hero */
+  .eeg {
+    position: relative;
+    margin-top: 14px;
+    height: 22px;
+    width: 100%;
+  }
+  .eeg svg { width: 100%; height: 100%; display: block; }
+  .eeg path { stroke: var(--sky); stroke-width: 1.5; fill: none; }
+  .eeg-line {
+    stroke-dasharray: 800;
+    stroke-dashoffset: 800;
+    animation: drawline 3.5s ease-out 0.3s forwards;
+  }
+  @keyframes drawline {
+    to { stroke-dashoffset: 0; }
+  }
+
+  /* — Section heading — */
+  .sect-head {
+    padding: 22px 24px 12px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .sect-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--mint-deep);
+    letter-spacing: 0.1em;
+  }
+  .sect-title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .sect-rule { flex: 1; height: 1px; background: var(--line); margin-left: 4px; }
+
+  /* — Action grid — */
+  .actions {
+    padding: 0 24px 8px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .action {
+    position: relative;
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 18px 16px;
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 130px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    font-family: inherit;
+  }
+  .action:active { transform: scale(0.97); }
+  .action:hover { border-color: var(--sky); box-shadow: 0 6px 20px rgba(0,166,230,0.10); }
+  .action.wide { grid-column: span 2; flex-direction: row; align-items: center; min-height: auto; }
+  .action.wide .action-icon { margin-bottom: 0; }
+  .action.wide .action-text { flex: 1; }
+
+  .action-icon {
+    width: 36px; height: 36px;
+    border-radius: 11px;
+    background: linear-gradient(135deg, var(--mint) 0%, var(--sky) 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+  }
+  .action-icon.mint { background: var(--mint); color: var(--mint-deep); }
+  .action-icon.sky { background: rgba(0,166,230,0.12); color: var(--sky); }
+  .action-icon svg { width: 18px; height: 18px; }
+
+  .action-label {
+    font-size: 14.5px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+  .action-sub {
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.4;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.02em;
+  }
+  .action-arrow {
+    position: absolute;
+    top: 16px; right: 16px;
+    color: var(--line);
+    transition: transform 0.2s, color 0.2s;
+  }
+  .action:hover .action-arrow { color: var(--sky); transform: translate(2px, -2px); }
+
+  /* — Voice messages — */
+  .voices {
+    padding: 0 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .voice {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .voice:hover { border-color: var(--sky); }
+  .voice.playing { background: linear-gradient(180deg, rgba(160,229,217,0.18) 0%, white 100%); border-color: var(--mint-deep); }
+  .voice-avatar {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: var(--mint);
+    color: var(--mint-deep);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .voice-info { flex: 1; min-width: 0; }
+  .voice-name { font-size: 13.5px; font-weight: 600; }
+  .voice-time { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+  .voice-wave {
+    display: flex; align-items: center; gap: 2px;
+    height: 22px;
+  }
+  .voice-wave span {
+    width: 2px;
+    background: var(--sky);
+    border-radius: 1px;
+    transition: height 0.15s;
+  }
+  .voice.playing .voice-wave span { animation: wavebar 0.9s ease-in-out infinite; }
+  @keyframes wavebar {
+    0%, 100% { height: 4px; }
+    50% { height: 16px; }
+  }
+  .voice-play {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--sky);
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    border: none; cursor: pointer;
+  }
+  .voice.playing .voice-play { background: var(--mint-deep); }
+
+  /* — Photo strip — */
+  .photos {
+    margin-top: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0 24px 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .photos::-webkit-scrollbar { display: none; }
+  .photo-row {
+    display: flex;
+    gap: 10px;
+    width: max-content;
+  }
+  .photo {
+    width: 130px; height: 170px;
+    border-radius: 14px;
+    background: var(--mint);
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    padding: 10px;
+    color: white;
+    font-size: 10.5px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.02em;
+    box-shadow: 0 4px 14px rgba(14,26,36,0.10);
+  }
+  .photo::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.55) 100%);
+  }
+  .photo > span { position: relative; }
+  .photo:nth-child(1) { background: linear-gradient(135deg, #4FBFA8 0%, #00A6E6 100%); }
+  .photo:nth-child(2) { background: linear-gradient(135deg, #A0E5D9 0%, #4FBFA8 100%); }
+  .photo:nth-child(3) { background: linear-gradient(135deg, #00A6E6 0%, #0088C2 100%); }
+  .photo:nth-child(4) { background: linear-gradient(135deg, #B8ECF0 0%, #00A6E6 100%); }
+  .photo:nth-child(5) { background: linear-gradient(135deg, #A0E5D9 0%, #00A6E6 100%); }
+  .photo:nth-child(6) { background: linear-gradient(135deg, #4FBFA8 0%, #A0E5D9 100%); }
+
+  /* Brain pattern overlay on photos */
+  .photo-brain {
+    position: absolute;
+    inset: 0;
+    opacity: 0.15;
+    background-image: radial-gradient(circle at 30% 40%, white 0.5px, transparent 1px),
+                      radial-gradient(circle at 70% 60%, white 0.5px, transparent 1px);
+    background-size: 30px 30px, 24px 24px;
+  }
+
+  /* — Signatures (lab members) — */
+  .signatures {
+    padding: 0 24px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .sig {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 11.5px;
+    line-height: 1.3;
+    cursor: pointer;
+    transition: all 0.18s;
+    position: relative;
+  }
+  .sig:hover { border-color: var(--mint-deep); background: linear-gradient(180deg, white 0%, rgba(160,229,217,0.12) 100%); }
+  .sig-name {
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 2px;
+  }
+  .sig-role {
+    font-size: 10px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .sig-heart {
+    position: absolute;
+    top: 6px; right: 6px;
+    font-size: 10px;
+    color: transparent;
+    transition: color 0.2s;
+  }
+  .sig.thanked .sig-heart { color: #FF6B7A; }
+
+  /* — Messages from lab members (post-it grid) — */
+  .messages-wrap {
+    padding: 4px 18px 18px;
+  }
+  .messages-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 12px;
+    margin-top: 10px;
+  }
+  .postit {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    padding: 18px 14px 14px;
+    border-radius: 2px;
+    font-family: 'Gaegu', cursive;
+    font-size: 15px;
+    line-height: 1.45;
+    color: #404952;
+    box-shadow:
+      0 1px 1px rgba(0,0,0,0.04),
+      0 6px 14px -6px rgba(20,40,60,0.18),
+      0 12px 22px -12px rgba(20,40,60,0.18);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transform-origin: 50% 0%;
+  }
+  /* Each post-it gets a slight, varied rotation for hand-pinned feel */
+  /* Each post-it: rotation per slot, color randomized per index */
+  .postit:nth-child(4n+1) { transform: rotate(-1.6deg); }
+  .postit:nth-child(4n+2) { transform: rotate(1.4deg); }
+  .postit:nth-child(4n+3) { transform: rotate(-0.8deg); }
+  .postit:nth-child(4n+4) { transform: rotate(2deg); }
+  /* Mixed mint/sky colors — explicit per index so neighbors don't repeat */
+  .postit.c1 { background: #E0F5EE; }  /* mint */
+  .postit.c2 { background: #DEEFFB; }  /* sky */
+  .postit.c3 { background: #CFEDE2; }  /* deep mint */
+  .postit.c4 { background: #EAF4FC; }  /* light sky */
+  /* Rotate through 3 handwriting fonts */
+  .postit.font-a { font-family: 'Nanum Pen Script', cursive; font-size: 19px; line-height: 1.35; }
+  .postit.font-b { font-family: 'Gowun Dodum', sans-serif; font-size: 14px; line-height: 1.55; }
+  .postit.font-c { font-family: 'Gaegu', cursive; font-size: 16px; line-height: 1.4; }
+  .postit::before {
+    /* Tape strip top-center */
+    content: '';
+    position: absolute;
+    top: -7px;
+    left: 50%;
+    transform: translateX(-50%) rotate(-2deg);
+    width: 38px; height: 12px;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(0,0,0,0.04);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+  .postit-body {
+    word-break: keep-all;
+  }
+  .postit-sign {
+    align-self: flex-end;
+    font-size: 13px;
+    color: #5a6470;
+    margin-top: 8px;
+    letter-spacing: 0.02em;
+  }
+  .postit-sign::before {
+    content: '– ';
+    opacity: 0.6;
+  }
+
+  /* — Signal band (between cards and footer) — */
+  .signal-band {
+    margin-top: auto;
+    padding: 18px 24px 22px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 14px;
+    flex: 1;
+  }
+  .signal-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .signal-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--mint-deep);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .signal-rule { flex: 1; height: 1px; background: var(--line); }
+  .signal-ts { color: var(--mint-deep); }
+  .signal-eeg {
+    height: 72px;
+    width: 100%;
+  }
+  .signal-eeg svg { width: 100%; height: 100%; display: block; }
+  .signal-line {
+    stroke: var(--mint-deep);
+    stroke-width: 2;
+    fill: none;
+    opacity: 0.9;
+  }
+  .signal-msg {
+    font-size: 13.5px;
+    color: var(--ink);
+    line-height: 1.5;
+    text-align: center;
+    letter-spacing: -0.005em;
+  }
+
+  /* — Footer — */
+  .footer {
+    padding: 22px 24px 22px;
+    text-align: center;
+    border-top: 1px solid var(--line);
+    background: linear-gradient(180deg, transparent 0%, rgba(160,229,217,0.10) 100%);
+  }
+  .footer-mark {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .footer-msg {
+    margin-top: 14px;
+    font-size: 14px;
+    color: var(--ink);
+    font-weight: 500;
+    line-height: 1.5;
+  }
+  .footer-heart { color: var(--sky); margin: 0 4px; }
+  .footer-stamp {
+    margin-top: 16px;
+    display: inline-block;
+    padding: 6px 14px;
+    border: 1.5px dashed var(--mint-deep);
+    border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--mint-deep);
+    letter-spacing: 0.08em;
+  }
+
+  /* — Modal (for voice / detail) — */
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(14,26,36,0.55);
+    backdrop-filter: blur(8px);
+    display: none;
+    align-items: flex-end;
+    z-index: 100;
+    animation: fadein 0.2s;
+  }
+  .modal-bg.show { display: flex; }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  .modal {
+    width: 100%;
+    background: white;
+    border-radius: 22px 22px 0 0;
+    padding: 28px 24px 36px;
+    animation: slideup 0.28s cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  @keyframes slideup { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal h3 { font-size: 18px; margin-bottom: 8px; }
+  .modal p { font-size: 14px; line-height: 1.6; color: var(--muted); }
+  .modal-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: var(--line);
+    border: none;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+  }
+
+  /* Mobile shell — fills viewport, content laid out as flex column */
+  .device-bezel {
+    max-width: 430px;
+    margin: 0 auto;
+    background: var(--paper);
+    min-height: 100vh;
+    min-height: 100dvh;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+</style>
+<template id="__bundler_thumbnail">
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="200" fill="#A0E5D9"/>
+  <circle cx="100" cy="80" r="42" fill="white" opacity="0.9"/>
+  <text x="100" y="92" font-family="Inter, sans-serif" font-weight="700" font-size="28" fill="#00A6E6" text-anchor="middle">BCI</text>
+  <text x="100" y="160" font-family="Inter, sans-serif" font-size="14" fill="#1a2230" text-anchor="middle" letter-spacing="2">TRIBUTE</text>
+</svg>
+</template>
+</head>
+<body>
+<div class="device-bezel">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-meta">
+      <span class="dot"></span>
+      <span>NFC · TAGGED 2026.05.15</span>
+    </div>
+    <h1>
+      <span>Dear Professor</span>
+      <span class="accent">Sung-Phil Kim</span>
+    </h1>
+    <div class="eeg">
+      <svg viewBox="0 0 360 28" preserveAspectRatio="none">
+        <path class="eeg-line" d="M 0 14 L 30 14 L 38 8 L 46 20 L 54 4 L 62 22 L 70 14 L 110 14 L 118 10 L 126 18 L 134 6 L 142 14 L 180 14 L 188 14 L 196 2 L 204 26 L 212 14 L 250 14 L 258 9 L 266 19 L 274 5 L 282 23 L 290 14 L 360 14" />
+      </svg>
+    </div>
+  </section>
+
+  <!-- ACTIONS -->
+  <div class="sect-head">
+    <span class="sect-num">01</span>
+    <span class="sect-title">Quick Links</span>
+    <span class="sect-rule"></span>
+  </div>
+  <div class="actions">
+
+    <a class="action" href="#" data-modal="lab">
+      <div class="action-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>
+      </div>
+      <div class="action-text">
+        <div class="action-label">랩 홈페이지</div>
+        <div class="action-sub">bci.unist.ac.kr</div>
+      </div>
+      <svg class="action-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M17 7H8M17 7v9"/></svg>
+    </a>
+
+    <a class="action" href="#" data-modal="band">
+      <div class="action-icon sky">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10,8 16,12 10,16" fill="currentColor"/></svg>
+      </div>
+      <div class="action-text">
+        <div class="action-label">랩 밴드 영상</div>
+        <div class="action-sub">'NEURAL NOISE' · LIVE</div>
+      </div>
+      <svg class="action-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M17 7H8M17 7v9"/></svg>
+    </a>
+
+  </div>
+
+  <!-- MESSAGES from lab members -->
+  <section class="messages-wrap">
+    <div class="sect-head" style="margin-top:4px">
+      <span class="sect-num">02</span>
+      <span class="sect-title">Messages from BCI LAB</span>
+      <span class="sect-rule"></span>
+    </div>
+    <div class="messages-grid">
+      <div class="postit c2 font-a">
+        <div class="postit-body">교수님, 정말 많이 배웠습니다. 늘 따뜻하게 지도해 주셔서 감사합니다.</div>
+        <div class="postit-sign">멤버1 올림</div>
+      </div>
+      <div class="postit c3 font-b">
+        <div class="postit-body">막막했던 신호 속에서 의미를 찾도록 길을 보여주셔서 감사합니다.</div>
+        <div class="postit-sign">멤버2 올림</div>
+      </div>
+      <div class="postit c1 font-c">
+        <div class="postit-body">교수님 덕분에 BCI라는 멋진 세계를 알게 됐어요. 항상 존경합니다!</div>
+        <div class="postit-sign">멤버3 올림</div>
+      </div>
+      <div class="postit c4 font-a">
+        <div class="postit-body">늘 학생들의 아이디어를 진지하게 들어주셔서 감사합니다.</div>
+        <div class="postit-sign">멤버4 올림</div>
+      </div>
+      <div class="postit c1 font-b">
+        <div class="postit-body">연구의 baseline을 잡아주신 교수님께 진심으로 감사드립니다.</div>
+        <div class="postit-sign">멤버5 올림</div>
+      </div>
+      <div class="postit c4 font-c">
+        <div class="postit-body">실험이 안 풀릴 때마다 주신 한마디가 큰 힘이 되었어요.</div>
+        <div class="postit-sign">멤버6 올림</div>
+      </div>
+      <div class="postit c2 font-a">
+        <div class="postit-body">교수님과 함께한 매 순간이 좋은 기억으로 남았습니다.</div>
+        <div class="postit-sign">멤버7 올림</div>
+      </div>
+      <div class="postit c3 font-b">
+        <div class="postit-body">학문적으로도 인간적으로도 닮고 싶은 분이세요. 감사합니다.</div>
+        <div class="postit-sign">멤버8 올림</div>
+      </div>
+      <div class="postit c3 font-c">
+        <div class="postit-body">늘 믿고 기다려주셔서 감사합니다. 더 열심히 하겠습니다.</div>
+        <div class="postit-sign">멤버9 올림</div>
+      </div>
+      <div class="postit c2 font-a">
+        <div class="postit-body">처음 BCI를 접했을 때 설렘을 아직도 잊지 못합니다. 감사합니다!</div>
+        <div class="postit-sign">멤버10 올림</div>
+      </div>
+      <div class="postit c4 font-b">
+        <div class="postit-body">교수님의 가르침은 저희 연구의 든든한 baseline입니다.</div>
+        <div class="postit-sign">멤버11 올림</div>
+      </div>
+      <div class="postit c1 font-c">
+        <div class="postit-body">늘 건강하시고 행복하세요. 감사합니다 교수님!</div>
+        <div class="postit-sign">멤버12 올림</div>
+      </div>
+      <div class="postit c4 font-a">
+        <div class="postit-body">랩 미팅마다 주신 인사이트 덕분에 많이 성장했습니다.</div>
+        <div class="postit-sign">멤버13 올림</div>
+      </div>
+      <div class="postit c1 font-b">
+        <div class="postit-body">교수님의 따뜻한 격려가 저의 가장 큰 힘이었어요.</div>
+        <div class="postit-sign">멤버14 올림</div>
+      </div>
+      <div class="postit c3 font-c">
+        <div class="postit-body">언제나 학생을 먼저 생각해주셔서 감사합니다.</div>
+        <div class="postit-sign">멤버15 올림</div>
+      </div>
+      <div class="postit c2 font-a">
+        <div class="postit-body">스승의 날 진심으로 축하드립니다. 늘 감사합니다 교수님!</div>
+        <div class="postit-sign">멤버16 올림</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SIGNAL · fills the gap between cards and footer -->
+  <div class="signal-band">
+    <div class="signal-meta" style="display:none">
+      <span class="signal-dot"></span>
+      <span>SIGNAL · INCOMING</span>
+      <span class="signal-rule"></span>
+    </div>
+    <div class="signal-eeg">
+      <svg viewBox="0 0 360 56" preserveAspectRatio="none">
+        <path class="signal-line" d="M 0 28 L 22 28 L 28 18 L 34 38 L 40 8 L 46 44 L 52 28 L 90 28 L 96 22 L 102 34 L 108 14 L 114 28 L 150 28 L 158 28 L 164 4 L 170 50 L 176 28 L 220 28 L 226 18 L 232 36 L 238 12 L 244 40 L 250 28 L 290 28 L 296 24 L 302 30 L 308 20 L 314 36 L 320 28 L 360 28" />
+      </svg>
+    </div>
+    <div class="signal-msg">교수님의 가르침은 저희의 baseline입니다♡</div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-mark">BCI LAB · UNIST · 2026</div>
+    <div class="footer-stamp">HAPPY TEACHER'S DAY · 05.15</div>
+  </footer>
+
+</div>
+
+<!-- Modal -->
+<div class="modal-bg" id="modal">
+  <div class="modal" style="position:relative">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <h3 id="modal-title"></h3>
+    <p id="modal-body"></p>
+  </div>
+</div>
+
+<script>
+  // Voice player
+  document.querySelectorAll('.voice').forEach(v => {
+    v.addEventListener('click', () => {
+      const wasPlaying = v.classList.contains('playing');
+      document.querySelectorAll('.voice').forEach(x => x.classList.remove('playing'));
+      if (!wasPlaying) {
+        v.classList.add('playing');
+        const btn = v.querySelector('.voice-play svg');
+        btn.innerHTML = '<rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/>';
+        setTimeout(() => {
+          v.classList.remove('playing');
+          btn.innerHTML = '<polygon points="6,4 20,12 6,20"/>';
+        }, 4000);
+      } else {
+        const btn = v.querySelector('.voice-play svg');
+        btn.innerHTML = '<polygon points="6,4 20,12 6,20"/>';
+      }
+    });
+  });
+
+  // Signature thanks
+  document.querySelectorAll('.sig').forEach(s => {
+    s.addEventListener('click', () => s.classList.toggle('thanked'));
+  });
+
+  // Modal
+  const MODALS = {
+    lab: ['BCI LAB · UNIST', 'Brain-Computer Interface Lab. 신호처리, 뉴럴 디코딩, BCI 시스템 연구. 외부 링크는 실제 키링에서는 bci.unist.ac.kr로 연결됩니다.'],
+    papers: ['연구 하이라이트', 'Sung-Phil Kim의 주요 논문 42편을 큐레이션. Nature, IEEE TBME, Journal of Neural Engineering 등 게재. 이 페이지에서는 데모만 보여드려요.'],
+    band: ['Neural Noise · Lab Band', '교수님이 좋아하시는 곡 모음 + 랩 회식 라이브 영상. 외부 링크는 YouTube 비공개 링크로 연결됩니다.'],
+  };
+  document.querySelectorAll('[data-modal]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const key = a.dataset.modal;
+      document.getElementById('modal-title').textContent = MODALS[key][0];
+      document.getElementById('modal-body').textContent = MODALS[key][1];
+      document.getElementById('modal').classList.add('show');
+    });
+  });
+  function closeModal() { document.getElementById('modal').classList.remove('show'); }
+  document.getElementById('modal').addEventListener('click', e => {
+    if (e.target.id === 'modal') closeModal();
+  });
+</script>
+</body>
+</html>
