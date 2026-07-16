@@ -33,6 +33,21 @@ EEG/BCI 실험용 **오디오 자극 재생 + 증폭기 트리거 전송** 프�
 
 ## 설치 및 실행
 
+### 방법 A) 그냥 클릭해서 실행 (권장 — 파이썬 불필요)
+
+**단일 실행파일(.exe)** 로 배포하면 의사 선생님은 더블클릭만 하면 됩니다.
+
+- **자동 빌드**: 코드를 푸시하면 GitHub Actions(Windows)가 자동으로 exe 를 만듭니다.
+  저장소 **Actions 탭 → 최근 실행 → Artifacts → `AuditoryStimulusPlayer-windows`**
+  를 내려받아 압축을 풀면 `AuditoryStimulusPlayer.exe` 가 나옵니다.
+- **직접 빌드**: Windows PC에서 `build_windows.bat` 더블클릭 →
+  `dist\AuditoryStimulusPlayer.exe` 생성.
+
+> 처음 실행 시 Windows SmartScreen 경고가 뜰 수 있습니다(서명되지 않은 exe).
+> "추가 정보 → 실행"으로 진행하면 됩니다.
+
+### 방법 B) 파이썬으로 실행 (개발/테스트용)
+
 ```bash
 pip install -r audio_stimulus_player/requirements.txt   # PySide6 설치
 python -m audio_stimulus_player                          # 실행
@@ -79,14 +94,33 @@ python -m audio_stimulus_player                          # 실행
 > 메인보드 내장 LPT, 또는 PCIe/ExpressCard 방식의 패러렐 카드를 써야 합니다.
 > 노트북에 물리 패러렐 포트가 없으면 아래 "트리거 인터페이스 박스"를 참고하세요.
 
-### 우리 장비: Compumedics Neuvo + CURRY
+### 우리 장비: Compumedics Neuvo + CURRY (매뉴얼로 확인된 사양)
 
-- Neuvo 증폭기는 **8bit TTL 트리거 입력(패러렐/LPT 방식)** 을 받으며,
-  보낸 코드는 **CURRY** 소프트웨어에 이벤트 마커로 기록됩니다.
-- 코드 범위는 **1~255** 를 쓰고, **0 은 "트리거 없음(리셋)"** 으로 취급합니다.
-  (이 프로그램은 트리거 후 자동으로 0으로 리셋합니다.)
-- CURRY 쪽에서 별도로 예약/금지된 코드가 있는지 실험 규약에 맞춰 코드 값을
-  [설정]에서 정하면 됩니다.
+`AC793-05 Neuvo User Guide` 기준 확정 사양:
+
+- **트리거 입력**: 8bit **Stimulus** TTL 입력 (사양서: "Digital (TTL) Inputs — 8 Bit
+  Stimulus, 8 Bit Response"). 보낸 코드(0~255)는 **CURRY** 에 이벤트로 기록됩니다.
+- **커넥터**: Neuvo 시스템 유닛의 **Trigger Connection = 남성 DB25**
+  ("Compumedics 표준 트리거 커넥터와 호환").
+- **트리거 핀 배열** (User Guide 3.9.8):
+
+  | DB25 핀 | 신호 | | DB25 핀 | 신호 |
+  |:---:|:---|---|:---:|:---|
+  | 1 | Trigger In 07 (MSB) | | 8 | Trigger In 00 (LSB) |
+  | 2 | Trigger In 06 | | 14,15 | +5VDC |
+  | 3 | Trigger In 05 | | 17~24 | Response In 07~00 (피험자 반응버튼) |
+  | 4~7 | Trigger In 04~01 | | 25 | Ground |
+
+- **코드 범위 1~255**, **0 = 트리거 없음(리셋)**. 이 프로그램은 트리거 후 자동으로
+  0으로 리셋하므로 CURRY 가 매 이벤트를 구분해 기록합니다.
+- Response In(17~24)은 피험자 반응버튼용이라 청각 자극 재생에는 쓰지 않습니다.
+
+> ⚠️ **케이블 주의 (중요)**: PC 패러렐 포트도 DB25 지만 **데이터 핀 배열이 다릅니다**
+> (PC LPT 는 데이터 D0~D7 이 핀 2~9). 그래서 **일반 DB25 스트레이트 케이블을 그대로
+> 꽂으면 코드가 어긋날 수 있습니다.** 반드시 **Compumedics 표준 트리거 케이블**(PC
+> 데이터핀 ↔ Neuvo Trigger In 매핑)을 사용하세요. [트리거 테스트]로 임의의 숫자를
+> 보냈을 때 CURRY 에 **같은 숫자**가 뜨는지 확인하면 케이블/매핑이 맞는지 검증됩니다.
+> (숫자가 뒤섞이거나 반전되면 케이블 배선 문제입니다.)
 
 **연결 방법 두 가지 — 노트북에 LPT 포트가 있는지로 갈립니다:**
 
