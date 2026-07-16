@@ -23,7 +23,7 @@ def _redirect_storage(tmp: Path) -> None:
 
 def test_config_roundtrip(tmp: Path) -> None:
     cfg = config.load_config()
-    assert cfg["trigger"]["type"] == "mock"
+    assert cfg["trigger"]["type"] == "parallel"
     cfg["trigger"]["type"] = "serial"
     cfg["trigger"]["codes"]["start"] = 42
     config.save_config(cfg)
@@ -96,7 +96,15 @@ def test_trigger_mock_and_fallback(tmp: Path) -> None:
     )
     assert svc2.init_error is not None
     svc2.start()  # 예외 없이 동작해야 함
-    print("  ✓ trigger mock 전송 + 장비 실패 시 자동 폴백")
+
+    # 패러렐 포트도 드라이버/포트가 없으면 자동 폴백돼야 함
+    svc3 = triggers.TriggerService(
+        {"type": "parallel", "parallel_address": "0x378",
+         "codes": {"start": 1, "stop": 2, "end": 3}, "pulse_ms": 0}
+    )
+    assert svc3.init_error is not None
+    svc3.start(); svc3.end()  # 예외 없이 동작
+    print("  ✓ trigger mock 전송 + 시리얼/패러렐 실패 시 자동 폴백")
 
 
 def main() -> int:

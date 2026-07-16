@@ -128,32 +128,106 @@ class LSLTrigger(TriggerBackend):
 
 
 class ParallelTrigger(TriggerBackend):
-    """패러렐 포트(LPT)로 8bit TTL 트리거를 보낸다."""
+    """패러렐 포트(LPT)의 데이터 핀(D0~D7)으로 8bit TTL 트리거를 보낸다.
+
+    EEG 증폭기의 트리거 입력이 패러렐 포트일 때 사용한다. 8개 데이터
+    핀에 코드(0~255)를 실어 보내고, pulse_ms 후 0으로 리셋한다.
+
+    구현 방식 (자동 선택):
+      - Windows : InpOut 드라이버(inpoutx64.dll / inpout32.dll)를 ctypes 로
+                  직접 호출. 실무 EEG 환경에서 가장 안정적으로 동작한다.
+                  드라이버는 http://www.highrez.co.uk/downloads/inpout32/
+                  에서 받아 설치(InstallDriver.exe)해야 한다.
+      - Linux   : pyparallel(/dev/parport)로 대체.
+
+    주소(address)는 장치 관리자에서 확인한 포트 I/O 주소(예: 0x378, 0x278,
+    또는 PCIe 카드가 할당한 0xDC00 등)를 그대로 넣으면 된다.
+    """
 
     name = "parallel"
 
     def __init__(self, address: int = 0x378, pulse_ms: int = 10):
+        self._pulse_s = max(0, pulse_ms) / 1000.0
+        self._address = address
+        self._impl = ""          # "inpout" | "pyparallel"
+        self._out = None         # code(int) -> None
+        self._close = lambda: None
+
+        errors: list[str] = []
+        import sys
+
+        if sys.platform.startswith("win"):
+            try:
+                self._init_inpout(address)
+                return
+            except Exception as exc:  # noqa: BLE001 - 다음 방식으로 폴백
+                errors.append(f"InpOut 드라이버: {exc}")
+
+        try:
+            self._init_pyparallel(address)
+            return
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"pyparallel: {exc}")
+
+        raise TriggerError(
+            f"패러렐 포트(0x{address:X}) 열기 실패 — " + " / ".join(errors)
+        )
+
+    def _init_inpout(self, address: int) -> None:
+        import ctypes
+
+        dll = None
+        last_err = None
+        for name in ("inpoutx64", "inpout32"):
+            try:
+                dll = ctypes.WinDLL(name)
+                break
+            except OSError as exc:
+                last_err = exc
+        if dll is None:
+            raise OSError(
+                "inpoutx64.dll / inpout32.dll 을 찾을 수 없습니다. "
+                "InpOut 드라이버를 설치하고 DLL을 프로그램 폴더나 시스템 경로에 두세요."
+            ) from last_err
+
+        # 드라이버가 실제로 열렸는지 확인(설치는 됐지만 미실행이면 여기서 걸림)
+        if hasattr(dll, "IsInpOutDriverOpen") and dll.IsInpOutDriverOpen() == 0:
+            raise OSError("InpOut 커널 드라이버가 열리지 않았습니다. 관리자 권한으로 설치했는지 확인하세요.")
+
+        out32 = dll.Out32
+        out32.argtypes = [ctypes.c_short, ctypes.c_short]
+        out32.restype = None
+        self._out = lambda val: out32(ctypes.c_short(address), ctypes.c_short(val & 0xFF))
+        self._impl = "inpout"
+
+    def _init_pyparallel(self, address: int) -> None:
         try:
             import parallel  # pyparallel
-        except ImportError as exc:  # pragma: no cover
-            raise TriggerError(
-                "패러렐 포트 트리거를 쓰려면 'pyparallel'을 설치하세요: "
-                "pip install pyparallel"
+        except ImportError as exc:
+            raise OSError(
+                "pyparallel 미설치 (pip install pyparallel)"
             ) from exc
-        self._pulse_s = max(0, pulse_ms) / 1000.0
-        try:
-            self._port = parallel.Parallel(address)
-        except Exception as exc:
-            raise TriggerError(f"패러렐 포트(0x{address:X}) 열기 실패: {exc}") from exc
+        port = parallel.Parallel(address)
+        self._out = lambda val: port.setData(val & 0xFF)
+        self._close = port.setData and (lambda: None)  # pyparallel엔 명시적 close 없음
+        self._impl = "pyparallel"
 
     def send(self, code: int) -> None:
-        self._port.setData(code & 0xFF)
+        self._out(code)
         if self._pulse_s:
+            # 다음 트리거와 구분되도록 잠깐 유지 후 0으로 리셋
             time.sleep(self._pulse_s)
-            self._port.setData(0)
+            self._out(0)
+
+    def close(self) -> None:
+        try:
+            self._out(0)  # 라인을 깨끗하게 0으로 남긴다
+        except Exception:
+            pass
 
     def describe(self) -> str:
-        return "패러렐 포트(LPT)"
+        via = {"inpout": "InpOut", "pyparallel": "pyparallel"}.get(self._impl, "")
+        return f"패러렐 포트 0x{self._address:X}" + (f" ({via})" if via else "")
 
 
 def create_backend(

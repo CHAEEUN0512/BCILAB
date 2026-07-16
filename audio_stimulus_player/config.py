@@ -18,11 +18,12 @@ PLAYLIST_PATH = APP_DIR / "playlist.json"
 # 기본 설정값
 DEFAULT_CONFIG = {
     "trigger": {
-        # mock  : 하드웨어 없이 화면 로그로만 확인 (테스트용, 기본값)
+        # parallel: 패러렐 포트(LPT) 8bit TTL — 우리 앰프가 이 방식 (기본값)
+        # mock  : 하드웨어 없이 화면 로그로만 확인 (테스트용)
         # serial: USB/시리얼 TTL 트리거 박스 (pyserial 필요)
         # lsl   : Lab Streaming Layer 마커 스트림 (pylsl 필요)
-        # parallel: 패러렐 포트(LPT) 8bit TTL (pyparallel 필요)
-        "type": "mock",
+        # 참고: 드라이버 미설치/주소 불일치 시 자동으로 테스트 모드로 폴백된다.
+        "type": "parallel",
         "serial_port": "COM3",
         "serial_baudrate": 115200,
         "parallel_address": "0x378",
