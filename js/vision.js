@@ -285,10 +285,10 @@ window.Vision = (function () {
    * 냉장칸 / 냉장고문 / 냉동칸을 각각 찍어 아래처럼 한 모델로 조립한다.
    *
    *   ┌───────────┬────┐
-   *   │  냉장칸    │ 문 │
-   *   ├───────────┤    │
-   *   │  냉동칸    │    │
-   *   └───────────┴────┘
+   *   │  냉장칸    │ 문 │   ← 문 포켓은 냉장칸 높이까지만.
+   *   ├───────────┼────┘      냉동칸은 서랍이라 문이 없다.
+   *   │  냉동칸    │
+   *   └───────────┘
    */
   var SECTIONS = [
     { id: 'fridge',  label: '냉장칸',   col: 'body' },
@@ -348,15 +348,17 @@ window.Vision = (function () {
     var hasDoor = !!(scans.door && scans.door.lines);
 
     var zones = [];
+    var doorTop = 0, doorHeight = 1;   // 문이 붙는 범위 = 냉장칸 범위
     if (hasFridge && hasFreezer) {
       zones = zones.concat(sectionZones('fridge', scans.fridge, 0, 0.62));
       zones = zones.concat(sectionZones('freezer', scans.freezer, 0.62, 0.38));
+      doorHeight = 0.62;
     } else if (hasFridge) {
       zones = zones.concat(sectionZones('fridge', scans.fridge, 0, 1));
     } else if (hasFreezer) {
       zones = zones.concat(sectionZones('freezer', scans.freezer, 0, 1));
     }
-    if (hasDoor) zones = zones.concat(sectionZones('door', scans.door, 0, 1));
+    if (hasDoor) zones = zones.concat(sectionZones('door', scans.door, doorTop, doorHeight));
     return zones;
   }
 

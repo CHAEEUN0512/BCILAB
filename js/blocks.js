@@ -84,11 +84,19 @@ window.Blocks = (function () {
       cum += h;
     });
 
+    // 문 포켓은 냉동칸이 시작되기 전(=냉장칸 구간)까지만 붙인다
+    var doorSpan = 1, acc = 0;
+    for (var k = 0; k < blocks.length; k++) {
+      if (blocks[k].type === 'freezer') { doorSpan = acc; break; }
+      acc += Number(blocks[k].units) / total;
+    }
+    if (doorSpan < 0.2) doorSpan = 1;   // 맨 위가 냉동칸이면 그냥 전체에 붙인다
+
     var dc = Number(doorCount) || 0;
     for (var d = 0; d < dc; d++) {
       out.push({
         id: Store.uid('z'), name: '도어 ' + (d + 1), type: 'door', col: 'door',
-        x: 0, y: d / dc, w: 1, h: 1 / dc
+        x: 0, y: doorSpan * d / dc, w: 1, h: doorSpan / dc
       });
     }
     return out;
