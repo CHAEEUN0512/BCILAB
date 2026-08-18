@@ -135,6 +135,8 @@
 
     Vision.analyze(file, opts).then(function (res) {
       res.file = file;
+      res.autoSplits = res.splits;
+      res.splitEdits = {};
       scans[section] = res;
       if (activeSection === section) showSectionPane();
       renderSectionTabs();
@@ -181,10 +183,38 @@
     refreshSplits();
   });
 
+  /* 좌우 칸막이는 자동 검출값(autoSplits)에 사용자 조정(splitEdits)을 덮어 쓴 결과를 쓴다.
+   * 조정은 칸의 세로 중심 위치로 키를 잡아, 경계선을 조금 움직여도 유지된다. */
+  function bandKey(mid) { return Math.round(mid * 20); }
+
+  function applySplitEdits(sc) {
+    var ys = [0].concat(sc.lines.map(function (l) { return l.y; })).concat([1]);
+    var edits = sc.splitEdits || (sc.splitEdits = {});
+    sc.splits = [];
+    for (var i = 0; i < ys.length - 1; i++) {
+      var auto = (sc.autoSplits && sc.autoSplits[i]) || [];
+      var e = edits[bandKey((ys[i] + ys[i + 1]) / 2)];
+      if (e && e.removed) sc.splits.push([]);
+      else if (e && typeof e.x === 'number') sc.splits.push([e.x]);
+      else sc.splits.push(auto);
+    }
+  }
+
+  function editSplit(bandIndex, patch) {
+    var sc = current();
+    if (!sc) return;
+    var ys = [0].concat(sc.lines.map(function (l) { return l.y; })).concat([1]);
+    sc.splitEdits[bandKey((ys[bandIndex] + ys[bandIndex + 1]) / 2)] = patch;
+    applySplitEdits(sc);
+    renderLines();
+    renderScanPreview();
+  }
+
   function refreshSplits() {
     var sc = current();
     if (!sc) return;
-    sc.splits = Vision.findSplits(sc.lines, sc.ctx);
+    sc.autoSplits = Vision.findSplits(sc.lines, sc.ctx);
+    applySplitEdits(sc);
     renderLines();
     renderSectionTabs();
     renderScanPreview();
@@ -238,16 +268,57 @@
     });
 
     var ys = [0].concat(sc.lines.map(function (l) { return l.y; })).concat([1]);
-    (sc.splits || []).forEach(function (sp, i) {
-      (sp || []).forEach(function (x) {
-        var v = document.createElement('div');
-        v.className = 'split-line';
-        v.style.left = (x * 100) + '%';
-        v.style.top = (ys[i] * 100) + '%';
-        v.style.height = ((ys[i + 1] - ys[i]) * 100) + '%';
-        layer.appendChild(v);
-      });
-    });
+
+    for (var bi = 0; bi < ys.length - 1; bi++) {
+      (function (i) {
+        var top = ys[i], height = ys[i + 1] - ys[i];
+        var sp = (sc.splits && sc.splits[i]) || [];
+
+        // 칸막이 (드래그로 좌우 이동)
+        sp.forEach(function (x) {
+          var v = document.createElement('div');
+          v.className = 'split-line';
+          v.style.left = (x * 100) + '%';
+          v.style.top = (top * 100) + '%';
+          v.style.height = (height * 100) + '%';
+          v.addEventListener('pointerdown', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            v.setPointerCapture(e.pointerId);
+            var box = $('#photo-editor').getBoundingClientRect();
+            var nx = x;
+            function move(ev) {
+              nx = Math.max(0.12, Math.min(0.88, (ev.clientX - box.left) / box.width));
+              v.style.left = (nx * 100) + '%';
+            }
+            function up() {
+              v.removeEventListener('pointermove', move);
+              v.removeEventListener('pointerup', up);
+              v.removeEventListener('pointercancel', up);
+              editSplit(i, { x: nx });
+            }
+            v.addEventListener('pointermove', move);
+            v.addEventListener('pointerup', up);
+            v.addEventListener('pointercancel', up);
+          });
+          layer.appendChild(v);
+        });
+
+        // 칸마다 좌우 나누기 / 합치기
+        if (height > 0.07) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'band-btn' + (sp.length ? ' on' : '');
+          btn.textContent = sp.length ? '좌우 합치기' : '좌우 나누기';
+          btn.style.top = ((top + height / 2) * 100) + '%';
+          btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            editSplit(i, sp.length ? { removed: true } : { x: 0.5 });
+          });
+          layer.appendChild(btn);
+        }
+      })(bi);
+    }
   }
 
   function okey(z) {

@@ -110,7 +110,25 @@ em{font-style:normal;color:var(--brand)}
   .shelf-line .grip{height:28px;top:-14px;font-size:12px;padding:0 11px}
   .shelf-line::after{top:-16px;height:32px}
 }
-.split-line{position:absolute;width:0;border-left:2px dashed rgba(90,209,196,.75);pointer-events:none}
+/* 좌우 칸막이 — 끌어서 옮길 수 있게 폭 있는 손잡이를 준다 */
+.split-line{position:absolute;width:26px;transform:translateX(-13px);cursor:ew-resize;touch-action:none;z-index:1}
+.split-line::before{content:"";position:absolute;left:12px;top:0;bottom:0;
+  border-left:2px dashed rgba(90,209,196,.85)}
+.split-line::after{content:"⇔";position:absolute;left:50%;top:22%;transform:translate(-50%,-50%);
+  width:26px;height:26px;border-radius:50%;background:rgba(10,14,20,.85);border:1px solid var(--brand);
+  color:var(--brand);font-size:12px;display:flex;align-items:center;justify-content:center}
+/* 칸마다 좌우 나누기 / 합치기 */
+.band-btn{position:absolute;left:50%;transform:translate(-50%,-50%);z-index:3;cursor:pointer;
+  background:rgba(10,14,20,.82);border:1px solid var(--line);color:var(--ink-dim);
+  border-radius:999px;padding:5px 12px;font-size:11.5px;white-space:nowrap}
+.band-btn:hover{border-color:var(--brand);color:var(--ink)}
+.band-btn.on{border-color:var(--brand);color:var(--brand)}
+@media (pointer:coarse){
+  .band-btn{padding:8px 15px;font-size:13px}
+  .split-line{width:34px;transform:translateX(-17px)}
+  .split-line::before{left:16px}
+  .split-line::after{width:32px;height:32px;font-size:14px}
+}
 .hint{color:var(--ink-faint);font-size:12.5px;margin-top:10px}
 
 .preview-col h3{font-size:14px;color:var(--ink-dim);margin-bottom:10px}
