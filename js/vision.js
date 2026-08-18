@@ -206,20 +206,23 @@ window.Vision = (function () {
     return { lines: lines, confidence: conf };
   }
 
-  /* ── 4) 구간별 세로 칸막이 ── */
+  /* ── 4) 구간별 세로 칸막이 ──
+   * lines 의 y 는 '사진 전체' 기준 0~1. 세로 탐색은 내부 영역(ROI) 폭에서만 하고,
+   * 결과 x 는 다시 사진 전체 기준으로 돌려준다. */
   function findSplits(lines, ctx) {
     if (!ctx) return [];
-    var g = ctx.gray, w = ctx.w, roi = ctx.roi;
-    var x0 = roi.x0, x1 = roi.x1, y0 = roi.y0, y1 = roi.y1;
-    var RH = y1 - y0, RW = x1 - x0;
+    var g = ctx.gray, w = ctx.w, h = ctx.h, roi = ctx.roi;
+    var x0 = roi.x0, x1 = roi.x1;
+    var RW = x1 - x0;
     var ys = [0].concat(lines.map(function (l) { return l.y; })).concat([1]);
     var out = [];
 
     for (var b = 0; b < ys.length - 1; b++) {
-      var by0 = y0 + Math.round(ys[b] * RH) + 2;
-      var by1 = y0 + Math.round(ys[b + 1] * RH) - 2;
+      // 밴드를 픽셀 좌표로 바꾼 뒤 내부 영역 세로 범위로 자른다
+      var by0 = Math.max(roi.y0, Math.round(ys[b] * h)) + 2;
+      var by1 = Math.min(roi.y1, Math.round(ys[b + 1] * h)) - 2;
       var bh = by1 - by0;
-      if (bh < Math.max(8, RH * 0.06)) { out.push([]); continue; }
+      if (bh < Math.max(8, (roi.y1 - roi.y0) * 0.06)) { out.push([]); continue; }
 
       var k = Math.max(2, Math.round(RW * 0.012));
       var sup = new Float32Array(RW);
@@ -239,26 +242,23 @@ window.Vision = (function () {
         }
       }
       // 구간 대부분을 세로로 관통할 때만 칸막이로 인정
-      out.push(best && best.s > 0.55 ? [best.i / RW] : []);
+      out.push(best && best.s > 0.55 ? [(x0 + best.i) / w] : []);
     }
     return out;
   }
 
   /* ROI를 잘라 저장용 사진 만들기 */
-  function cropPhoto(img, roi, aw, ah, rotate) {
-    // 회전을 먼저 적용한 전체 이미지를 만든 뒤 ROI만 잘라낸다
+  /* 저장·표시용 사진 — 자르지 않는다.
+   * 인식 영역(ROI)으로 잘라내면 가장자리 내용물이 사라져 사용자가 사진 전체를 볼 수 없다.
+   * 대신 선 위치를 사진 전체 좌표로 환산해 두므로 도면과도 그대로 맞는다. */
+  var PHOTO_EDGE = 800;
+  function renderPhoto(img, rotate) {
     var src = rotatedSize(img, rotate);
-    var full = document.createElement('canvas');
-    full.width = src.w; full.height = src.h;
-    drawRotated(full.getContext('2d'), img, rotate, src.w, src.h);
-
-    var sx = src.w / aw, sy = src.h / ah;
-    var sw = (roi.x1 - roi.x0) * sx, sh = (roi.y1 - roi.y0) * sy;
-    var scale = Math.min(1, CROP_W / sw);
+    var scale = Math.min(1, PHOTO_EDGE / Math.max(src.w, src.h));
     var cv = document.createElement('canvas');
-    cv.width = Math.max(1, Math.round(sw * scale));
-    cv.height = Math.max(1, Math.round(sh * scale));
-    cv.getContext('2d').drawImage(full, roi.x0 * sx, roi.y0 * sy, sw, sh, 0, 0, cv.width, cv.height);
+    cv.width = Math.max(1, Math.round(src.w * scale));
+    cv.height = Math.max(1, Math.round(src.h * scale));
+    drawRotated(cv.getContext('2d'), img, rotate, cv.width, cv.height);
     try { return cv.toDataURL('image/jpeg', 0.72); } catch (e) { return null; }
   }
 
@@ -276,14 +276,17 @@ window.Vision = (function () {
         : findRoi(gd.gray, gd.w, gd.h);
       var ctx = { gray: gd.gray, w: gd.w, h: gd.h, roi: roi };
       var sh = findShelves(gd.gray, gd.w, roi);
+      // 인식은 내부 영역에서 했지만, 좌표는 사진 전체 기준으로 환산해 둔다
+      var rh = (roi.y1 - roi.y0) / gd.h, ry = roi.y0 / gd.h;
+      var lines = sh.lines.map(function (l) { return { y: ry + l.y * rh, score: l.score }; });
       return {
         ctx: ctx,
         rotate: rotate,
         fullFrame: !!opts.fullFrame,
-        roi: { x0: roi.x0 / gd.w, x1: roi.x1 / gd.w, y0: roi.y0 / gd.h, y1: roi.y1 / gd.h },
-        photo: cropPhoto(img, roi, gd.w, gd.h, rotate),
-        lines: sh.lines,
-        splits: findSplits(sh.lines, ctx),
+        roi: { x0: roi.x0 / gd.w, x1: roi.x1 / gd.w, y0: ry, y1: roi.y1 / gd.h },
+        photo: renderPhoto(img, rotate),
+        lines: lines,
+        splits: findSplits(lines, ctx),
         confidence: sh.confidence
       };
     });
