@@ -483,6 +483,7 @@
     $('#item-unit').value = '개';
     $('#submit-item').textContent = '칸에 담기';
     $('#cancel-edit').hidden = true;
+    catTouched = false;
   }
   $('#cancel-edit').addEventListener('click', clearForm);
 
@@ -505,6 +506,169 @@
     else { Store.addItem(data); toast(name + ' 담았어요.'); }
     clearForm();
     renderAll();
+  });
+
+  /* ─────────────── AI 품목 인식 ─────────────── */
+  var aiResult = null;   // 현재 화면에 떠 있는 인식 결과
+
+  function openModal(id) { $('#' + id).hidden = false; }
+  function closeModal(id) { $('#' + id).hidden = true; }
+  $$('[data-close-modal]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var m = b.closest('.modal');
+      if (m) m.hidden = true;
+    });
+  });
+  $$('.modal').forEach(function (m) {
+    m.addEventListener('click', function (e) { if (e.target === m) m.hidden = true; });
+  });
+
+  function aiKeyHint() {
+    $('#ai-key-hint').innerHTML = AI.hasKey()
+      ? 'Claude 비전 모델이 품목을 읽어 후보 목록을 만듭니다'
+      : 'API 키를 등록하면 실제 판독이 됩니다 (메뉴 → AI 인식 설정)';
+  }
+
+  function openScanItems() {
+    var z = Store.zone(selectedZoneId);
+    if (!z) { toast('먼저 칸을 선택해 주세요.'); return; }
+    aiResult = null;
+    $('#scan-target').textContent = z.name;
+    $('#ai-pick').hidden = false;
+    $('#ai-busy').hidden = true;
+    $('#ai-result').hidden = true;
+    $('#ai-foot').hidden = true;
+    aiKeyHint();
+    renderDemoButtons();
+    openModal('modal-scan');
+  }
+  $('#btn-scan-items').addEventListener('click', openScanItems);
+  $('#ai-back').addEventListener('click', function () {
+    $('#ai-pick').hidden = false;
+    $('#ai-result').hidden = true;
+    $('#ai-foot').hidden = true;
+  });
+
+  function renderDemoButtons() {
+    var wrap = $('#ai-demo-buttons');
+    wrap.innerHTML = '';
+    (window.AIDemo || []).forEach(function (d) {
+      var b = document.createElement('button');
+      b.className = 'chip';
+      b.textContent = d.title.replace('샘플 ', '');
+      b.addEventListener('click', function () { showAIResult(d); });
+      wrap.appendChild(b);
+    });
+  }
+
+  var aiFile = $('#ai-file');
+  $('#ai-dropzone').addEventListener('click', function (e) {
+    if (e.target !== aiFile) { e.preventDefault(); aiFile.click(); }
+  });
+  aiFile.addEventListener('change', function () {
+    var f = aiFile.files && aiFile.files[0];
+    if (!f) return;
+    if (!AI.hasKey()) { toast('먼저 메뉴 → AI 인식 설정에서 API 키를 등록해 주세요.'); return; }
+    $('#ai-pick').hidden = true;
+    $('#ai-busy').hidden = false;
+    $('#ai-busy-sub').textContent = AI.MODEL + ' 호출 중 · 보통 10~20초';
+    AI.recognize(f).then(function (res) {
+      $('#ai-busy').hidden = true;
+      showAIResult(res);
+    }).catch(function (err) {
+      $('#ai-busy').hidden = true;
+      $('#ai-pick').hidden = false;
+      toast('인식 실패: ' + err.message);
+    });
+    aiFile.value = '';
+  });
+
+  function showAIResult(res) {
+    aiResult = res;
+    $('#ai-pick').hidden = true;
+    $('#ai-busy').hidden = true;
+    $('#ai-result').hidden = false;
+    $('#ai-foot').hidden = false;
+    $('#ai-summary').textContent = (res.title ? res.title + ' — ' : '') + (res.summary || '');
+    $('#ai-unident').textContent = res.unidentified_count
+      ? '가려지거나 불투명해서 특정하지 못한 물건 ' + res.unidentified_count + '개. ' + (res.unidentified_note || '')
+      : '';
+    $('#ai-unident').hidden = !res.unidentified_count;
+
+    var ul = $('#ai-candidates');
+    ul.innerHTML = '';
+    (res.items || []).forEach(function (row, i) {
+      var cat = Store.category(row.category);
+      var conf = Math.round((row.confidence || 0) * 100);
+      var cls = conf >= 70 ? '' : conf >= 45 ? ' mid' : ' low';
+      var li = document.createElement('li');
+      li.className = 'cand' + (conf < 45 ? ' off' : '');
+      li.innerHTML =
+        '<input type="checkbox" ' + (conf >= 45 ? 'checked' : '') + ' />' +
+        '<span class="emo">' + cat.emoji + '</span>' +
+        '<span><span class="nm"></span><span class="meta"></span></span>' +
+        '<span class="conf' + cls + '">' + conf + '%</span>';
+      li.querySelector('.nm').textContent = row.name + (row.qty > 1 ? '  ×' + row.qty : '');
+      var days = row.shelf_life_days > 0 ? row.shelf_life_days : AI.suggestShelfLife(row.name, row.category);
+      var meta = [cat.label, '소비기한 제안 D+' + days];
+      if (row.label_text) meta.push('“' + row.label_text + '”');
+      else if (row.note) meta.push(row.note);
+      li.querySelector('.meta').textContent = meta.join(' · ');
+      var cb = li.querySelector('input');
+      cb.addEventListener('change', function () { li.classList.toggle('off', !cb.checked); });
+      li.dataset.index = i;
+      ul.appendChild(li);
+    });
+  }
+
+  $('#ai-commit').addEventListener('click', function () {
+    if (!aiResult || !selectedZoneId) return;
+    var n = 0;
+    $$('#ai-candidates .cand').forEach(function (li) {
+      if (!li.querySelector('input').checked) return;
+      var row = aiResult.items[Number(li.dataset.index)];
+      Store.addItem(AI.toDraft(row, selectedZoneId));
+      n++;
+    });
+    closeModal('modal-scan');
+    renderAll();
+    toast(n ? n + '개 품목을 담았어요. 소비기한은 제안값이니 확인해 주세요.' : '선택된 품목이 없습니다.');
+  });
+
+  /* AI 설정 */
+  function openKeyModal() {
+    $('#ai-model-name').textContent = AI.MODEL;
+    $('#ai-key-input').value = AI.getKey();
+    openModal('modal-key');
+  }
+  $('#ai-key-save').addEventListener('click', function () {
+    AI.setKey($('#ai-key-input').value);
+    closeModal('modal-key');
+    aiKeyHint();
+    toast(AI.hasKey() ? 'API 키를 저장했어요.' : '키를 비웠습니다.');
+  });
+  $('#ai-key-clear').addEventListener('click', function () {
+    AI.setKey('');
+    $('#ai-key-input').value = '';
+    aiKeyHint();
+    toast('키를 삭제했어요.');
+  });
+
+  /* 이름을 적으면 카테고리와 소비기한을 먼저 제안 (수동 입력도 빠르게) */
+  var catTouched = false;
+  $('#item-cat').addEventListener('change', function () { catTouched = true; });
+  $('#item-name').addEventListener('blur', function () {
+    var name = this.value.trim();
+    if (!name || $('#item-id').value) return;
+    if (!catTouched) {
+      var guess = AI.suggestCategory(name);
+      if (guess) $('#item-cat').value = guess;
+    }
+    if (!$('#item-exp').value) {
+      var days = AI.suggestShelfLife(name, $('#item-cat').value);
+      $('#item-exp').value = todayPlus(days);
+      $('#item-exp').title = '추천 소비기한 (D+' + days + ') — 실제 표기로 고쳐주세요';
+    }
   });
 
   /* 검색 · 이름 · 메뉴 */
@@ -530,7 +694,9 @@
     b.addEventListener('click', function () {
       menuPop.hidden = true;
       var a = b.dataset.menu;
-      if (a === 'rebuild') {
+      if (a === 'aikey') {
+        openKeyModal();
+      } else if (a === 'rebuild') {
         show('welcome');
         $('#welcome-resume-wrap').hidden = false;
       } else if (a === 'export') {

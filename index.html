@@ -153,6 +153,7 @@
         <button class="ghost" id="btn-menu">⋯</button>
         <div class="menu-pop" id="menu-pop" hidden>
           <button data-menu="rebuild">구조 다시 만들기</button>
+          <button data-menu="aikey">AI 인식 설정</button>
           <button data-menu="export">JSON 내보내기</button>
           <button data-menu="import">JSON 가져오기</button>
           <button data-menu="reset" class="danger">전체 초기화</button>
@@ -181,6 +182,7 @@
 
       <div class="tab-pane" data-pane="zone">
         <div class="zone-head" id="zone-head"></div>
+        <button class="scan-items-btn" id="btn-scan-items">📸 사진으로 이 칸 채우기 <span class="sub">AI가 품목을 읽어 후보를 만들어줍니다</span></button>
         <form class="add-form" id="add-form">
           <input type="hidden" id="item-id" />
           <div class="row">
@@ -224,12 +226,79 @@
   <input type="file" id="import-input" accept="application/json" hidden />
 </section>
 
+<!-- ─────────────── AI 품목 인식 모달 ─────────────── -->
+<div class="modal" id="modal-scan" hidden>
+  <div class="modal-card">
+    <header class="modal-head">
+      <strong>📸 사진으로 품목 담기</strong>
+      <span class="modal-zone" id="scan-target"></span>
+      <button class="ghost" data-close-modal>✕</button>
+    </header>
+
+    <div class="modal-body">
+      <div class="pane" id="ai-pick">
+        <label class="dropzone slim" id="ai-dropzone">
+          <input type="file" id="ai-file" accept="image/*" capture="environment" hidden />
+          <span class="dz-icon">📷</span>
+          <span class="dz-title">칸 사진을 찍거나 선택</span>
+          <span class="dz-desc" id="ai-key-hint"></span>
+        </label>
+        <div class="demo-block">
+          <p class="demo-title">API 키 없이 먼저 보기 — 실제 냉장고 사진 판독 샘플</p>
+          <div class="demo-buttons" id="ai-demo-buttons"></div>
+        </div>
+      </div>
+
+      <div class="pane" id="ai-busy" hidden>
+        <p class="busy">사진을 판독하는 중…<br /><span class="tiny" id="ai-busy-sub"></span></p>
+      </div>
+
+      <div class="pane" id="ai-result" hidden>
+        <p class="ai-summary" id="ai-summary"></p>
+        <ul class="cand-list" id="ai-candidates"></ul>
+        <p class="ai-warn" id="ai-unident"></p>
+      </div>
+    </div>
+
+    <footer class="modal-foot" id="ai-foot" hidden>
+      <button class="ghost" id="ai-back">다른 사진</button>
+      <button class="primary" id="ai-commit">선택한 품목 담기</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ─────────────── AI 설정 모달 ─────────────── -->
+<div class="modal" id="modal-key" hidden>
+  <div class="modal-card narrow">
+    <header class="modal-head">
+      <strong>AI 인식 설정</strong>
+      <button class="ghost" data-close-modal>✕</button>
+    </header>
+    <div class="modal-body">
+      <p class="tiny dim">
+        사진 판독은 Claude 비전 모델(<code id="ai-model-name"></code>)을 브라우저에서 직접 호출합니다.
+        키는 이 브라우저의 localStorage에만 저장되고 다른 서버로 전송되지 않지만,
+        <b>브라우저에 키를 두는 것은 안전한 방식이 아닙니다.</b> 본인 기기에서 개인용으로만 쓰고,
+        쓰지 않을 땐 지워두세요. 공용 PC에서는 등록하지 마세요.
+      </p>
+      <input id="ai-key-input" class="key-input" type="password" placeholder="sk-ant-..." autocomplete="off" />
+      <div class="key-actions">
+        <button class="ghost" id="ai-key-clear">키 삭제</button>
+        <button class="primary" id="ai-key-save">저장</button>
+      </div>
+      <p class="tiny dim">키 없이도 아래 샘플 판독 결과로 기능을 그대로 체험할 수 있습니다.</p>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" hidden></div>
 
 <script src="js/store.js"></script>
 <script src="js/render.js"></script>
 <script src="js/vision.js"></script>
 <script src="js/blocks.js"></script>
+<script src="js/ai-demo.js"></script>
+<script src="js/ai.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
