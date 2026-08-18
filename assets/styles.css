@@ -321,3 +321,20 @@ code{background:var(--panel-2);border-radius:5px;padding:1px 5px;font-size:11.5p
   padding:7px 14px;font-size:12.5px;color:var(--ink-dim)}
 .ios-tip b{color:var(--ink)}
 .ios-tip .share-icon{font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+
+/* 칸 옮기기 */
+.mini-label.wide{flex:1}
+.mini-label.wide select{flex:1;min-width:0}
+.zone-picker{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:60dvh;overflow:auto}
+.zone-picker button{width:100%;display:flex;align-items:center;gap:9px;text-align:left;cursor:pointer;
+  background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius-sm);padding:11px 13px;font-size:14px}
+.zone-picker button:hover{border-color:var(--brand)}
+.zone-picker button.current{border-color:var(--brand);color:var(--brand);cursor:default}
+.zone-picker .sec{color:var(--ink-faint);font-size:11.5px}
+.zone-picker .cnt{margin-left:auto;color:var(--ink-faint);font-size:11.5px}
+.item .acts button.move{font-size:14px}
+
+@media (pointer:coarse){
+  .item .acts button{width:34px;height:34px}
+  .item .acts{gap:6px}
+}

@@ -163,7 +163,7 @@ window.Store = (function () {
     save();
   }
 
-  /* ── 유통기한 ── */
+  /* ── 소비기한 ── */
   function startOfToday() { var d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }
 
   function daysLeft(item) {

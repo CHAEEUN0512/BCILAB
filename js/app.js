@@ -422,6 +422,60 @@
   });
 
   /* ─────────────── 메인 앱 ─────────────── */
+  var SECTION_LABEL = { fridge: '냉장칸', door: '냉장고문', freezer: '냉동칸' };
+  function zoneLabel(z) {
+    if (!z) return '';
+    var sec = SECTION_LABEL[z.section];
+    return (sec ? sec + ' · ' : '') + z.name;
+  }
+
+  /* 담을 칸 선택 (입력 폼) */
+  function renderZoneSelect() {
+    var st = Store.get();
+    var sel = $('#item-zone');
+    if (!st || !sel) return;
+    var keep = sel.value;
+    sel.innerHTML = '';
+    st.zones.forEach(function (z) {
+      var o = document.createElement('option');
+      o.value = z.id;
+      o.textContent = (Store.ZONE_TYPES[z.type] || Store.ZONE_TYPES.shelf).emoji + ' ' + zoneLabel(z);
+      sel.appendChild(o);
+    });
+    sel.value = (keep && Store.zone(keep)) ? keep : selectedZoneId;
+  }
+
+  /* 항목을 다른 칸으로 옮기기 */
+  var movingItemId = null;
+  function openMove(item) {
+    movingItemId = item.id;
+    $('#move-item-name').textContent = item.name;
+    var ul = $('#move-zone-list');
+    ul.innerHTML = '';
+    Store.get().zones.forEach(function (z) {
+      var li = document.createElement('li');
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = z.id === item.zoneId ? 'current' : '';
+      var t = Store.ZONE_TYPES[z.type] || Store.ZONE_TYPES.shelf;
+      b.innerHTML = '<span>' + t.emoji + '</span><span></span><span class="cnt"></span>';
+      b.children[1].textContent = zoneLabel(z) + (z.id === item.zoneId ? ' (지금 여기)' : '');
+      b.children[2].textContent = Store.itemsOf(z.id).length + '개';
+      if (z.id !== item.zoneId) {
+        b.addEventListener('click', function () {
+          Store.updateItem(movingItemId, { zoneId: z.id });
+          $('#modal-move').hidden = true;
+          selectedZoneId = z.id;
+          renderAll();
+          toast(item.name + ' → ' + zoneLabel(z) + ' 로 옮겼어요.');
+        });
+      }
+      li.appendChild(b);
+      ul.appendChild(li);
+    });
+    $('#modal-move').hidden = false;
+  }
+
   function openMain() {
     var st = Store.get();
     if (!st) { show('welcome'); return; }
@@ -453,6 +507,7 @@
         }
       }
     });
+    renderZoneSelect();
     renderZonePane();
     renderAlerts();
     renderAllList();
@@ -478,8 +533,9 @@
         '<span class="sub"></span>' +
       '</span>' +
       '<span class="acts">' +
-        '<button class="edit" title="편집">✎</button>' +
-        '<button class="del" title="삭제">✕</button>' +
+        '<button class="move" title="다른 칸으로 옮기기" aria-label="다른 칸으로 옮기기">⇄</button>' +
+        '<button class="edit" title="편집" aria-label="편집">✎</button>' +
+        '<button class="del" title="삭제" aria-label="삭제">✕</button>' +
       '</span>';
     var nm = li.querySelector('.nm');
     nm.textContent = it.name;
@@ -491,6 +547,7 @@
       nm.appendChild(b);
     }
     li.querySelector('.sub').textContent = sub.join(' · ');
+    li.querySelector('.move').addEventListener('click', function () { openMove(it); });
     li.querySelector('.del').addEventListener('click', function () {
       Store.removeItem(it.id);
       renderAll();
@@ -611,6 +668,8 @@
     $('#item-unit').value = it.unit;
     $('#item-exp').value = it.expiresAt || '';
     $('#item-memo').value = it.memo || '';
+    renderZoneSelect();
+    $('#item-zone').value = it.zoneId;
     $('#submit-item').textContent = '수정 저장';
     $('#cancel-edit').hidden = false;
     $('#item-name').focus();
@@ -624,6 +683,8 @@
     $('#submit-item').textContent = '칸에 담기';
     $('#cancel-edit').hidden = true;
     catTouched = false;
+    renderZoneSelect();
+    if ($('#item-zone') && selectedZoneId) $('#item-zone').value = selectedZoneId;
   }
   $('#cancel-edit').addEventListener('click', clearForm);
 
@@ -632,8 +693,9 @@
     var name = $('#item-name').value.trim();
     if (!name) return;
     if (!selectedZoneId) { toast('먼저 칸을 선택해 주세요.'); return; }
+    var targetZone = $('#item-zone').value || selectedZoneId;
     var data = {
-      zoneId: selectedZoneId,
+      zoneId: targetZone,
       name: name,
       category: $('#item-cat').value,
       qty: $('#item-qty').value,
@@ -642,8 +704,10 @@
       memo: $('#item-memo').value
     };
     var id = $('#item-id').value;
-    if (id) { Store.updateItem(id, data); toast('수정했어요.'); }
-    else { Store.addItem(data); toast(name + ' 담았어요.'); }
+    var moved = targetZone !== selectedZoneId;
+    if (id) { Store.updateItem(id, data); toast(moved ? '수정하고 ' + zoneLabel(Store.zone(targetZone)) + ' 로 옮겼어요.' : '수정했어요.'); }
+    else { Store.addItem(data); toast(name + (moved ? ' → ' + zoneLabel(Store.zone(targetZone)) : '') + ' 담았어요.'); }
+    if (moved) selectedZoneId = targetZone;
     clearForm();
     renderAll();
   });

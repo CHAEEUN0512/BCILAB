@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>냉장고 재고 정리 · Fridge Keeper</title>
-<meta name="description" content="냉장고 사진 한 장으로 칸 구조를 자동으로 파악하고, 칸마다 식재료 재고와 유통기한을 관리하는 앱" />
+<meta name="description" content="냉장고 사진 한 장으로 칸 구조를 자동으로 파악하고, 칸마다 식재료 재고와 소비기한을 관리하는 앱" />
 <meta name="theme-color" content="#0f1520" />
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
@@ -24,7 +24,7 @@
     <h1>냉장고를 <em>찍으면</em><br />칸 구조부터 잡아드려요</h1>
     <p class="hero-sub">
       사진 한 장이면 선반·서랍 위치를 자동으로 읽어 내 냉장고 모델을 만들고,
-      그 위에 재고와 유통기한을 얹습니다.
+      그 위에 재고와 소비기한을 얹습니다.
     </p>
 
     <div class="start-grid">
@@ -183,7 +183,7 @@
     <aside class="side-col">
       <div class="tabs">
         <button class="tab active" data-tab="zone">선택한 칸</button>
-        <button class="tab" data-tab="alerts">유통기한</button>
+        <button class="tab" data-tab="alerts">소비기한</button>
         <button class="tab" data-tab="all">전체 목록</button>
       </div>
 
@@ -201,7 +201,7 @@
             <input id="item-unit" placeholder="단위" value="개" maxlength="6" />
           </div>
           <div class="row">
-            <label class="mini-label">유통기한
+            <label class="mini-label">소비기한
               <input id="item-exp" type="date" />
             </label>
             <div class="quick-dates">
@@ -212,6 +212,11 @@
           </div>
           <div class="row">
             <input id="item-memo" placeholder="메모 (선택)" maxlength="60" />
+          </div>
+          <div class="row">
+            <label class="mini-label wide">담을 칸
+              <select id="item-zone"></select>
+            </label>
           </div>
           <div class="row form-actions">
             <button class="primary" type="submit" id="submit-item">칸에 담기</button>
@@ -294,6 +299,20 @@
         <button class="primary" id="ai-key-save">저장</button>
       </div>
       <p class="tiny dim">키 없이도 아래 샘플 판독 결과로 기능을 그대로 체험할 수 있습니다.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────── 칸 옮기기 ─────────────── -->
+<div class="modal" id="modal-move" hidden>
+  <div class="modal-card narrow">
+    <header class="modal-head">
+      <strong>칸 옮기기</strong>
+      <span class="modal-zone" id="move-item-name"></span>
+      <button class="ghost" data-close-modal>✕</button>
+    </header>
+    <div class="modal-body">
+      <ul class="zone-picker" id="move-zone-list"></ul>
     </div>
   </div>
 </div>
