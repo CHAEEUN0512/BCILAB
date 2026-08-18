@@ -101,6 +101,7 @@
       var word = pct >= 65 ? '또렷하게' : pct >= 35 ? '대략' : '희미하게';
       $('#conf-chip').innerHTML = meta.label + ' · 경계 <b>' + sc.lines.length + '개</b> ' + word +
         ' 인식 · 신뢰도 <b>' + pct + '%</b>';
+      $('#btn-full-frame').classList.toggle('on', !!sc.fullFrame);
       renderLines();
     }
     renderScanPreview();
@@ -111,18 +112,19 @@
     if (e.target !== fileInput) { e.preventDefault(); fileInput.click(); }
   });
   fileInput.addEventListener('change', function () {
-    if (fileInput.files && fileInput.files[0]) handlePhoto(fileInput.files[0], 0);
+    if (fileInput.files && fileInput.files[0]) handlePhoto(fileInput.files[0], {});
     fileInput.value = '';
   });
   ['dragover', 'dragleave', 'drop'].forEach(function (ev) {
     $('#dropzone').addEventListener(ev, function (e) {
       e.preventDefault();
       $('#dropzone').classList.toggle('drag', ev === 'dragover');
-      if (ev === 'drop' && e.dataTransfer.files[0]) handlePhoto(e.dataTransfer.files[0], 0);
+      if (ev === 'drop' && e.dataTransfer.files[0]) handlePhoto(e.dataTransfer.files[0], {});
     });
   });
 
-  function handlePhoto(file, rotate) {
+  function handlePhoto(file, opts) {
+    opts = opts || {};
     if (!/^image\//.test(file.type)) { toast('이미지 파일만 올릴 수 있어요.'); return; }
     var section = activeSection;
     $('#scan-upload').hidden = true;
@@ -131,7 +133,7 @@
     $('#photo-preview').removeAttribute('src');
     $('#lines-layer').innerHTML = '';
 
-    Vision.analyze(file, rotate).then(function (res) {
+    Vision.analyze(file, opts).then(function (res) {
       res.file = file;
       scans[section] = res;
       if (activeSection === section) showSectionPane();
@@ -148,7 +150,13 @@
   $('#btn-rotate').addEventListener('click', function () {
     var sc = current();
     if (!sc || !sc.file) return;
-    handlePhoto(sc.file, (sc.rotate + 90) % 360);
+    handlePhoto(sc.file, { rotate: (sc.rotate + 90) % 360, fullFrame: sc.fullFrame });
+  });
+  /* 자동으로 잡은 내부 영역이 사진을 잘라낼 때, 사진 전체를 그대로 쓰게 하는 토글 */
+  $('#btn-full-frame').addEventListener('click', function () {
+    var sc = current();
+    if (!sc || !sc.file) return;
+    handlePhoto(sc.file, { rotate: sc.rotate, fullFrame: !sc.fullFrame });
   });
   $('#btn-repick').addEventListener('click', function () {
     $('#scan-upload').hidden = false;
@@ -192,7 +200,8 @@
       var d = document.createElement('div');
       d.className = 'shelf-line';
       d.style.top = (line.y * 100) + '%';
-      d.innerHTML = '<span class="grip">경계 ' + (idx + 1) + '</span><span class="kill">✕</span>';
+      d.innerHTML = '<span class="grip">경계 ' + (idx + 1) + '</span>' +
+        '<button type="button" class="kill" aria-label="이 경계 지우기">✕</button>';
 
       d.querySelector('.kill').addEventListener('click', function (e) {
         e.stopPropagation();
@@ -746,12 +755,13 @@
   });
 
   var menuPop = $('#menu-pop');
-  $('#btn-menu').addEventListener('click', function (e) {
+  $('#btn-menu').addEventListener('pointerdown', function (e) {
     e.stopPropagation();
     menuPop.hidden = !menuPop.hidden;
   });
-  document.addEventListener('click', function () { menuPop.hidden = true; });
-  menuPop.addEventListener('click', function (e) { e.stopPropagation(); });
+  // iOS 사파리는 비대화형 요소를 탭해도 click 을 만들지 않는다 → pointerdown 으로 닫는다
+  document.addEventListener('pointerdown', function () { menuPop.hidden = true; });
+  menuPop.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
 
   $$('#menu-pop button').forEach(function (b) {
     b.addEventListener('click', function () {

@@ -149,10 +149,12 @@ window.Vision = (function () {
     }
     var yr = longestRun(mix(rowB, rowE), 0.42);
     var xr = longestRun(mix(colB, colE), 0.42);
-    var mx = Math.round(w * 0.01), my = Math.round(h * 0.01);
+    // 안쪽으로 깎으면 실사진에서 내용물이 잘려나간다 → 살짝 바깥으로 넓힌다.
+    // 경계에 딸려오는 냉장고 테두리는 봉우리 탐색에서 가장자리 6%를 제외해 걸러진다.
+    var mx = Math.round(w * 0.015), my = Math.round(h * 0.015);
     return {
-      x0: Math.min(xr[0] + mx, w - 10), x1: Math.max(xr[1] - mx, 10),
-      y0: Math.min(yr[0] + my, h - 10), y1: Math.max(yr[1] - my, 10)
+      x0: Math.max(0, xr[0] - mx), x1: Math.min(w, xr[1] + mx),
+      y0: Math.max(0, yr[0] - my), y1: Math.min(h, yr[1] + my)
     };
   }
 
@@ -261,16 +263,23 @@ window.Vision = (function () {
   }
 
   /* ── 진입점 ── */
-  function analyze(file, rotate) {
-    rotate = ((Number(rotate) || 0) % 360 + 360) % 360;
+  /* opts: { rotate: 0|90|180|270, fullFrame: bool }
+   * fullFrame 이면 내부 영역 추정을 건너뛰고 사진 전체를 그대로 쓴다.
+   * (자동 추정이 사진을 잘라내는 경우의 탈출구) */
+  function analyze(file, opts) {
+    opts = (typeof opts === 'number') ? { rotate: opts } : (opts || {});
+    var rotate = ((Number(opts.rotate) || 0) % 360 + 360) % 360;
     return readFile(file).then(loadImage).then(function (img) {
       var gd = toGray(img, rotate);
-      var roi = findRoi(gd.gray, gd.w, gd.h);
+      var roi = opts.fullFrame
+        ? { x0: 0, x1: gd.w, y0: 0, y1: gd.h }
+        : findRoi(gd.gray, gd.w, gd.h);
       var ctx = { gray: gd.gray, w: gd.w, h: gd.h, roi: roi };
       var sh = findShelves(gd.gray, gd.w, roi);
       return {
         ctx: ctx,
         rotate: rotate,
+        fullFrame: !!opts.fullFrame,
         roi: { x0: roi.x0 / gd.w, x1: roi.x1 / gd.w, y0: roi.y0 / gd.h, y1: roi.y1 / gd.h },
         photo: cropPhoto(img, roi, gd.w, gd.h, rotate),
         lines: sh.lines,
