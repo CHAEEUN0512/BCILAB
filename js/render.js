@@ -28,6 +28,10 @@ window.Render = (function () {
     };
   }
 
+  function sectionKey(z) {
+    return z.section || (z.col === 'door' ? 'door' : 'fridge');
+  }
+
   function boxAttr(b, extra) {
     var a = { x: b.x, y: b.y, width: b.w, height: b.h };
     for (var k in (extra || {})) a[k] = extra[k];
@@ -62,26 +66,52 @@ window.Render = (function () {
     var lay = layout(zones);
     var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': '냉장고 도면' });
 
-    // 사진 배경 (본체 영역에만)
-    if (opts.photo && lay.body) {
-      var cid = 'clip_' + Math.random().toString(36).slice(2, 8);
+    // 구역(냉장칸/냉장고문/냉동칸)별 바운딩 박스 — 사진 배경과 외곽선에 함께 쓴다
+    var boxes = {};
+    zones.forEach(function (z) {
+      var r = rectOf(z, lay);
+      var key = sectionKey(z);
+      var b = boxes[key];
+      if (!b) boxes[key] = { x: r.x, y: r.y, x1: r.x + r.w, y1: r.y + r.h };
+      else {
+        b.x = Math.min(b.x, r.x); b.y = Math.min(b.y, r.y);
+        b.x1 = Math.max(b.x1, r.x + r.w); b.y1 = Math.max(b.y1, r.y + r.h);
+      }
+    });
+    Object.keys(boxes).forEach(function (k) {
+      var b = boxes[k];
+      boxes[k] = { x: b.x, y: b.y, w: b.x1 - b.x, h: b.y1 - b.y };
+    });
+
+    var photos = opts.photos || (opts.photo ? { fridge: opts.photo } : null);
+    if (photos) {
       var defs = el('defs');
-      var cp = el('clipPath', { id: cid });
-      cp.appendChild(el('rect', boxAttr(lay.body, { rx: 8 })));
-      defs.appendChild(cp);
       svg.appendChild(defs);
-      var img = el('image', {
-        x: lay.body.x, y: lay.body.y, width: lay.body.w, height: lay.body.h,
-        preserveAspectRatio: 'none', opacity: 0.5, 'clip-path': 'url(#' + cid + ')'
+      Object.keys(photos).forEach(function (key) {
+        var box = boxes[key];
+        if (!box || !photos[key]) return;
+        var cid = 'clip_' + key + '_' + Math.random().toString(36).slice(2, 7);
+        var cp = el('clipPath', { id: cid });
+        cp.appendChild(el('rect', boxAttr(box, { rx: 8 })));
+        defs.appendChild(cp);
+        var img = el('image', {
+          x: box.x, y: box.y, width: box.w, height: box.h,
+          preserveAspectRatio: 'none', opacity: 0.45, 'clip-path': 'url(#' + cid + ')'
+        });
+        img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', photos[key]);
+        img.setAttribute('href', photos[key]);
+        svg.appendChild(img);
       });
-      img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', opts.photo);
-      img.setAttribute('href', opts.photo);
-      svg.appendChild(img);
     }
 
-    // 외곽선
-    svg.appendChild(el('rect', boxAttr(lay.body, { class: 'fridge-shell', rx: 10 })));
-    if (lay.door) svg.appendChild(el('rect', boxAttr(lay.door, { class: 'fridge-shell', rx: 10 })));
+    // 구역별 외곽선 — 냉장칸과 냉동칸이 한 덩어리로 보이지 않게 나눠 그린다
+    Object.keys(boxes).forEach(function (k) {
+      var b = boxes[k];
+      svg.appendChild(el('rect', boxAttr(
+        { x: b.x - 3, y: b.y - 3, w: b.w + 6, h: b.h + 6 },
+        { class: 'fridge-shell', rx: 10 }
+      )));
+    });
 
     var itemsByZone = {};
     (opts.items || []).forEach(function (it) {

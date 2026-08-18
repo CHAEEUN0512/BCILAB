@@ -11,7 +11,6 @@
 window.Vision = (function () {
   var MAX_W = 520;      // 분석 해상도
   var CROP_W = 760;     // 저장할 잘라낸 사진 폭
-  var ctx = null;       // 마지막 분석 컨텍스트 {gray,w,h,roi}
 
   /* ── 유틸 ── */
   function smooth(arr, r) {
@@ -83,14 +82,34 @@ window.Vision = (function () {
     });
   }
 
-  function toGray(img) {
-    var scale = Math.min(1, MAX_W / img.naturalWidth);
-    var w = Math.max(40, Math.round(img.naturalWidth * scale));
-    var h = Math.max(40, Math.round(img.naturalHeight * scale));
+  /* 회전(0/90/180/270도)을 반영해 캔버스에 그린다. 휴대폰으로 냉장고를 찍으면
+   * 눕혀 찍히는 경우가 많아, 분석 전에 세워주는 편이 선반 인식에 유리하다. */
+  function drawRotated(ctx2d, img, rotate, w, h) {
+    ctx2d.save();
+    if (rotate === 90)       { ctx2d.translate(w, 0); ctx2d.rotate(Math.PI / 2); ctx2d.drawImage(img, 0, 0, h, w); }
+    else if (rotate === 180) { ctx2d.translate(w, h); ctx2d.rotate(Math.PI);     ctx2d.drawImage(img, 0, 0, w, h); }
+    else if (rotate === 270) { ctx2d.translate(0, h); ctx2d.rotate(-Math.PI / 2); ctx2d.drawImage(img, 0, 0, h, w); }
+    else                     { ctx2d.drawImage(img, 0, 0, w, h); }
+    ctx2d.restore();
+  }
+
+  function rotatedSize(img, rotate) {
+    var swap = (rotate === 90 || rotate === 270);
+    return {
+      w: swap ? img.naturalHeight : img.naturalWidth,
+      h: swap ? img.naturalWidth : img.naturalHeight
+    };
+  }
+
+  function toGray(img, rotate) {
+    var src = rotatedSize(img, rotate);
+    var scale = Math.min(1, MAX_W / src.w);
+    var w = Math.max(40, Math.round(src.w * scale));
+    var h = Math.max(40, Math.round(src.h * scale));
     var cv = document.createElement('canvas');
     cv.width = w; cv.height = h;
     var c2 = cv.getContext('2d', { willReadFrequently: true });
-    c2.drawImage(img, 0, 0, w, h);
+    drawRotated(c2, img, rotate, w, h);
     var d = c2.getImageData(0, 0, w, h).data;
     var g = new Float32Array(w * h);
     for (var i = 0, p = 0; i < g.length; i++, p += 4) {
@@ -186,7 +205,7 @@ window.Vision = (function () {
   }
 
   /* ── 4) 구간별 세로 칸막이 ── */
-  function findSplits(lines) {
+  function findSplits(lines, ctx) {
     if (!ctx) return [];
     var g = ctx.gray, w = ctx.w, roi = ctx.roi;
     var x0 = roi.x0, x1 = roi.x1, y0 = roi.y0, y1 = roi.y1;
@@ -224,54 +243,86 @@ window.Vision = (function () {
   }
 
   /* ROI를 잘라 저장용 사진 만들기 */
-  function cropPhoto(img, roi, aw, ah) {
-    var sx = img.naturalWidth / aw, sy = img.naturalHeight / ah;
+  function cropPhoto(img, roi, aw, ah, rotate) {
+    // 회전을 먼저 적용한 전체 이미지를 만든 뒤 ROI만 잘라낸다
+    var src = rotatedSize(img, rotate);
+    var full = document.createElement('canvas');
+    full.width = src.w; full.height = src.h;
+    drawRotated(full.getContext('2d'), img, rotate, src.w, src.h);
+
+    var sx = src.w / aw, sy = src.h / ah;
     var sw = (roi.x1 - roi.x0) * sx, sh = (roi.y1 - roi.y0) * sy;
     var scale = Math.min(1, CROP_W / sw);
     var cv = document.createElement('canvas');
     cv.width = Math.max(1, Math.round(sw * scale));
     cv.height = Math.max(1, Math.round(sh * scale));
-    cv.getContext('2d').drawImage(img, roi.x0 * sx, roi.y0 * sy, sw, sh, 0, 0, cv.width, cv.height);
+    cv.getContext('2d').drawImage(full, roi.x0 * sx, roi.y0 * sy, sw, sh, 0, 0, cv.width, cv.height);
     try { return cv.toDataURL('image/jpeg', 0.72); } catch (e) { return null; }
   }
 
   /* ── 진입점 ── */
-  function analyze(file) {
+  function analyze(file, rotate) {
+    rotate = ((Number(rotate) || 0) % 360 + 360) % 360;
     return readFile(file).then(loadImage).then(function (img) {
-      var gd = toGray(img);
+      var gd = toGray(img, rotate);
       var roi = findRoi(gd.gray, gd.w, gd.h);
-      ctx = { gray: gd.gray, w: gd.w, h: gd.h, roi: roi };
+      var ctx = { gray: gd.gray, w: gd.w, h: gd.h, roi: roi };
       var sh = findShelves(gd.gray, gd.w, roi);
-      var splits = findSplits(sh.lines);
       return {
+        ctx: ctx,
+        rotate: rotate,
         roi: { x0: roi.x0 / gd.w, x1: roi.x1 / gd.w, y0: roi.y0 / gd.h, y1: roi.y1 / gd.h },
-        photo: cropPhoto(img, roi, gd.w, gd.h),
+        photo: cropPhoto(img, roi, gd.w, gd.h, rotate),
         lines: sh.lines,
-        splits: splits,
+        splits: findSplits(sh.lines, ctx),
         confidence: sh.confidence
       };
     });
   }
 
-  /* ── 5) zone 목록으로 변환 ── */
-  function buildZones(lines, splits, doorCount) {
-    var sorted = lines.slice().sort(function (a, b) { return a.y - b.y; });
-    var ys = [0].concat(sorted.map(function (l) { return l.y; })).concat([1]);
+  /* ── 5) 구역별 인식 결과를 하나의 냉장고 zone 목록으로 합치기 ──
+   * 냉장고 한 대는 보통 사진 한 장에 다 담기지 않는다.
+   * 냉장칸 / 냉장고문 / 냉동칸을 각각 찍어 아래처럼 한 모델로 조립한다.
+   *
+   *   ┌───────────┬────┐
+   *   │  냉장칸    │ 문 │
+   *   ├───────────┤    │
+   *   │  냉동칸    │    │
+   *   └───────────┴────┘
+   */
+  var SECTIONS = [
+    { id: 'fridge',  label: '냉장칸',   col: 'body' },
+    { id: 'door',    label: '냉장고문', col: 'door' },
+    { id: 'freezer', label: '냉동칸',   col: 'body' }
+  ];
+
+  var SIDE3 = ['좌', '중', '우'], SIDE2 = ['좌', '우'];
+
+  /* 한 구역의 라인/칸막이 → zone 목록. y는 [top, top+height] 범위로 매핑된다. */
+  function sectionZones(section, scan, top, height) {
+    var lines = (scan.lines || []).slice().sort(function (a, b) { return a.y - b.y; });
+    var ys = [0].concat(lines.map(function (l) { return l.y; })).concat([1]);
     var bands = ys.length - 1;
     var zones = [];
-    var shelfNo = 0;
-    var SIDE3 = ['좌', '중', '우'], SIDE2 = ['좌', '우'];
+    var no = 0;
 
     for (var i = 0; i < bands; i++) {
       var y = ys[i], h = ys[i + 1] - ys[i];
       if (h <= 0.001) continue;
-      var isBottom = (i === bands - 1);
-      var type = (isBottom && bands >= 3) ? 'crisper' : 'shelf';
-      var base;
-      if (type === 'crisper') base = '야채칸';
-      else { shelfNo++; base = '선반 ' + shelfNo; }
 
-      var sp = (splits && splits[i]) || [];
+      var type, base;
+      if (section === 'door') {
+        no++; type = 'door'; base = '도어 ' + no;
+      } else if (section === 'freezer') {
+        no++; type = 'freezer'; base = '냉동칸 ' + no;
+      } else {
+        var isBottom = (i === bands - 1);
+        if (isBottom && bands >= 3) { type = 'crisper'; base = '야채칸'; }
+        else { no++; type = 'shelf'; base = '선반 ' + no; }
+      }
+
+      // 도어 포켓은 좌우로 나뉘지 않는다
+      var sp = (section === 'door') ? [] : ((scan.splits && scan.splits[i]) || []);
       var xs = [0].concat(sp).concat([1]);
       var parts = xs.length - 1;
       for (var j = 0; j < parts; j++) {
@@ -280,29 +331,49 @@ window.Vision = (function () {
           id: Store.uid('z'),
           name: base + side,
           type: type,
-          col: 'body',
-          x: xs[j], y: y, w: xs[j + 1] - xs[j], h: h
+          section: section,
+          col: section === 'door' ? 'door' : 'body',
+          x: xs[j], y: top + y * height, w: xs[j + 1] - xs[j], h: h * height
         });
       }
-    }
-
-    var dc = Number(doorCount) || 0;
-    for (var d = 0; d < dc; d++) {
-      zones.push({
-        id: Store.uid('z'),
-        name: '도어 ' + (d + 1),
-        type: 'door',
-        col: 'door',
-        x: 0, y: d / dc, w: 1, h: 1 / dc
-      });
     }
     return zones;
   }
 
+  /* scans: { fridge: {lines,splits}|null, door: …, freezer: … } */
+  function compose(scans) {
+    scans = scans || {};
+    var hasFridge = !!(scans.fridge && scans.fridge.lines);
+    var hasFreezer = !!(scans.freezer && scans.freezer.lines);
+    var hasDoor = !!(scans.door && scans.door.lines);
+
+    var zones = [];
+    if (hasFridge && hasFreezer) {
+      zones = zones.concat(sectionZones('fridge', scans.fridge, 0, 0.62));
+      zones = zones.concat(sectionZones('freezer', scans.freezer, 0.62, 0.38));
+    } else if (hasFridge) {
+      zones = zones.concat(sectionZones('fridge', scans.fridge, 0, 1));
+    } else if (hasFreezer) {
+      zones = zones.concat(sectionZones('freezer', scans.freezer, 0, 1));
+    }
+    if (hasDoor) zones = zones.concat(sectionZones('door', scans.door, 0, 1));
+    return zones;
+  }
+
+  /* 구역별 사진 { fridge: dataURL, … } */
+  function photosOf(scans) {
+    var out = {};
+    SECTIONS.forEach(function (s) {
+      if (scans[s.id] && scans[s.id].photo) out[s.id] = scans[s.id].photo;
+    });
+    return out;
+  }
+
   return {
+    SECTIONS: SECTIONS,
     analyze: analyze,
     findSplits: findSplits,
-    buildZones: buildZones,
-    hasContext: function () { return !!ctx; }
+    compose: compose,
+    photosOf: photosOf
   };
 })();

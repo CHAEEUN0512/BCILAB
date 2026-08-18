@@ -5,8 +5,9 @@
 window.AIDemo = [
   {
     id: 'A',
-    title: '샘플 A · 냉장실 선반 (위에서 본 모습)',
-    summary: '정리용 트레이로 구획된 냉장실. 음료팩·소스병·반찬통이 앞뒤로 겹쳐 있어 뒷줄은 일부만 보입니다.',
+    section: 'fridge',
+    title: '샘플 · 냉장칸',
+    summary: '정리용 트레이로 구획된 냉장칸. 음료팩·소스병·반찬통이 앞뒤로 겹쳐 있어 뒷줄은 일부만 보입니다.',
     unidentified_count: 9,
     unidentified_note: '흰색·투명 반찬통 5개와 종이봉투 2개는 내용물이 보이지 않아 품목을 특정할 수 없습니다.',
     items: [
@@ -26,8 +27,9 @@ window.AIDemo = [
   },
   {
     id: 'B',
-    title: '샘플 B · 냉장실 도어 포켓',
-    summary: '도어 4단 포켓. 병·봉지가 한 줄로 서 있어 인식이 가장 잘 되는 구역입니다.',
+    section: 'door',
+    title: '샘플 · 냉장고문',
+    summary: '냉장고문 4단 포켓. 병·봉지가 한 줄로 서 있어 인식이 가장 잘 되는 구역입니다.',
     unidentified_count: 4,
     unidentified_note: '왼쪽 포켓의 종이/비닐 봉지 4개는 포장만 보이고 내용물 표기가 가려져 있습니다.',
     items: [
@@ -47,10 +49,11 @@ window.AIDemo = [
   },
   {
     id: 'C',
-    title: '샘플 C · 냉동실 서랍',
-    summary: '냉동 서랍 3칸. 성에와 반투명 봉지 때문에 인식 난이도가 가장 높은 구역입니다.',
+    section: 'freezer',
+    title: '샘플 · 냉동칸',
+    summary: '냉동칸 서랍 3칸. 성에와 반투명 봉지 때문에 인식 난이도가 가장 높은 구역입니다.',
     unidentified_count: 14,
-    unidentified_note: '소분 냉동 봉지 다수가 서로 겹쳐 있고 성에가 껴 있어 품목 특정이 어렵습니다. 냉동실은 사진보다 직접 입력이 확실합니다.',
+    unidentified_note: '소분 냉동 봉지 다수가 서로 겹쳐 있고 성에가 껴 있어 품목 특정이 어렵습니다. 냉동칸은 사진보다 직접 입력이 확실합니다.',
     items: [
       { name: '쿠키 (WHAT’S THE BETTER?)', category: 'frozen', qty: 2, unit: '봉', confidence: 0.88, shelf_life_days: 180, label_text: "WHAT'S THE BETTER?", note: '' },
       { name: '냉동 만두 또는 떡', category: 'frozen', qty: 3, unit: '봉', confidence: 0.5, shelf_life_days: 180, label_text: '', note: '봉지 형태로 추정, 라벨 판독 불가' },

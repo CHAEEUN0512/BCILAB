@@ -42,101 +42,161 @@
     });
   });
 
-  /* ─────────────── 사진 스캔 ─────────────── */
+  /* ─────────────── 사진 스캔 (구역별) ─────────────── */
+  /* scans[구역] = {file, rotate, lines, splits, photo, confidence, ctx} */
+  var scans = {};
+  var activeSection = 'fridge';
+  var overrides = {};
+
+  var SECTION_HELP = {
+    fridge:  '문을 열고 <b>냉장칸</b> 내부 전체가 나오게 한 장',
+    door:    '<b>냉장고문</b> 포켓이 위아래로 다 보이게 한 장',
+    freezer: '<b>냉동칸</b> 서랍을 열고 한 장'
+  };
+
+  function sectionMeta(id) {
+    return Vision.SECTIONS.filter(function (s) { return s.id === id; })[0];
+  }
+  function current() { return scans[activeSection] || null; }
+
   function openScan() {
-    scan = null;
+    scans = {};
     overrides = {};
-    $('#scan-upload').hidden = false;
-    $('#scan-result').hidden = true;
+    activeSection = 'fridge';
+    renderSectionTabs();
+    showSectionPane();
+    renderScanPreview();
     show('scan');
   }
   $('#btn-scan-to-blocks').addEventListener('click', function () { openBlocks(); });
-  $('#btn-repick').addEventListener('click', function () {
-    $('#scan-upload').hidden = false;
-    $('#scan-result').hidden = true;
-  });
+
+  function renderSectionTabs() {
+    var wrap = $('#section-tabs');
+    wrap.innerHTML = '';
+    Vision.SECTIONS.forEach(function (sec) {
+      var done = !!scans[sec.id];
+      var b = document.createElement('button');
+      b.className = 'section-tab' + (sec.id === activeSection ? ' active' : '') + (done ? ' done' : '');
+      b.innerHTML = '<span class="st-name">' + sec.label + '</span>' +
+        '<span class="st-state">' + (done ? scans[sec.id].lines.length + 1 + '칸 인식됨' : '미촬영') + '</span>';
+      b.addEventListener('click', function () {
+        activeSection = sec.id;
+        renderSectionTabs();
+        showSectionPane();
+      });
+      wrap.appendChild(b);
+    });
+  }
+
+  function showSectionPane() {
+    var sc = current();
+    var meta = sectionMeta(activeSection);
+    $('#dz-title').textContent = meta.label + ' 사진을 올려주세요';
+    $('#dz-desc').innerHTML = SECTION_HELP[activeSection] + '<br />(탭하면 촬영 또는 앨범 선택)';
+    $('#scan-upload').hidden = !!sc;
+    $('#scan-result').hidden = !sc;
+    if (sc) {
+      $('#photo-preview').src = sc.photo || '';
+      var pct = Math.round(sc.confidence * 100);
+      var word = pct >= 65 ? '또렷하게' : pct >= 35 ? '대략' : '희미하게';
+      $('#conf-chip').innerHTML = meta.label + ' · 경계 <b>' + sc.lines.length + '개</b> ' + word +
+        ' 인식 · 신뢰도 <b>' + pct + '%</b>';
+      renderLines();
+    }
+    renderScanPreview();
+  }
 
   var fileInput = $('#file-input');
   $('#dropzone').addEventListener('click', function (e) {
     if (e.target !== fileInput) { e.preventDefault(); fileInput.click(); }
   });
   fileInput.addEventListener('change', function () {
-    if (fileInput.files && fileInput.files[0]) handlePhoto(fileInput.files[0]);
+    if (fileInput.files && fileInput.files[0]) handlePhoto(fileInput.files[0], 0);
+    fileInput.value = '';
   });
   ['dragover', 'dragleave', 'drop'].forEach(function (ev) {
     $('#dropzone').addEventListener(ev, function (e) {
       e.preventDefault();
       $('#dropzone').classList.toggle('drag', ev === 'dragover');
-      if (ev === 'drop' && e.dataTransfer.files[0]) handlePhoto(e.dataTransfer.files[0]);
+      if (ev === 'drop' && e.dataTransfer.files[0]) handlePhoto(e.dataTransfer.files[0], 0);
     });
   });
 
-  function handlePhoto(file) {
+  function handlePhoto(file, rotate) {
     if (!/^image\//.test(file.type)) { toast('이미지 파일만 올릴 수 있어요.'); return; }
+    var section = activeSection;
     $('#scan-upload').hidden = true;
     $('#scan-result').hidden = false;
     $('#conf-chip').textContent = '사진을 분석하는 중…';
     $('#photo-preview').removeAttribute('src');
     $('#lines-layer').innerHTML = '';
 
-    Vision.analyze(file).then(function (res) {
-      scan = res;
-      overrides = {};
-      if (res.photo) $('#photo-preview').src = res.photo;
-      var pct = Math.round(res.confidence * 100);
-      var word = pct >= 65 ? '또렷하게' : pct >= 35 ? '대략' : '희미하게';
-      $('#conf-chip').innerHTML = '선반 <b>' + res.lines.length + '개</b> ' + word +
-        ' 인식 · 신뢰도 <b>' + pct + '%</b>';
-      renderLines();
+    Vision.analyze(file, rotate).then(function (res) {
+      res.file = file;
+      scans[section] = res;
+      if (activeSection === section) showSectionPane();
+      renderSectionTabs();
       renderScanPreview();
     }).catch(function (err) {
       console.error(err);
       toast(err.message || '사진 분석에 실패했어요.');
-      $('#scan-upload').hidden = false;
-      $('#scan-result').hidden = true;
+      delete scans[section];
+      showSectionPane();
     });
   }
 
-  $('#btn-reanalyze').addEventListener('click', function () {
-    if (fileInput.files && fileInput.files[0]) handlePhoto(fileInput.files[0]);
-    else toast('먼저 사진을 선택해 주세요.');
+  $('#btn-rotate').addEventListener('click', function () {
+    var sc = current();
+    if (!sc || !sc.file) return;
+    handlePhoto(sc.file, (sc.rotate + 90) % 360);
+  });
+  $('#btn-repick').addEventListener('click', function () {
+    $('#scan-upload').hidden = false;
+    $('#scan-result').hidden = true;
+  });
+  $('#btn-drop-section').addEventListener('click', function () {
+    delete scans[activeSection];
+    renderSectionTabs();
+    showSectionPane();
   });
 
   $('#btn-add-line').addEventListener('click', function () {
-    if (!scan) return;
-    var ys = [0].concat(scan.lines.map(function (l) { return l.y; })).concat([1]);
+    var sc = current();
+    if (!sc) return;
+    var ys = [0].concat(sc.lines.map(function (l) { return l.y; })).concat([1]);
     var bi = 0, bg = -1;
     for (var i = 0; i < ys.length - 1; i++) {
       if (ys[i + 1] - ys[i] > bg) { bg = ys[i + 1] - ys[i]; bi = i; }
     }
-    scan.lines.push({ y: (ys[bi] + ys[bi + 1]) / 2, score: 0 });
-    scan.lines.sort(function (a, b) { return a.y - b.y; });
+    sc.lines.push({ y: (ys[bi] + ys[bi + 1]) / 2, score: 0 });
+    sc.lines.sort(function (a, b) { return a.y - b.y; });
     refreshSplits();
   });
 
-  $('#scan-door').addEventListener('change', renderScanPreview);
-
   function refreshSplits() {
-    if (!scan) return;
-    scan.splits = Vision.hasContext() ? Vision.findSplits(scan.lines) : [];
+    var sc = current();
+    if (!sc) return;
+    sc.splits = Vision.findSplits(sc.lines, sc.ctx);
     renderLines();
+    renderSectionTabs();
     renderScanPreview();
   }
 
   function renderLines() {
     var layer = $('#lines-layer');
     layer.innerHTML = '';
-    if (!scan) return;
+    var sc = current();
+    if (!sc) return;
 
-    scan.lines.forEach(function (line, idx) {
+    sc.lines.forEach(function (line, idx) {
       var d = document.createElement('div');
       d.className = 'shelf-line';
       d.style.top = (line.y * 100) + '%';
-      d.innerHTML = '<span class="grip">선반 라인 ' + (idx + 1) + '</span><span class="kill">✕</span>';
+      d.innerHTML = '<span class="grip">경계 ' + (idx + 1) + '</span><span class="kill">✕</span>';
 
       d.querySelector('.kill').addEventListener('click', function (e) {
         e.stopPropagation();
-        scan.lines.splice(idx, 1);
+        sc.lines.splice(idx, 1);
         refreshSplits();
       });
 
@@ -145,13 +205,13 @@
         e.preventDefault();
         d.setPointerCapture(e.pointerId);
         var box = $('#photo-editor').getBoundingClientRect();
-        var lo = idx > 0 ? scan.lines[idx - 1].y + 0.04 : 0.03;
-        var hi = idx < scan.lines.length - 1 ? scan.lines[idx + 1].y - 0.04 : 0.97;
+        var lo = idx > 0 ? sc.lines[idx - 1].y + 0.04 : 0.03;
+        var hi = idx < sc.lines.length - 1 ? sc.lines[idx + 1].y - 0.04 : 0.97;
 
         function move(ev) {
           var y = (ev.clientY - box.top) / box.height;
           y = Math.max(lo, Math.min(hi, y));
-          scan.lines[idx].y = y;
+          sc.lines[idx].y = y;
           d.style.top = (y * 100) + '%';
         }
         function up() {
@@ -168,9 +228,8 @@
       layer.appendChild(d);
     });
 
-    // 감지된 세로 칸막이 표시
-    var ys = [0].concat(scan.lines.map(function (l) { return l.y; })).concat([1]);
-    (scan.splits || []).forEach(function (sp, i) {
+    var ys = [0].concat(sc.lines.map(function (l) { return l.y; })).concat([1]);
+    (sc.splits || []).forEach(function (sp, i) {
       (sp || []).forEach(function (x) {
         var v = document.createElement('div');
         v.className = 'split-line';
@@ -183,13 +242,12 @@
   }
 
   function okey(z) {
-    return Math.round(z.y * 20) + '_' + Math.round(z.x * 20);
+    return (z.section || 'x') + '_' + Math.round(z.y * 40) + '_' + Math.round(z.x * 20);
   }
 
   function currentScanZones() {
-    var zones = Vision.buildZones(scan.lines, scan.splits, $('#scan-door').value);
+    var zones = Vision.compose(scans);
     zones.forEach(function (z) {
-      if (z.col === 'door') return;
       var o = overrides[okey(z)];
       if (o) { if (o.name) z.name = o.name; if (o.type) z.type = o.type; }
     });
@@ -197,16 +255,20 @@
   }
 
   function renderScanPreview() {
-    if (!scan) return;
     var zones = currentScanZones();
-    Render.draw($('#scan-preview'), zones, { photo: scan.photo });
-    renderZoneTypeList(zones);
+    Render.draw($('#scan-preview'), zones, { photos: Vision.photosOf(scans) });
+    var done = Vision.SECTIONS.filter(function (s) { return !!scans[s.id]; });
+    $('#compose-note').textContent = done.length
+      ? done.map(function (s) { return s.label; }).join(' + ') + ' → 총 ' + zones.length + '칸'
+      : '아직 인식된 구역이 없습니다.';
+    $('#btn-confirm-scan').disabled = !zones.length;
+    renderZoneTypeList(zones.filter(function (z) { return z.section === activeSection; }));
   }
 
   function renderZoneTypeList(zones) {
     var wrap = $('#scan-zone-types');
     wrap.innerHTML = '';
-    zones.filter(function (z) { return z.col !== 'door'; }).forEach(function (z) {
+    zones.forEach(function (z) {
       var row = document.createElement('div');
       row.className = 'zone-type-row';
       row.innerHTML = '<input maxlength="16" /><select></select>';
@@ -218,7 +280,6 @@
       });
       var sel = row.querySelector('select');
       Object.keys(Store.ZONE_TYPES).forEach(function (k) {
-        if (k === 'door') return;
         var o = document.createElement('option');
         o.value = k;
         o.textContent = Store.ZONE_TYPES[k].emoji + ' ' + Store.ZONE_TYPES[k].label;
@@ -235,10 +296,9 @@
   }
 
   $('#btn-confirm-scan').addEventListener('click', function () {
-    if (!scan) return;
     var zones = currentScanZones();
-    if (!zones.length) { toast('칸이 하나도 없습니다.'); return; }
-    var model = { source: 'photo', photo: scan.photo, zones: zones };
+    if (!zones.length) { toast('구역을 하나 이상 찍어주세요.'); return; }
+    var model = { source: 'photo', photos: Vision.photosOf(scans), zones: zones };
     if (Store.get()) Store.replaceStructure(model); else Store.create(model);
     selectedZoneId = null;
     openMain();
@@ -274,7 +334,7 @@
   $('#btn-confirm-blocks').addEventListener('click', function () {
     var zones = Blocks.zones($('#blocks-door').value);
     if (!zones.length) { toast('블럭을 하나 이상 쌓아주세요.'); return; }
-    var model = { source: 'blocks', photo: null, zones: zones };
+    var model = { source: 'blocks', photos: {}, zones: zones };
     if (Store.get()) Store.replaceStructure(model); else Store.create(model);
     selectedZoneId = null;
     openMain();
@@ -301,7 +361,7 @@
       (s.bad ? '<span class="pill bad">지남 <b>' + s.bad + '</b></span>' : '');
 
     Render.draw($('#fridge-stage'), st.zones, {
-      photo: st.photo,
+      photos: st.photos,
       items: st.items,
       selectedId: selectedZoneId,
       onSelect: function (id) {
@@ -552,10 +612,13 @@
   function renderDemoButtons() {
     var wrap = $('#ai-demo-buttons');
     wrap.innerHTML = '';
+    var z = Store.zone(selectedZoneId);
+    var sec = z && z.section;
     (window.AIDemo || []).forEach(function (d) {
       var b = document.createElement('button');
-      b.className = 'chip';
-      b.textContent = d.title.replace('샘플 ', '');
+      // 선택한 칸과 같은 구역의 샘플을 먼저 눈에 띄게
+      b.className = 'chip' + (d.section === sec ? ' on' : '');
+      b.textContent = d.title;
       b.addEventListener('click', function () { showAIResult(d); });
       wrap.appendChild(b);
     });

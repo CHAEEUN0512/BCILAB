@@ -34,8 +34,8 @@ window.Store = (function () {
       version: 1,
       name: '우리집 냉장고',
       source: null,      // 'photo' | 'blocks'
-      photo: null,       // ROI로 잘라낸 사진 dataURL
-      zones: [],         // {id,name,type,col:'body'|'door',x,y,w,h}  좌표는 0~1 정규화
+      photos: {},        // 구역별 사진 {fridge,door,freezer} — ROI로 잘라낸 dataURL
+      zones: [],         // {id,name,type,section,col:'body'|'door',x,y,w,h}  좌표는 0~1 정규화
       items: [],
       createdAt: Date.now(),
       updatedAt: Date.now()
@@ -49,6 +49,11 @@ window.Store = (function () {
     } catch (e) { state = null; }
     if (state && (!state.zones || !state.zones.length)) state = null;
     if (state && !state.items) state.items = [];
+    // 구버전(단일 사진) 모델 마이그레이션
+    if (state && !state.photos) {
+      state.photos = state.photo ? { fridge: state.photo } : {};
+      delete state.photo;
+    }
     return state;
   }
 
@@ -59,8 +64,8 @@ window.Store = (function () {
       localStorage.setItem(KEY, JSON.stringify(state));
     } catch (e) {
       // 사진 때문에 용량 초과인 경우 사진을 버리고 데이터라도 지킨다
-      if (state.photo) {
-        state.photo = null;
+      if (state.photos && Object.keys(state.photos).length) {
+        state.photos = {};
         try {
           localStorage.setItem(KEY, JSON.stringify(state));
           console.warn('저장 공간이 부족해 사진을 제외하고 저장했습니다.');
@@ -76,7 +81,7 @@ window.Store = (function () {
   function create(model) {
     state = blank();
     state.source = model.source || null;
-    state.photo = model.photo || null;
+    state.photos = model.photos || {};
     state.zones = model.zones || [];
     if (model.name) state.name = model.name;
     save();
@@ -89,7 +94,7 @@ window.Store = (function () {
     var oldZones = state.zones.slice();
     var oldItems = state.items.slice();
     state.source = model.source || state.source;
-    state.photo = model.photo || null;
+    state.photos = model.photos || {};
     state.zones = model.zones || [];
 
     var byName = {};

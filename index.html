@@ -54,55 +54,51 @@
   </header>
 
   <div class="scan-wrap">
-    <!-- 2-a 업로드 -->
-    <div class="pane" id="scan-upload">
-      <label class="dropzone" id="dropzone">
-        <input type="file" id="file-input" accept="image/*" capture="environment" hidden />
-        <span class="dz-icon">📷</span>
-        <span class="dz-title">냉장고 사진을 올려주세요</span>
-        <span class="dz-desc">문을 활짝 열고, 정면에서, 내부 전체가 나오게<br />(탭하면 촬영 또는 앨범 선택)</span>
-      </label>
-      <ul class="tips">
-        <li>내부 조명이 켜진 상태가 인식률이 가장 좋아요</li>
-        <li>선반 앞면 라인이 가려지지 않게 살짝 물러나서 촬영</li>
-        <li>비뚤어져도 괜찮아요 — 인식 후 라인을 직접 끌어 맞출 수 있습니다</li>
-      </ul>
-    </div>
+    <p class="section-lead">냉장고 한 대는 사진 한 장에 다 담기지 않습니다. <b>구역별로 한 장씩</b> 찍어 하나로 합칩니다. 안 찍은 구역은 건너뛰어도 됩니다.</p>
+    <div class="section-tabs" id="section-tabs"></div>
 
-    <!-- 2-b 분석 결과 편집 -->
-    <div class="pane" id="scan-result" hidden>
-      <div class="scan-cols">
-        <div class="editor-col">
+    <div class="scan-cols">
+      <div class="editor-col">
+        <!-- 업로드 -->
+        <div class="pane" id="scan-upload">
+          <label class="dropzone" id="dropzone">
+            <input type="file" id="file-input" accept="image/*" capture="environment" hidden />
+            <span class="dz-icon">📷</span>
+            <span class="dz-title" id="dz-title">사진을 올려주세요</span>
+            <span class="dz-desc" id="dz-desc"></span>
+          </label>
+          <ul class="tips">
+            <li>내부 조명이 켜진 상태가 인식률이 가장 좋아요</li>
+            <li>선반·포켓 앞면 라인이 가려지지 않게 살짝 물러나서 촬영</li>
+            <li>눕혀 찍혔으면 인식 후 <b>↻ 회전</b>으로 세우면 됩니다</li>
+          </ul>
+        </div>
+
+        <!-- 인식 결과 편집 -->
+        <div class="pane" id="scan-result" hidden>
           <div class="editor-head">
             <span class="conf" id="conf-chip">분석 중…</span>
             <div class="editor-actions">
               <button class="chip" id="btn-add-line">+ 칸 나누기</button>
-              <button class="chip" id="btn-reanalyze">↻ 다시 인식</button>
+              <button class="chip" id="btn-rotate">↻ 회전</button>
               <button class="chip" id="btn-repick">다른 사진</button>
+              <button class="chip" id="btn-drop-section">이 구역 지우기</button>
             </div>
           </div>
           <div class="photo-editor" id="photo-editor">
-            <img id="photo-preview" alt="냉장고 내부 사진" />
+            <img id="photo-preview" alt="냉장고 구역 사진" />
             <div class="lines" id="lines-layer"></div>
           </div>
-          <p class="hint">가로선 = 선반 위치. 선을 <b>위아래로 끌어</b> 맞추고, ✕ 로 지울 수 있어요. 세로 점선은 자동 감지된 좌우 칸막이입니다.</p>
-        </div>
-
-        <div class="preview-col">
-          <h3>인식된 냉장고 모델</h3>
-          <div class="mini-fridge" id="scan-preview"></div>
+          <p class="hint">가로선 = 칸 경계. 선을 <b>위아래로 끌어</b> 맞추고 ✕ 로 지웁니다. 세로 점선은 자동 감지된 좌우 칸막이입니다.</p>
           <div class="zone-type-list" id="scan-zone-types"></div>
-          <label class="field door-field">
-            <span>도어 포켓</span>
-            <select id="scan-door">
-              <option value="0">없음</option>
-              <option value="2">2칸</option>
-              <option value="3" selected>3칸</option>
-              <option value="4">4칸</option>
-            </select>
-          </label>
-          <button class="primary big" id="btn-confirm-scan">이 구조로 시작하기 →</button>
         </div>
+      </div>
+
+      <div class="preview-col">
+        <h3>완성될 냉장고</h3>
+        <div class="mini-fridge" id="scan-preview"></div>
+        <p class="compose-note" id="compose-note"></p>
+        <button class="primary big" id="btn-confirm-scan">이 구조로 시작하기 →</button>
       </div>
     </div>
   </div>
