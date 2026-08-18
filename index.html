@@ -49,6 +49,7 @@
     </p>
     <p class="hero-note">
       <button class="chip" id="btn-install" hidden>📲 홈 화면에 추가</button>
+      <span class="ios-tip" id="ios-tip" hidden>📲 아이폰에서는 <b>공유 버튼 → 홈 화면에 추가</b> 로 앱처럼 쓸 수 있어요</span>
     </p>
     <p class="hero-note tiny">모든 데이터와 사진 분석은 이 브라우저 안에서만 처리됩니다. 서버로 전송되지 않아요.</p>
   </div>
@@ -71,7 +72,7 @@
         <!-- 업로드 -->
         <div class="pane" id="scan-upload">
           <label class="dropzone" id="dropzone">
-            <input type="file" id="file-input" accept="image/*" capture="environment" hidden />
+            <input type="file" id="file-input" accept="image/*" hidden />
             <span class="dz-icon">📷</span>
             <span class="dz-title" id="dz-title">사진을 올려주세요</span>
             <span class="dz-desc" id="dz-desc"></span>
@@ -243,7 +244,7 @@
     <div class="modal-body">
       <div class="pane" id="ai-pick">
         <label class="dropzone slim" id="ai-dropzone">
-          <input type="file" id="ai-file" accept="image/*" capture="environment" hidden />
+          <input type="file" id="ai-file" accept="image/*" hidden />
           <span class="dz-icon">📷</span>
           <span class="dz-title">칸 사진을 찍거나 선택</span>
           <span class="dz-desc" id="ai-key-hint"></span>

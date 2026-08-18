@@ -813,6 +813,17 @@
     });
   }
 
+  /* 아이폰은 beforeinstallprompt 가 없어 설치 버튼이 뜨지 않는다.
+   * 대신 공유 시트로 추가하는 방법을 안내한다. 이미 홈 화면 앱으로 실행 중이면 숨긴다. */
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var isStandalone = window.navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  if (isIOS && !isStandalone) {
+    var tip = $('#ios-tip');
+    if (tip) tip.hidden = false;
+  }
+
   /* 홈 화면에 추가 안내 (안드로이드/크롬) */
   var installPrompt = null;
   window.addEventListener('beforeinstallprompt', function (e) {
