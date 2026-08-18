@@ -804,6 +804,35 @@
     this.value = '';
   });
 
+  /* 오프라인 지원 — HTTPS(또는 localhost)에서만 등록된다. file:// 로 열면 조용히 건너뛴다. */
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function (e) {
+        console.warn('오프라인 캐시 등록 실패:', e.message);
+      });
+    });
+  }
+
+  /* 홈 화면에 추가 안내 (안드로이드/크롬) */
+  var installPrompt = null;
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    installPrompt = e;
+    var b = $('#btn-install');
+    if (b) b.hidden = false;
+  });
+  var installBtn = $('#btn-install');
+  if (installBtn) {
+    installBtn.addEventListener('click', function () {
+      if (!installPrompt) return;
+      installPrompt.prompt();
+      installPrompt.userChoice.then(function () {
+        installPrompt = null;
+        installBtn.hidden = true;
+      });
+    });
+  }
+
   /* 부팅 */
   (function boot() {
     var st = Store.load();

@@ -121,10 +121,28 @@ js/vision.js        사진 → 칸 구조 인식, 구역 합성, 회전 처리
 js/blocks.js        블럭 쌓기 빌더
 js/render.js        zone 목록 → SVG 냉장고 도면
 js/app.js           화면 전환과 전체 흐름
+sw.js               오프라인 캐시 (서비스워커)
+manifest.webmanifest  홈 화면 설치 정보
 ```
+
+## 폰에서 쓰기
+
+카메라는 **HTTPS에서만** 열립니다. GitHub Pages로 올리면 폰에서 바로 촬영까지 됩니다.
+
+1. 저장소 **Settings → Pages → Source: Deploy from a branch → `main` / `/ (root)`**
+2. 잠시 뒤 `https://<사용자>.github.io/bcilab/` 로 접속
+3. 폰 브라우저에서 열고 **홈 화면에 추가** — 시작 화면의 `📲 홈 화면에 추가` 버튼(안드로이드 크롬),
+   아이폰은 공유 → 홈 화면에 추가
+
+홈 화면에서 열면 주소창 없이 앱처럼 뜨고(`display: standalone`), **오프라인에서도 열립니다** —
+`sw.js`가 앱 파일을 캐시하고(stale-while-revalidate) 재고 데이터는 원래 기기 안에 있기 때문입니다.
+주방에서 신호가 약해도 재고 확인·입력이 됩니다. (AI 사진 인식만 네트워크가 필요합니다)
+
+> 앱을 고친 뒤에는 `sw.js`의 `VERSION` 값을 올려야 캐시가 갱신됩니다.
 
 ## 로컬 실행
 
 ```bash
 python3 -m http.server 8000   # 또는 index.html 을 그대로 열기
 ```
+서비스워커는 https 또는 localhost에서만 등록됩니다. `index.html`을 파일로 바로 열면 조용히 건너뜁니다.
