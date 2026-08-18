@@ -25,6 +25,21 @@ window.Store = (function () {
     { id: 'etc',    label: '기타',   emoji: '📦' }
   ];
 
+  /* 이 브라우저에서 실제로 저장이 되는지 (사파리 사생활 보호 모드, 샌드박스,
+   * 용량 초과 등에서 막힌다). 막혔으면 앱은 그대로 돌지만 새로고침 시 사라진다. */
+  var storageOk = null;
+  function storageAvailable() {
+    if (storageOk !== null) return storageOk;
+    try {
+      localStorage.setItem('__probe__', '1');
+      localStorage.removeItem('__probe__');
+      storageOk = true;
+    } catch (e) {
+      storageOk = false;
+    }
+    return storageOk;
+  }
+
   function uid(p) {
     return (p || 'id') + '_' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
   }
@@ -72,6 +87,7 @@ window.Store = (function () {
           return;
         } catch (e2) {/* fallthrough */}
       }
+      storageOk = false;
       console.warn('저장 실패:', e);
     }
   }
@@ -218,7 +234,7 @@ window.Store = (function () {
 
   return {
     ZONE_TYPES: ZONE_TYPES, CATEGORIES: CATEGORIES,
-    uid: uid, load: load, save: save, get: get,
+    uid: uid, load: load, save: save, get: get, storageAvailable: storageAvailable,
     create: create, replaceStructure: replaceStructure, reset: reset, setName: setName,
     zone: zone, itemsOf: itemsOf,
     addItem: addItem, updateItem: updateItem, removeItem: removeItem,

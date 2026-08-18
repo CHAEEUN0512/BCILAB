@@ -338,3 +338,12 @@ code{background:var(--panel-2);border-radius:5px;padding:1px 5px;font-size:11.5p
   .item .acts button{width:34px;height:34px}
   .item .acts{gap:6px}
 }
+
+/* 저장 불가 경고 · 텍스트 백업 */
+.storage-warn{margin:12px 20px 0;padding:10px 14px;border-radius:var(--radius-sm);
+  background:rgba(251,191,36,.09);border:1px solid #5b4416;color:var(--warn);font-size:12.5px}
+.storage-warn b{color:var(--warn)}
+.storage-warn .linkish{color:var(--warn);margin-left:4px}
+.backup-text{width:100%;height:210px;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:var(--radius-sm);padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:11.5px;line-height:1.5;color:var(--ink-dim);margin:10px 0;resize:vertical}

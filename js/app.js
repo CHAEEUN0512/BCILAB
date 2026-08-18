@@ -480,6 +480,7 @@
     var st = Store.get();
     if (!st) { show('welcome'); return; }
     show('main');
+    $('#storage-warn').hidden = Store.storageAvailable();
     $('#fridge-name').value = st.name;
     if (!selectedZoneId || !Store.zone(selectedZoneId)) selectedZoneId = st.zones[0].id;
     renderAll();
@@ -878,6 +879,46 @@
     }
   });
 
+  /* ─────────────── 백업 (텍스트) ───────────────
+   * 파일 저장이 막힌 환경(샌드박스, 일부 인앱 브라우저)에서도 되는 경로. */
+  function openBackup(mode) {
+    var isImport = mode === 'import';
+    $('#backup-title').textContent = isImport ? 'JSON 붙여넣어 불러오기' : 'JSON 백업';
+    $('#backup-help').textContent = isImport
+      ? '내보내둔 JSON을 붙여넣고 아래 버튼을 누르면 그대로 복원됩니다.'
+      : '아래 내용을 통째로 복사해 메모장이나 메일에 붙여두면 나중에 그대로 복원할 수 있습니다.';
+    $('#backup-text').value = isImport ? '' : Store.exportJSON();
+    $('#backup-apply').hidden = !isImport;
+    $('#backup-copy').hidden = isImport;
+    $('#modal-backup').hidden = false;
+    if (!isImport) {
+      setTimeout(function () { $('#backup-text').select(); }, 30);
+    }
+  }
+  $('#backup-copy').addEventListener('click', function () {
+    var ta = $('#backup-text');
+    ta.select();
+    var done = false;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(function () { toast('복사했어요.'); }).catch(function () {});
+      done = true;
+    }
+    if (!done) toast('전체 선택했습니다 — 길게 눌러 복사해 주세요.');
+  });
+  $('#backup-apply').addEventListener('click', function () {
+    try {
+      Store.importJSON($('#backup-text').value);
+      $('#modal-backup').hidden = true;
+      selectedZoneId = null;
+      blocksLoadedFrom = null;
+      openMain();
+      toast('불러왔어요.');
+    } catch (err) {
+      toast('불러오기 실패: ' + err.message);
+    }
+  });
+  $('#warn-export').addEventListener('click', function () { openBackup('export'); });
+
   /* 검색 · 이름 · 메뉴 */
   $('#search').addEventListener('input', function () {
     query = this.value.trim();
@@ -908,6 +949,8 @@
         show('welcome');
         $('#welcome-resume-wrap').hidden = false;
       } else if (a === 'export') {
+        openBackup('export');
+      } else if (a === 'export-file') {
         var blob = new Blob([Store.exportJSON()], { type: 'application/json' });
         var url = URL.createObjectURL(blob);
         var a2 = document.createElement('a');
@@ -916,6 +959,8 @@
         a2.click();
         setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
       } else if (a === 'import') {
+        openBackup('import');
+      } else if (a === 'import-file') {
         $('#import-input').click();
       } else if (a === 'reset') {
         if (confirm('냉장고 구조와 재고를 모두 지웁니다. 계속할까요?')) {
