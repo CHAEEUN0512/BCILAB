@@ -1,0 +1,17 @@
+{
+  "name": "냉장고 재고 정리 · Fridge Keeper",
+  "short_name": "냉장고",
+  "description": "냉장고 사진으로 칸 구조를 파악하고 칸마다 재고와 소비기한을 관리합니다",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0e131c",
+  "theme_color": "#0f1520",
+  "lang": "ko",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
