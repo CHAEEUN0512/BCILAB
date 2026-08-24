@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>VOICE RUNNER — 목소리로 달리는 게임</title>
+<style>
+  :root{
+    --bg:#080512; --ink:#eae6ff; --dim:#8e86b8;
+    --hot:#ff2e97; --cool:#25f4ee; --gold:#ffd23f; --ghost:#9d7bff;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Pretendard","Apple SD Gothic Neo",system-ui,-apple-system,"Segoe UI",sans-serif;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden; -webkit-font-smoothing:antialiased;
+  }
+  #app{ position:relative; width:min(100vw,1100px); }
+  #stage{ position:relative; width:100%; aspect-ratio:16/9; }
+  canvas{ width:100%; height:100%; display:block; border-radius:14px;
+    box-shadow:0 0 0 1px #ffffff14, 0 24px 80px #0009; background:#0a0718; }
+
+  /* ---------- overlay ---------- */
+  .screen{
+    position:absolute; inset:0; display:none; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center;
+    padding:24px; border-radius:14px;
+    background:radial-gradient(120% 90% at 50% 10%, #1b1040ee, #060411f5);
+    backdrop-filter:blur(3px);
+  }
+  .screen.on{ display:flex; }
+  h1{ margin:0; font-size:clamp(28px,5.2vw,58px); letter-spacing:-.03em; line-height:1 }
+  h1 span{ background:linear-gradient(92deg,var(--cool),var(--hot) 60%,var(--gold));
+    -webkit-background-clip:text; background-clip:text; color:transparent }
+  .sub{ color:var(--dim); margin:14px 0 26px; font-size:clamp(13px,1.6vw,16px); line-height:1.75 }
+  .sub b{ color:var(--ink); font-weight:600 }
+  button{
+    font:inherit; font-weight:700; letter-spacing:-.01em; cursor:pointer;
+    padding:13px 30px; border-radius:999px; border:0; color:#0b0618;
+    background:linear-gradient(92deg,var(--cool),var(--hot));
+    box-shadow:0 8px 30px #ff2e9755; transition:transform .12s ease, filter .12s ease;
+  }
+  button:hover{ transform:translateY(-2px); filter:brightness(1.08) }
+  button.ghost{ background:transparent; color:var(--dim); box-shadow:none;
+    border:1px solid #ffffff22; padding:11px 22px; font-weight:500 }
+  button.ghost:hover{ color:var(--ink) }
+  .row{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:center }
+
+  /* ---------- calibration ---------- */
+  #calMeter{ width:min(420px,80%); height:14px; border-radius:999px;
+    background:#ffffff12; overflow:hidden; margin:8px 0 4px }
+  #calFill{ height:100%; width:0%; background:linear-gradient(90deg,var(--cool),var(--hot)); transition:width .08s }
+  #calNote{ font-size:44px; font-weight:800; letter-spacing:-.02em; min-height:52px; font-variant-numeric:tabular-nums }
+  #calHint{ color:var(--dim); font-size:14px; min-height:22px }
+  .steps{ display:flex; gap:8px; margin-bottom:18px }
+  .steps i{ width:26px; height:4px; border-radius:2px; background:#ffffff1f }
+  .steps i.on{ background:var(--cool) }
+
+  /* ---------- gameover ---------- */
+  .stats{ display:flex; gap:28px; margin:18px 0 8px; flex-wrap:wrap; justify-content:center }
+  .stat{ min-width:92px }
+  .stat u{ display:block; text-decoration:none; color:var(--dim); font-size:12px; letter-spacing:.08em }
+  .stat b{ display:block; font-size:30px; font-variant-numeric:tabular-nums; letter-spacing:-.02em }
+  .tips{ color:var(--dim); font-size:13px; margin-top:16px; max-width:520px; line-height:1.7 }
+  .kbd{ font-size:11px; color:var(--dim); margin-top:22px }
+  .kbd code{ background:#ffffff14; padding:2px 7px; border-radius:5px; color:var(--ink) }
+  .err{ color:#ff7a7a; font-size:13px; margin-top:14px; max-width:460px; line-height:1.6 }
+</style>
+</head>
+<body>
+<div id="app"><div id="stage">
+  <canvas id="game"></canvas>
+
+  <!-- 타이틀 -->
+  <div class="screen on" id="scTitle">
+    <h1><span>VOICE RUNNER</span></h1>
+    <p class="sub">
+      목소리 <b>높낮이</b>로 캐릭터를 위아래로 움직여 장애물을 피하세요.<br>
+      높게 → 위로 · 낮게 → 아래로 · 소리를 멈추면 아래로 떨어집니다.<br>
+      <b>크게 소리치면</b> 실드, <b>목소리를 떨면</b> 그루브 배수 상승.
+    </p>
+    <div class="row">
+      <button id="btnStart">마이크 켜고 시작</button>
+      <button class="ghost" id="btnKeys">키보드로 먼저 해보기</button>
+    </div>
+    <div class="err" id="micErr"></div>
+    <div class="kbd">키보드 모드: <code>↑</code> <code>↓</code> 로 높이, <code>Shift</code> 로 실드</div>
+  </div>
+
+  <!-- 음역대 보정 -->
+  <div class="screen" id="scCal">
+    <div class="steps"><i id="s1"></i><i id="s2"></i></div>
+    <h1 id="calTitle" style="font-size:clamp(22px,3.4vw,36px)">가장 <span>낮은</span> 소리를 내주세요</h1>
+    <p class="sub" id="calDesc">편하게 낼 수 있는 제일 낮은 음을 &ldquo;아—&rdquo; 하고 길게.</p>
+    <div id="calNote">—</div>
+    <div id="calMeter"><div id="calFill"></div></div>
+    <div id="calHint">소리를 감지하는 중…</div>
+    <div class="row" style="margin-top:24px">
+      <button class="ghost" id="btnSkipCal">기본값으로 건너뛰기</button>
+    </div>
+  </div>
+
+  <!-- 게임오버 -->
+  <div class="screen" id="scOver">
+    <h1 style="font-size:clamp(24px,4vw,44px)">RUN <span>OVER</span></h1>
+    <div class="stats">
+      <div class="stat"><u>SCORE</u><b id="ovScore">0</b></div>
+      <div class="stat"><u>DISTANCE</u><b id="ovDist">0m</b></div>
+      <div class="stat"><u>NOTES</u><b id="ovNotes">0</b></div>
+      <div class="stat"><u>BEST</u><b id="ovBest">0</b></div>
+    </div>
+    <div class="row" style="margin-top:22px">
+      <button id="btnRetry">다시 달리기</button>
+      <button class="ghost" id="btnMelody">🎵 내가 부른 멜로디 듣기</button>
+    </div>
+    <p class="tips" id="ovTip"></p>
+  </div>
+</div></div>
+
+<script>
+"use strict";
+/* =======================================================================
+   VOICE RUNNER
+   목소리 높낮이(F0)로 캐릭터의 높이를 실시간 제어하는 러너 게임.
+   마이크 → AnalyserNode → 정규화 자기상관(NSDF-lite) → 피치 → 화면 높이
+   ======================================================================= */
+
+/* ---------------------------------------------------------------- 오디오 */
+const A = {
+  ctx:null, analyser:null, buf:null, ds:null, stream:null,
+  ready:false, sr:0, dsr:0,
+  async start(){
+    if (this.ready) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    this.ctx = new Ctx();
+    this.stream = await navigator.mediaDevices.getUserMedia({
+      audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false }
+    });
+    const src = this.ctx.createMediaStreamSource(this.stream);
+    // 저역 험 / 고역 치찰음 제거 → 자기상관 안정화
+    const hp = this.ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=65;  hp.Q.value=0.7;
+    const lp = this.ctx.createBiquadFilter(); lp.type='lowpass';  lp.frequency.value=1400; lp.Q.value=0.7;
+    this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = 2048;
+    this.analyser.smoothingTimeConstant = 0;
+    src.connect(hp); hp.connect(lp); lp.connect(this.analyser);
+    this.buf = new Float32Array(this.analyser.fftSize);
+    this.ds  = new Float32Array(this.analyser.fftSize >> 1);
+    this.sr  = this.ctx.sampleRate;
+    this.dsr = this.sr / 2;          // 2배 다운샘플 → 자기상관 연산량 1/4
+    this.ready = true;
+  },
+  resume(){ if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); }
+};
+
+const F_MIN = 65, F_MAX = 1100;   // 사람 목소리 기본주파수 탐색 범위
+
+/* 정규화 자기상관으로 기본주파수 추정.
+   전역 최대의 90% 를 넘는 "첫" 봉우리를 고름 → 옥타브 아래로 잘못 잡히는 것 방지 */
+function acfPitch(x, sr){
+  const n = x.length;
+  let mean = 0;
+  for (let i=0;i<n;i++) mean += x[i];
+  mean /= n;
+  for (let i=0;i<n;i++) x[i] -= mean;
+
+  const minLag = Math.max(2, Math.floor(sr / F_MAX));
+  const maxLag = Math.min(n - 2, Math.floor(sr / F_MIN));
+  if (maxLag <= minLag + 2) return { freq:0, clarity:0 };
+
+  const ps = new Float64Array(n + 1);          // 제곱 누적합 → 구간 에너지 O(1)
+  for (let i=0;i<n;i++) ps[i+1] = ps[i] + x[i]*x[i];
+
+  const nac = new Float32Array(maxLag + 2);
+  let gmax = 0;
+  for (let lag=minLag; lag<=maxLag; lag++){
+    const lim = n - lag;
+    let sum = 0;
+    for (let i=0;i<lim;i++) sum += x[i] * x[i+lag];
+    const e1 = ps[lim] - ps[0];
+    const e2 = ps[n]   - ps[lag];
+    const v = sum / (Math.sqrt(e1 * e2) + 1e-12);
+    nac[lag] = v;
+    if (v > gmax) gmax = v;
+  }
+  if (gmax < 0.5) return { freq:0, clarity:gmax };
+
+  const thr = gmax * 0.9;
+  let best = -1;
+  for (let lag=minLag+1; lag<maxLag; lag++){
+    if (nac[lag] >= thr && nac[lag] >= nac[lag-1] && nac[lag] >= nac[lag+1]) { best = lag; break; }
+  }
+  if (best < 0) return { freq:0, clarity:gmax };
+
+  // 포물선 보간으로 서브샘플 정밀도
+  const y1 = nac[best-1], y2 = nac[best], y3 = nac[best+1];
+  const denom = 2*(2*y2 - y1 - y3);
+  const shift = Math.abs(denom) > 1e-9 ? (y3 - y1) / denom : 0;
+  const lag = best + Math.max(-1, Math.min(1, shift));
+  return { freq: sr / lag, clarity: y2 };
+}
+
+/* 매 프레임 마이크 상태 스냅샷 */
+const MIC = { freq:0, rms:0, clarity:0, voiced:false, hist:[] };
+
+function readMic(){
+  if (!A.ready){ MIC.freq=0; MIC.rms=0; MIC.voiced=false; return; }
+  A.analyser.getFloatTimeDomainData(A.buf);
+
+  let rms = 0;
+  for (let i=0;i<A.buf.length;i++) rms += A.buf[i]*A.buf[i];
+  rms = Math.sqrt(rms / A.buf.length);
+  MIC.rms = rms;
+
+  if (rms < 0.006){ MIC.freq = 0; MIC.clarity = 0; MIC.voiced = false; MIC.hist.length = 0; return; }
+
+  for (let i=0;i<A.ds.length;i++) A.ds[i] = (A.buf[2*i] + A.buf[2*i+1]) * 0.5;
+  const r = acfPitch(A.ds, A.dsr);
+
+  if (!r.freq || r.freq < F_MIN || r.freq > F_MAX){
+    MIC.clarity = r.clarity; MIC.voiced = false; MIC.freq = 0; return;
+  }
+  // 중앙값 5탭 → 순간적인 옥타브 튐 제거
+  MIC.hist.push(r.freq);
+  if (MIC.hist.length > 5) MIC.hist.shift();
+  const sorted = MIC.hist.slice().sort((a,b)=>a-b);
+  MIC.freq = sorted[sorted.length >> 1];
+  MIC.clarity = r.clarity;
+  MIC.voiced = true;
+}
+
+/* 효과음 (게임 오디오컨텍스트 재사용) */
+function blip(freq, dur, type, gain){
+  if (!A.ctx) return;
+  const t = A.ctx.currentTime;
+  const o = A.ctx.createOscillator(), g = A.ctx.createGain();
+  o.type = type || 'triangle';
+  o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(gain==null?0.16:gain, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + (dur||0.14));
+  o.connect(g); g.connect(A.ctx.destination);
+  o.start(t); o.stop(t + (dur||0.14) + 0.03);
+}
+function noiseHit(){
+  if (!A.ctx) return;
+  const t = A.ctx.currentTime, len = Math.floor(A.ctx.sampleRate * 0.22);
+  const b = A.ctx.createBuffer(1, len, A.ctx.sampleRate), d = b.getChannelData(0);
+  for (let i=0;i<len;i++) d[i] = (Math.random()*2-1) * (1 - i/len);
+  const s = A.ctx.createBufferSource(); s.buffer = b;
+  const f = A.ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=900;
+  const g = A.ctx.createGain(); g.gain.value = 0.3;
+  s.connect(f); f.connect(g); g.connect(A.ctx.destination);
+  s.start(t);
+}
+
+/* 음이름 표기 */
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+function noteLabel(f){
+  if (!f) return '—';
+  const n = Math.round(12 * Math.log2(f / 440) + 69);
+  return NOTE_NAMES[((n % 12) + 12) % 12] + (Math.floor(n/12) - 1);
+}
+
+/* ------------------------------------------------------------------ 무대 */
+const W = 960, H = 540;
+const TOP_Y = 62, BOT_Y = 486;          // 플레이 가능한 세로 범위
+const SPAN  = BOT_Y - TOP_Y;
+const PX    = 168;                      // 캐릭터 고정 x
+const PR    = 15;                       // 캐릭터 반지름
+
+const cv  = document.getElementById('game');
+const ctx = cv.getContext('2d');
+function fitCanvas(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width  = Math.round(W * dpr);
+  cv.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+fitCanvas();
+addEventListener('resize', fitCanvas);
+
+const clamp = (v,a,b)=> v<a?a : v>b?b : v;
+const lerp  = (a,b,t)=> a + (b-a)*t;
+/* 음높이 정규화값(0=최저,1=최고) → 화면 y */
+const Y = n => BOT_Y - clamp(n,0,1) * SPAN;
+
+/* ------------------------------------------------------------- 게임 상태 */
+const G = {
+  mode:'title',            // title | calibrate | play | over
+  input:'mic',             // mic | keys
+  fLow:130, fHigh:520,     // 보정된 개인 음역
+  t:0, worldX:0, speed:250,
+  player:{ y:BOT_Y-60, vy:0, norm:0 },
+  trail:[],
+  obstacles:[], notes:[], zones:[], particles:[],
+  cursor:0,
+  lives:3, invuln:0,
+  score:0, notesGot:0, best:+(localStorage.getItem('vr_best')||0),
+  shield:0, energy:100, shoutHold:0,
+  groove:0, grooveMul:1, vibHist:[],
+  comboT:0, comboMul:1,
+  silentPenalty:0, quietRun:0,
+  melody:[], melodyT:0,
+  shake:0, flash:0
+};
+
+const keys = Object.create(null);
+addEventListener('keydown', e=>{
+  keys[e.key] = true;
+  if ([' ','ArrowUp','ArrowDown'].includes(e.key)) e.preventDefault();
+});
+addEventListener('keyup', e=>{ keys[e.key] = false; });
+
+/* --------------------------------------------------------- 레벨 생성기 */
+/* 모든 좌표는 월드 x. 화면 x = worldX 를 뺀 값. */
+function addWall(x, gapCenter, gapSize){
+  const gTop = Y(gapCenter + gapSize/2);
+  const gBot = Y(gapCenter - gapSize/2);
+  if (gTop - TOP_Y > 6)  G.obstacles.push({ x, w:44, y:TOP_Y, h:gTop-TOP_Y, kind:'wall' });
+  if (BOT_Y - gBot > 6)  G.obstacles.push({ x, w:44, y:gBot, h:BOT_Y-gBot, kind:'wall' });
+}
+function addFromTop(x, w, hNorm){
+  G.obstacles.push({ x, w, y:TOP_Y, h:hNorm*SPAN, kind:'bar' });
+}
+function addFromBottom(x, w, hNorm){
+  const top = Y(hNorm);
+  G.obstacles.push({ x, w, y:top, h:BOT_Y-top, kind:'bar' });
+}
+function addNote(x, n, golden){
+  G.notes.push({ x, y:Y(n), r:11, got:false, golden:!!golden, ph:Math.random()*6.28 });
+}
+
+const rnd = (a,b)=> a + Math.random()*(b-a);
+const pick = arr => arr[(Math.random()*arr.length)|0];
+
+/* 난이도 0 → 1 로 서서히 상승 */
+function diff(){ return clamp(G.worldX / 9000, 0, 1); }
+
+function gapSize(){ return lerp(0.46, 0.27, diff()); }
+function spacing(){ return lerp(400, 300, diff()); }
+
+const PATTERNS = [
+  /* 계단: 한 방향으로 음을 밀어올리거나 내리게 만듦 */
+  function stairs(x){
+    const up = Math.random() < 0.5;
+    const steps = 3 + (Math.random()*2|0);
+    const g = gapSize();
+    let n = up ? rnd(0.12,0.3) : rnd(0.7,0.88);
+    const step = (up ? 1 : -1) * rnd(0.13,0.2);
+    for (let i=0;i<steps;i++){
+      addWall(x + i*230, clamp(n, g/2+0.04, 1-g/2-0.04), g);
+      addNote(x + i*230 + 115, clamp(n,0.06,0.94));
+      n += step;
+    }
+    return steps*230 + 120;
+  },
+  /* 지그재그: 위·아래 블록 번갈아 — 빠른 음정 도약 */
+  function zigzag(x){
+    const cnt = 4 + (Math.random()*3|0);
+    const hgt = lerp(0.42, 0.56, diff());
+    for (let i=0;i<cnt;i++){
+      if (i % 2 === 0) addFromBottom(x + i*205, 40, hgt);
+      else             addFromTop(x + i*205, 40, hgt);
+      addNote(x + i*205 + 102, i % 2 === 0 ? 0.82 : 0.18);
+    }
+    return cnt*205 + 140;
+  },
+  /* 웨이브 터널: 사인 곡선 통로 — 부드러운 글리산도 */
+  function tunnel(x){
+    const cnt = 7 + (Math.random()*4|0);
+    const amp = rnd(0.22,0.34), base = rnd(0.4,0.6), freq = rnd(0.5,0.95);
+    const g = gapSize() + 0.04;
+    for (let i=0;i<cnt;i++){
+      const n = base + Math.sin(i*freq) * amp;
+      addWall(x + i*128, clamp(n, g/2+0.03, 1-g/2-0.03), g);
+      if (i % 2 === 0) addNote(x + i*128 + 64, clamp(n,0.06,0.94));
+    }
+    return cnt*128 + 160;
+  },
+  /* 낮은 천장: 계속 낮은 음을 유지해야 하는 구간 */
+  function ceiling(x){
+    const h = lerp(0.5, 0.66, diff());
+    const len = rnd(260, 420);
+    G.obstacles.push({ x, w:len, y:TOP_Y, h:h*SPAN, kind:'bar' });
+    for (let i=0;i<3;i++) addNote(x + len*(i+0.5)/3, rnd(0.08,0.22));
+    return len + spacing()*0.8;
+  },
+  /* 높은 바닥: 계속 높은 음을 유지 */
+  function floorUp(x){
+    const h = lerp(0.5, 0.66, diff());
+    const len = rnd(260, 420);
+    const top = Y(h);
+    G.obstacles.push({ x, w:len, y:top, h:BOT_Y-top, kind:'bar' });
+    for (let i=0;i<3;i++) addNote(x + len*(i+0.5)/3, rnd(0.8,0.94));
+    return len + spacing()*0.8;
+  },
+  /* 골든 라인: 정해진 음을 정확히 유지하면 점수 배수 */
+  function golden(x){
+    const n = rnd(0.28, 0.78), len = rnd(520, 760);
+    G.zones.push({ kind:'golden', x, w:len, n, band:0.075 });
+    const cnt = Math.floor(len/110);
+    for (let i=0;i<cnt;i++) addNote(x + 60 + i*110, n, true);
+    return len + spacing()*0.7;
+  },
+  /* 정적 구간: 소리를 내면 안 됨. 높이는 진입 시점에서 얼어붙는다 */
+  function silence(x){
+    const len = rnd(420, 620);
+    G.zones.push({ kind:'silent', x, w:len });
+    return len + spacing()*0.75;
+  },
+  /* 보너스 아크: 장애물 없이 음표만 — 숨 돌리는 구간 */
+  function arc(x){
+    const cnt = 9, base = rnd(0.2,0.5), amp = rnd(0.25,0.42);
+    for (let i=0;i<cnt;i++) addNote(x + i*92, clamp(base + Math.sin(i/cnt*Math.PI)*amp, 0.05, 0.95));
+    return cnt*92 + 180;
+  }
+];
+
+function spawnPattern(){
+  const d = diff();
+  let pool;
+  if (G.cursor < 900)      pool = [PATTERNS[0], PATTERNS[7]];               // 워밍업
+  else if (d < 0.25)       pool = [PATTERNS[0], PATTERNS[2], PATTERNS[7], PATTERNS[5]];
+  else                     pool = PATTERNS;
+  // 특수 구간이 연달아 나오지 않게
+  const isSpecial = f => f === PATTERNS[5] || f === PATTERNS[6];
+  let fn = pick(pool), tries = 0;
+  // 스폰 커서 기준으로 판정해야 한다. worldX 는 생성 시점보다 한참 뒤에 있다.
+  while (tries++ < 8 && (fn === G._lastPattern ||
+        (isSpecial(fn) && G.cursor - G._lastSpecial < 3200))){
+    fn = pick(pool);
+  }
+  if (isSpecial(fn) && G.cursor - G._lastSpecial < 3200) fn = PATTERNS[0];
+  if (isSpecial(fn)) G._lastSpecial = G.cursor;
+  G._lastPattern = fn;
+  G.cursor += fn(G.cursor) ;
+}
+
+function ensureLevel(){
+  let guard = 0;
+  while (G.cursor < G.worldX + W + 700 && guard++ < 12) spawnPattern();
+}
+
+/* ------------------------------------------------------- 입력 → 음높이 */
+/* 주파수를 개인 음역 안에서 로그 스케일로 0~1 정규화 */
+function pitchToNorm(f){
+  const lo = Math.log(G.fLow), hi = Math.log(G.fHigh);
+  return clamp((Math.log(f) - lo) / (hi - lo), 0, 1);
+}
+
+let keyNorm = 0.5;
+function readInput(dt){
+  if (G.input === 'keys'){
+    const up = keys['ArrowUp'] || keys['w'], dn = keys['ArrowDown'] || keys['s'];
+    if (up) keyNorm += dt * 1.9;
+    if (dn) keyNorm -= dt * 1.9;
+    if (!up && !dn) keyNorm -= dt * 0.55;          // 놓으면 서서히 하강
+    keyNorm = clamp(keyNorm, 0, 1);
+    return { voiced: up || dn, norm: keyNorm, loud: !!keys['Shift'], freq: 0 };
+  }
+  readMic();
+  return {
+    voiced: MIC.voiced,
+    norm: MIC.voiced ? pitchToNorm(MIC.freq) : null,
+    loud: MIC.rms > 0.14,
+    freq: MIC.freq
+  };
+}
+
+/* 비브라토 감지: 최근 0.4초 음높이의 표준편차가 "떨림" 범위인지 */
+function vibratoAmount(norm){
+  G.vibHist.push(norm);
+  if (G.vibHist.length > 26) G.vibHist.shift();
+  if (G.vibHist.length < 14) return 0;
+  let m = 0;
+  for (const v of G.vibHist) m += v;
+  m /= G.vibHist.length;
+  let sd = 0;
+  for (const v of G.vibHist) sd += (v-m)*(v-m);
+  sd = Math.sqrt(sd / G.vibHist.length);
+  // 너무 작으면 그냥 유지음, 너무 크면 큰 도약 → 둘 다 비브라토가 아님
+  if (sd < 0.012 || sd > 0.11) return 0;
+  return clamp((sd - 0.012) / 0.05, 0, 1);
+}
+
+function zoneAt(x, kind){
+  for (const z of G.zones){
+    if (z.kind === kind && x >= z.x && x <= z.x + z.w) return z;
+  }
+  return null;
+}
+
+/* ------------------------------------------------------------ 업데이트 */
+function update(dt){
+  G.t += dt;
+  G.speed = lerp(250, 470, diff());
+  G.worldX += G.speed * dt;
+  ensureLevel();
+
+  const inp = readInput(dt);
+  const px  = G.worldX + PX;                       // 캐릭터의 월드 x
+  const silentZone = zoneAt(px, 'silent');
+  const goldZone   = zoneAt(px, 'golden');
+
+  /* --- 높이 제어 --------------------------------------------------- */
+  let target;
+  if (silentZone){
+    // 정적 구간: 목소리를 쓸 수 없다. 진입 높이를 유지하되 아주 천천히 가라앉음
+    if (silentZone.enterNorm == null) silentZone.enterNorm = G.player.norm;
+    target = Y(clamp(silentZone.enterNorm - (px - silentZone.x) / silentZone.w * 0.12, 0, 1));
+    const loudness = G.input === 'keys' ? (keys['ArrowUp']||keys['ArrowDown'] ? 0.2 : 0) : MIC.rms;
+    if (loudness > 0.02){                          // 소리를 내면 페널티
+      G.silentPenalty += dt;
+      G.quietRun = 0;
+      if (G.silentPenalty > 0.35){ G.silentPenalty = 0; hit(true); }
+    } else {
+      G.quietRun += dt;
+      G.score += dt * 55;                          // 침묵 보너스
+    }
+  } else {
+    G.silentPenalty = 0;
+    if (inp.voiced && inp.norm != null){
+      target = Y(inp.norm);
+      G.player.norm = inp.norm;
+    } else {
+      target = BOT_Y - PR;                          // 무음 → 중력
+    }
+  }
+
+  // 응답성과 부드러움의 균형. 목소리가 있을 때 더 민첩하게.
+  const k = inp.voiced || silentZone ? 15 : 5.5;
+  G.player.y = lerp(G.player.y, target, 1 - Math.exp(-dt * k));
+  G.player.y = clamp(G.player.y, TOP_Y + PR, BOT_Y - PR);
+  if (!silentZone && inp.voiced && inp.norm != null) G.player.norm = inp.norm;
+  else G.player.norm = clamp((BOT_Y - G.player.y) / SPAN, 0, 1);
+
+  /* --- 실드 (크게 소리치기) ---------------------------------------- */
+  G.energy = Math.min(100, G.energy + dt * 16);
+  if (inp.loud && !silentZone){
+    G.shoutHold += dt;
+    if (G.shoutHold > 0.12 && G.energy >= 34 && G.shield <= 0){
+      G.energy -= 34; G.shield = 1.6;
+      blip(180, 0.3, 'sawtooth', 0.12);
+      for (let i=0;i<18;i++) spark(PX, G.player.y, '#25f4ee');
+    }
+  } else G.shoutHold = 0;
+  if (G.shield > 0) G.shield -= dt;
+
+  /* --- 그루브 (비브라토) ------------------------------------------- */
+  const vib = (inp.voiced && !silentZone) ? vibratoAmount(G.player.norm) : 0;
+  G.groove = clamp(G.groove + (vib > 0 ? dt * vib * 0.85 : -dt * 0.42), 0, 1);
+  G.grooveMul = 1 + G.groove * 1.5;
+
+  /* --- 골든 라인 (음정 유지) ---------------------------------------
+     판정은 화면에 보이는 몸통 위치로. 목표 음(G.player.norm)은 보간 전 값이라
+     눈에 보이는 것과 점수가 어긋난다. */
+  const bodyNorm = clamp((BOT_Y - G.player.y) / SPAN, 0, 1);
+  if (goldZone && Math.abs(bodyNorm - goldZone.n) < goldZone.band){
+    G.comboT += dt;
+    G.comboMul = Math.min(4, 1 + G.comboT * 0.8);
+    G.score += dt * 90 * G.comboMul;
+    if (Math.random() < dt*24) spark(PX, G.player.y, '#ffd23f');
+  } else {
+    G.comboT = Math.max(0, G.comboT - dt*2.2);
+    G.comboMul = Math.max(1, 1 + G.comboT * 0.8);
+  }
+
+  /* --- 점수 / 멜로디 기록 ------------------------------------------ */
+  G.score += dt * G.speed * 0.09 * G.grooveMul;
+  G.melodyT += dt;
+  if (G.melodyT > 0.08){
+    G.melodyT = 0;
+    G.melody.push(inp.voiced ? (G.input==='keys' ? 200 + G.player.norm*400 : MIC.freq) : 0);
+    if (G.melody.length > 420) G.melody.shift();
+  }
+
+  /* --- 충돌 -------------------------------------------------------- */
+  if (G.invuln > 0) G.invuln -= dt;
+  const cx = PX, cy = G.player.y;
+  for (const o of G.obstacles){
+    const sx = o.x - G.worldX;
+    if (sx > cx + PR || sx + o.w < cx - PR) continue;
+    if (circleRect(cx, cy, PR, sx, o.y, o.w, o.h)){
+      if (G.shield > 0){
+        o.broken = true; o.h = 0;
+        blip(520, 0.12, 'square', 0.1);
+        for (let i=0;i<14;i++) spark(sx + o.w/2, cy, '#ff2e97');
+      } else hit(false);
+      break;
+    }
+  }
+
+  /* --- 음표 수집 ---------------------------------------------------- */
+  for (const n of G.notes){
+    if (n.got) continue;
+    const sx = n.x - G.worldX;
+    if (sx < -40){ n.got = true; continue; }
+    if (sx > cx + 60) continue;
+    const dx = sx - cx, dy = n.y - cy;
+    if (dx*dx + dy*dy < (PR + n.r + 4)**2){
+      n.got = true; G.notesGot++;
+      G.score += (n.golden ? 120 : 55) * G.grooveMul * G.comboMul;
+      G.energy = Math.min(100, G.energy + 6);
+      blip(440 * Math.pow(2, (G.notesGot % 8) / 12), 0.1, 'sine', 0.1);
+      for (let i=0;i<7;i++) spark(sx, n.y, n.golden ? '#ffd23f' : '#25f4ee');
+    }
+  }
+
+  /* --- 정리 --------------------------------------------------------- */
+  const cut = G.worldX - 200;
+  if (G.obstacles.length > 220) G.obstacles = G.obstacles.filter(o => o.x + o.w > cut);
+  if (G.notes.length     > 260) G.notes     = G.notes.filter(n => n.x > cut);
+  if (G.zones.length     > 12)  G.zones     = G.zones.filter(z => z.x + z.w > cut);
+
+  for (let i=G.particles.length-1; i>=0; i--){
+    const p = G.particles[i];
+    p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 260*dt; p.life -= dt;
+    if (p.life <= 0) G.particles.splice(i,1);
+  }
+  G.trail.push({ x:PX, y:G.player.y, v:G.player.norm });
+  if (G.trail.length > 90) G.trail.shift();
+  for (const t of G.trail) t.x -= G.speed * dt;
+
+  G.shake = Math.max(0, G.shake - dt*4);
+  G.flash = Math.max(0, G.flash - dt*3);
+}
+
+function circleRect(cx, cy, r, rx, ry, rw, rh){
+  const nx = clamp(cx, rx, rx+rw), ny = clamp(cy, ry, ry+rh);
+  const dx = cx-nx, dy = cy-ny;
+  return dx*dx + dy*dy < r*r;
+}
+function spark(x, y, color){
+  G.particles.push({ x, y, vx:rnd(-160,60), vy:rnd(-150,80), life:rnd(0.3,0.7), color, r:rnd(1.5,3.6) });
+}
+function hit(fromSilence){
+  if (G.invuln > 0) return;
+  G.lives--; G.invuln = 1.3; G.shake = 1; G.flash = 1;
+  G.comboT = 0; G.comboMul = 1; G.groove = Math.max(0, G.groove - 0.5);
+  noiseHit();
+  for (let i=0;i<22;i++) spark(PX, G.player.y, fromSilence ? '#9d7bff' : '#ff2e97');
+  if (G.lives <= 0) gameOver();
+}
+
+/* --------------------------------------------------------------- 렌더 */
+function draw(){
+  ctx.save();
+  if (G.shake > 0){
+    ctx.translate(rnd(-1,1)*G.shake*7, rnd(-1,1)*G.shake*7);
+  }
+
+  // 배경
+  const bg = ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#160c33'); bg.addColorStop(0.55,'#0c0722'); bg.addColorStop(1,'#1a0a2b');
+  ctx.fillStyle = bg; ctx.fillRect(-20,-20,W+40,H+40);
+
+  // 원경: 스크롤하는 그리드
+  ctx.save();
+  ctx.globalAlpha = 0.16; ctx.strokeStyle = '#7a5cff'; ctx.lineWidth = 1;
+  const gp = 64, off = -(G.worldX * 0.25) % gp;
+  for (let x=off; x<W+gp; x+=gp){ ctx.beginPath(); ctx.moveTo(x,TOP_Y); ctx.lineTo(x,BOT_Y); ctx.stroke(); }
+  for (let y=TOP_Y; y<=BOT_Y; y+=53){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  ctx.restore();
+
+  // 특수 구간
+  for (const z of G.zones){
+    const sx = z.x - G.worldX;
+    if (sx > W || sx + z.w < 0) continue;
+    if (z.kind === 'golden'){
+      const y = Y(z.n), bh = z.band*SPAN;
+      const g = ctx.createLinearGradient(0, y-bh, 0, y+bh);
+      g.addColorStop(0,'#ffd23f00'); g.addColorStop(0.5,'#ffd23f3d'); g.addColorStop(1,'#ffd23f00');
+      ctx.fillStyle = g; ctx.fillRect(sx, y-bh, z.w, bh*2);
+      ctx.strokeStyle = '#ffd23f88'; ctx.lineWidth = 1.5; ctx.setLineDash([9,7]);
+      ctx.beginPath(); ctx.moveTo(sx,y); ctx.lineTo(sx+z.w,y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = '#ffd23f'; ctx.font = '700 12px system-ui';
+      const lbl = G.input === 'mic'
+      ? '이 음을 유지하세요 — ' + noteLabel(G.fLow * Math.pow(G.fHigh/G.fLow, z.n))
+      : '이 높이를 유지하세요';
+    ctx.fillText(lbl, sx+10, y-bh-9);
+    } else {
+      ctx.fillStyle = '#9d7bff1c'; ctx.fillRect(sx, TOP_Y, z.w, SPAN);
+      ctx.strokeStyle = '#9d7bff66'; ctx.lineWidth = 2; ctx.setLineDash([5,9]);
+      ctx.strokeRect(sx, TOP_Y, z.w, SPAN); ctx.setLineDash([]);
+      ctx.fillStyle = '#c9b6ff'; ctx.font = '800 22px system-ui'; ctx.textAlign='center';
+      ctx.fillText('🤫  SILENT ZONE', sx + z.w/2, TOP_Y + 42);
+      ctx.font = '500 13px system-ui'; ctx.fillStyle = '#9d7bff';
+      ctx.fillText('소리를 내지 마세요', sx + z.w/2, TOP_Y + 64);
+      ctx.textAlign='left';
+    }
+  }
+
+  // 위/아래 경계 + 지면
+  ctx.fillStyle = '#180b2e'; ctx.fillRect(0, 0, W, TOP_Y-2);
+  ctx.fillStyle = '#12081f'; ctx.fillRect(0, BOT_Y+2, W, H-BOT_Y);
+  ctx.strokeStyle = '#ff2e9755'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0,TOP_Y-1); ctx.lineTo(W,TOP_Y-1);
+  ctx.moveTo(0,BOT_Y+1); ctx.lineTo(W,BOT_Y+1); ctx.stroke();
+  // 속도감을 주는 바닥 스트라이프
+  ctx.fillStyle = '#ff2e9718';
+  const sp = 90, so = -(G.worldX * 1.0) % sp;
+  for (let x=so; x<W+sp; x+=sp) ctx.fillRect(x, BOT_Y+8, 44, 5);
+
+  // 장애물
+  for (const o of G.obstacles){
+    const sx = o.x - G.worldX;
+    if (sx > W || sx + o.w < 0 || o.h <= 0) continue;
+    const g = ctx.createLinearGradient(sx, o.y, sx + o.w, o.y + o.h);
+    g.addColorStop(0,'#ff2e97'); g.addColorStop(1,'#7a2bff');
+    ctx.fillStyle = g;
+    ctx.shadowColor = '#ff2e97'; ctx.shadowBlur = 18;
+    roundRect(sx, o.y, o.w, o.h, 5); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffffff22';
+    ctx.fillRect(sx+3, o.y+3, o.w-6, Math.min(3, o.h));
+  }
+
+  // 음표
+  for (const n of G.notes){
+    if (n.got) continue;
+    const sx = n.x - G.worldX;
+    if (sx > W+20 || sx < -20) continue;
+    const bob = Math.sin(G.t*4 + n.ph) * 3;
+    ctx.beginPath(); ctx.arc(sx, n.y + bob, n.r, 0, 6.2832);
+    ctx.fillStyle = n.golden ? '#ffd23f' : '#25f4ee';
+    ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 14; ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = '#0a0718'; ctx.font = '700 12px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('♪', sx, n.y + bob + 1);
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  }
+
+  // 목소리 궤적 — 방금 낸 음이 그대로 선으로 남는다 (실시간 피드백)
+  if (G.trail.length > 2){
+    ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (let i=1;i<G.trail.length;i++){
+      const a = G.trail[i-1], b = G.trail[i];
+      const t = i / G.trail.length;
+      ctx.strokeStyle = `hsla(${190 + b.v*140}, 100%, 64%, ${t*0.55})`;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+  }
+
+  // 파티클
+  for (const p of G.particles){
+    ctx.globalAlpha = clamp(p.life*1.8, 0, 1);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.2832); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // 캐릭터
+  const py = G.player.y;
+  const blinking = G.invuln > 0 && Math.floor(G.t*14) % 2 === 0;
+  if (!blinking){
+    if (G.shield > 0){
+      ctx.beginPath(); ctx.arc(PX, py, PR + 12 + Math.sin(G.t*20)*2, 0, 6.2832);
+      ctx.strokeStyle = '#25f4ee'; ctx.lineWidth = 3;
+      ctx.shadowColor = '#25f4ee'; ctx.shadowBlur = 20; ctx.stroke(); ctx.shadowBlur = 0;
+    }
+    const hue = 190 + G.player.norm * 140;
+    ctx.beginPath(); ctx.arc(PX, py, PR, 0, 6.2832);
+    ctx.fillStyle = `hsl(${hue},100%,62%)`;
+    ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 24; ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = '#0a0718';
+    ctx.beginPath(); ctx.arc(PX+5, py-3, 3.2, 0, 6.2832); ctx.fill();
+    // 그루브가 차오르면 링이 돈다
+    if (G.groove > 0.05){
+      ctx.strokeStyle = `rgba(255,210,63,${G.groove})`; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(PX, py, PR+6, G.t*7, G.t*7 + G.groove*5.4); ctx.stroke();
+    }
+  }
+
+  drawHUD();
+
+  if (G.flash > 0){
+    ctx.fillStyle = `rgba(255,46,151,${G.flash*0.28})`;
+    ctx.fillRect(0,0,W,H);
+  }
+  ctx.restore();
+}
+
+function roundRect(x,y,w,h,r){
+  r = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+
+function drawHUD(){
+  ctx.font = '800 26px system-ui'; ctx.fillStyle = '#eae6ff';
+  ctx.fillText(Math.floor(G.score).toLocaleString(), 20, 40);
+  ctx.font = '500 12px system-ui'; ctx.fillStyle = '#8e86b8';
+  ctx.fillText(Math.floor(G.worldX/12) + 'm  ·  ♪ ' + G.notesGot, 20, 56);
+
+  // 하트
+  for (let i=0;i<3;i++){
+    ctx.globalAlpha = i < G.lives ? 1 : 0.2;
+    ctx.font = '18px system-ui';
+    ctx.fillText('♥', W - 46 - i*24, 40);
+  }
+  ctx.globalAlpha = 1;
+
+  // 실드 에너지
+  ctx.fillStyle = '#ffffff16'; roundRect(W-186, 52, 166, 7, 4); ctx.fill();
+  ctx.fillStyle = G.energy >= 34 ? '#25f4ee' : '#25f4ee55';
+  roundRect(W-186, 52, 166 * G.energy/100, 7, 4); ctx.fill();
+  ctx.font = '500 10px system-ui'; ctx.fillStyle = '#8e86b8';
+  ctx.textAlign = 'right'; ctx.fillText('SHOUT', W-20, 74); ctx.textAlign = 'left';
+
+  // 배수 표시
+  const mul = G.grooveMul * G.comboMul;
+  if (mul > 1.05){
+    ctx.font = '800 20px system-ui';
+    ctx.fillStyle = G.comboMul > 1.05 ? '#ffd23f' : '#25f4ee';
+    ctx.fillText('×' + mul.toFixed(1), 20, 84);
+  }
+
+  // 오른쪽 음높이 스케일 + 현재 음
+  const gx = W - 30;
+  ctx.strokeStyle = '#ffffff18'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(gx, TOP_Y); ctx.lineTo(gx, BOT_Y); ctx.stroke();
+  const my = Y(G.player.norm);
+  ctx.fillStyle = `hsl(${190 + G.player.norm*140},100%,62%)`;
+  ctx.beginPath(); ctx.moveTo(gx-7, my); ctx.lineTo(gx+4, my-5); ctx.lineTo(gx+4, my+5); ctx.closePath(); ctx.fill();
+  if (G.input === 'mic' && MIC.voiced){
+    ctx.font = '700 11px system-ui'; ctx.textAlign = 'right';
+    ctx.fillText(noteLabel(MIC.freq), gx - 12, my + 4);
+    ctx.textAlign = 'left';
+  }
+
+  // 입력 없음 경고
+  if (G.input === 'mic' && !MIC.voiced && !zoneAt(G.worldX+PX,'silent') && G.t > 1){
+    ctx.font = '600 13px system-ui'; ctx.fillStyle = '#ff7a7a99'; ctx.textAlign='center';
+    ctx.fillText('소리를 내세요 — 조용하면 떨어집니다', W/2, BOT_Y - 16);
+    ctx.textAlign='left';
+  }
+}
+
+/* ------------------------------------------------------------ 화면 전환 */
+const $ = id => document.getElementById(id);
+const screens = { title:$('scTitle'), calibrate:$('scCal'), over:$('scOver') };
+function show(name){
+  for (const k in screens) screens[k].classList.toggle('on', k === name);
+  G.mode = name;
+}
+
+/* -------------------------------------------------------- 음역대 보정 */
+const CAL = { step:0, samples:[], t:0, active:false };
+
+function beginCalibration(){
+  CAL.step = 0; CAL.samples = []; CAL.t = 0; CAL.active = true;
+  paintCalStep();
+  show('calibrate');
+}
+function paintCalStep(){
+  const low = CAL.step === 0;
+  $('calTitle').innerHTML = low
+    ? '가장 <span>낮은</span> 소리를 내주세요'
+    : '가장 <span>높은</span> 소리를 내주세요';
+  $('calDesc').innerHTML = low
+    ? '편하게 낼 수 있는 제일 낮은 음을 &ldquo;아—&rdquo; 하고 길게.'
+    : '무리하지 않는 선에서 제일 높은 음을 &ldquo;아—&rdquo; 하고 길게.';
+  $('s1').classList.toggle('on', true);
+  $('s2').classList.toggle('on', CAL.step === 1);
+  $('calFill').style.width = '0%';
+  $('calNote').textContent = '—';
+}
+function updateCalibration(dt){
+  readMic();
+  $('calNote').textContent = MIC.voiced ? noteLabel(MIC.freq) + '  ' + Math.round(MIC.freq) + 'Hz' : '—';
+  if (MIC.voiced){
+    CAL.samples.push(MIC.freq);
+    CAL.t += dt;
+    $('calHint').textContent = '좋아요, 계속 유지하세요…';
+  } else {
+    CAL.t = Math.max(0, CAL.t - dt*0.6);
+    $('calHint').textContent = MIC.rms > 0.004 ? '조금만 더 또렷하게…' : '소리를 감지하는 중…';
+  }
+  $('calFill').style.width = Math.min(100, CAL.t/1.6*100) + '%';
+
+  if (CAL.t >= 1.6 && CAL.samples.length > 12){
+    const s = CAL.samples.slice().sort((a,b)=>a-b);
+    const med = s[s.length >> 1];
+    if (CAL.step === 0){ G.fLow = med; CAL.step = 1; CAL.samples = []; CAL.t = 0; paintCalStep(); blip(440,0.12); }
+    else {
+      G.fHigh = med;
+      if (G.fHigh < G.fLow * 1.6){ G.fHigh = G.fLow * 2.4; }   // 음역이 너무 좁으면 보정
+      G.fLow  *= 0.94; G.fHigh *= 1.06;                        // 양끝에 여유
+      CAL.active = false; blip(660,0.18);
+      startRun('mic');
+    }
+  }
+}
+
+/* ------------------------------------------------------------- 라운드 */
+function startRun(mode){
+  G.input = mode;
+  G.t = 0; G.worldX = 0; G.speed = 250;
+  G.player.y = BOT_Y - 80; G.player.norm = 0.2;
+  G.trail.length = 0; G.obstacles.length = 0; G.notes.length = 0;
+  G.zones.length = 0; G.particles.length = 0; G.vibHist.length = 0; G.melody.length = 0;
+  G.cursor = 500; G._lastPattern = null; G._lastSpecial = -9999;
+  G.lives = 3; G.invuln = 0; G.score = 0; G.notesGot = 0;
+  G.shield = 0; G.energy = 100; G.shoutHold = 0;
+  G.groove = 0; G.grooveMul = 1; G.comboT = 0; G.comboMul = 1;
+  G.silentPenalty = 0; G.quietRun = 0; G.shake = 0; G.flash = 0;
+  keyNorm = 0.35;
+  ensureLevel();
+  show(null);
+  G.mode = 'play';
+  A.resume();
+}
+
+function gameOver(){
+  G.mode = 'over';
+  const sc = Math.floor(G.score);
+  if (sc > G.best){ G.best = sc; localStorage.setItem('vr_best', sc); }
+  $('ovScore').textContent = sc.toLocaleString();
+  $('ovDist').textContent  = Math.floor(G.worldX/12) + 'm';
+  $('ovNotes').textContent = G.notesGot;
+  $('ovBest').textContent  = G.best.toLocaleString();
+  $('ovTip').textContent   = pick([
+    '팁: 목소리를 떨면(비브라토) 그루브 게이지가 차서 점수 배수가 올라갑니다.',
+    '팁: 크게 소리치면 실드가 생겨 장애물을 부수고 지나갑니다.',
+    '팁: 골든 라인 위에서 음을 정확히 유지할수록 배수가 계속 커집니다.',
+    '팁: 조용한 구간에서는 숨을 참으세요. 소리를 내면 다칩니다.',
+    '팁: 소리를 끊으면 캐릭터가 떨어집니다. 이어지는 음이 곧 비행입니다.'
+  ]);
+  $('btnMelody').style.display = G.melody.some(f=>f>0) ? '' : 'none';
+  show('over');
+}
+
+/* ------------------------------------------- 내가 부른 멜로디 다시 듣기 */
+let melodyPlaying = false;
+function playMelody(){
+  if (!A.ctx || melodyPlaying) return;
+  const seq = G.melody.slice(-260);
+  if (!seq.length) return;
+  melodyPlaying = true;
+  const t0 = A.ctx.currentTime + 0.05, step = 0.08;
+  const o = A.ctx.createOscillator(), g = A.ctx.createGain();
+  o.type = 'triangle';
+  g.gain.setValueAtTime(0.0001, t0);
+  o.connect(g); g.connect(A.ctx.destination);
+  let last = 0;
+  seq.forEach((f, i) => {
+    const t = t0 + i*step;
+    if (f > 0){
+      o.frequency.setTargetAtTime(f, t, 0.02);
+      if (last <= 0) g.gain.setTargetAtTime(0.14, t, 0.02);
+      last = f;
+    } else if (last > 0){
+      g.gain.setTargetAtTime(0.0001, t, 0.03);
+      last = 0;
+    }
+  });
+  const end = t0 + seq.length*step;
+  g.gain.setTargetAtTime(0.0001, end, 0.05);
+  o.start(t0); o.stop(end + 0.4);
+  o.onended = () => { melodyPlaying = false; };
+}
+
+/* -------------------------------------------------------------- 버튼 */
+$('btnStart').onclick = async () => {
+  $('micErr').textContent = '';
+  try {
+    await A.start();
+    beginCalibration();
+  } catch (e){
+    $('micErr').textContent =
+      '마이크를 사용할 수 없습니다 (' + (e && e.name ? e.name : 'error') + '). ' +
+      '브라우저 주소창의 권한을 허용하거나, https / localhost 에서 열어주세요. ' +
+      '지금은 키보드 모드로 플레이할 수 있습니다.';
+  }
+};
+$('btnKeys').onclick = () => {
+  try { A.ctx = A.ctx || new (window.AudioContext||window.webkitAudioContext)(); } catch(e){}
+  startRun('keys');
+};
+$('btnSkipCal').onclick = () => { CAL.active = false; G.fLow = 130; G.fHigh = 520; startRun('mic'); };
+$('btnRetry').onclick   = () => startRun(G.input);
+$('btnMelody').onclick  = playMelody;
+
+addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' '){
+    if (G.mode === 'over') startRun(G.input);
+  }
+});
+
+/* --------------------------------------------------------- 메인 루프 */
+let prev = performance.now();
+function frame(now){
+  const dt = Math.min(0.05, (now - prev) / 1000);
+  prev = now;
+  if (G.mode === 'play') update(dt);
+  else if (G.mode === 'calibrate' && CAL.active) updateCalibration(dt);
+  if (G.mode === 'play' || G.mode === 'over') draw();
+  else drawIdle();
+  requestAnimationFrame(frame);
+}
+function drawIdle(){
+  const bg = ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#160c33'); bg.addColorStop(1,'#0c0722');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
+  ctx.globalAlpha = 0.18; ctx.strokeStyle = '#7a5cff'; ctx.lineWidth = 1;
+  const t = performance.now()/1000;
+  ctx.beginPath();
+  for (let x=0;x<=W;x+=6){
+    const y = H/2 + Math.sin(x/90 + t*1.4)*70 * Math.sin(x/430 + t*0.5);
+    x ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+  }
+  ctx.stroke(); ctx.globalAlpha = 1;
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
