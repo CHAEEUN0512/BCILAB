@@ -1,0 +1,229 @@
+<title>One Dataset Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: lab-notebook app — header with signal trace, tab bar, one working panel per tab */
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --ink:#16212b; --muted:#5b6875; --line:#d9dfe5;
+  --accent:#1f6f8b; --accent-soft:#e1eff4; --warm:#c2621a; --warm-soft:#fbeadc; --good:#2f7d4f;
+  --sans:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#10161c; --surface:#18212a; --ink:#e6ebef; --muted:#97a4b0; --line:#2b3742;
+  --accent:#5cb3d1; --accent-soft:#1c3440; --warm:#e8945a; --warm-soft:#3a281b; --good:#6cc08d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10161c; --surface:#18212a; --ink:#e6ebef; --muted:#97a4b0; --line:#2b3742;
+  --accent:#5cb3d1; --accent-soft:#1c3440; --warm:#e8945a; --warm-soft:#3a281b; --good:#6cc08d; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:16px;padding-block:20px 48px}
+header{display:grid;gap:6px;padding-block:8px 4px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--accent);text-transform:uppercase}
+h1{font-size:clamp(24px,4vw,34px);line-height:1.2;margin:0;text-wrap:balance}
+h2{font-size:19px;margin:0 0 4px}
+h3{font-size:16px;margin:0}
+p{margin:0}
+.sub{color:var(--muted);max-width:65ch}
+.demo{display:inline-block;font-size:12px;color:var(--warm);background:var(--warm-soft);border-radius:4px;padding:2px 8px;justify-self:start}
+canvas#trace{width:100%;height:56px;display:block;margin-top:8px}
+nav{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line);margin-block:16px 20px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:2}
+nav button{font:inherit;font-size:14px;background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);padding:10px 12px;cursor:pointer}
+nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:500}
+nav button:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.panel{display:grid;gap:16px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 10px;color:var(--muted);background:var(--surface)}
+.chip.lec{color:var(--accent);border-color:var(--accent)}
+.chip.lab{color:var(--warm);border-color:var(--warm)}
+.chip.now{background:var(--accent);color:var(--surface);border-color:var(--accent)}
+/* timeline */
+.weeks{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.week{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:grid;gap:6px;align-content:start}
+.week .n{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.week.cur{border-color:var(--accent)}
+.week .cnt{font-size:13px;color:var(--muted)}
+/* compare */
+.chart{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;overflow-x:auto}
+.chart svg{display:block;min-width:520px;width:100%;height:auto}
+.chart text{fill:var(--muted);font-family:var(--sans);font-size:12px}
+.chart .lbl{fill:var(--ink);font-size:13px}
+.note{font-size:13px;color:var(--muted)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{font-weight:500;color:var(--muted);font-size:12px}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.tablebox{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+/* cards */
+.filters{display:flex;flex-wrap:wrap;gap:8px}
+select,input,textarea{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 10px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:grid;gap:10px;align-content:start;min-width:0}
+.card .meta{font-size:13px;color:var(--muted)}
+.metric{font-family:var(--mono);font-size:22px;font-variant-numeric:tabular-nums}
+.metric small{font-size:12px;color:var(--muted);margin-left:4px}
+.prompt{font-family:var(--mono);font-size:12.5px;background:var(--accent-soft);border-radius:6px;padding:10px;white-space:pre-wrap;word-break:break-word;margin:0}
+details summary{cursor:pointer;font-size:13px;color:var(--accent)}
+.comments{display:grid;gap:6px;font-size:13px}
+.comment{border-left:2px solid var(--line);padding-left:8px}
+.comment b{font-weight:500}
+.btn{font:inherit;font-size:13px;border:1px solid var(--accent);color:var(--accent);background:var(--surface);border-radius:6px;padding:5px 12px;cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--surface)}
+.cmtform{display:flex;gap:6px}
+.cmtform input{flex:1;min-width:0}
+/* library */
+.lib{display:grid;gap:10px}
+.libitem{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;gap:8px;min-width:0}
+/* form */
+form{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px;max-width:720px}
+.field{display:grid;gap:4px}
+.field label{font-size:13px;color:var(--muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.two{grid-template-columns:1fr}}
+.toast{font-size:13px;color:var(--good)}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--muted)}
+.check input{margin-top:4px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">BCI 데이터 분석 · 2026-2학기</span>
+  <h1>하나의 EEG 데이터, 여러 갈래의 분석</h1>
+  <p class="sub">매주 새 분석 기법을 배우고, 다음 주에 같은 데이터로 실습합니다. 결과와 함께 AI에게 준 프롬프트를 제출하고, 서로의 분석을 보며 의견을 남깁니다.</p>
+  <span class="demo">시제품 · 아래 학생 제출물은 화면 구성을 보여주기 위한 예시입니다</span>
+  <canvas id="trace" aria-hidden="true"></canvas>
+</header>
+
+<nav role="tablist">
+  <button role="tab" data-tab="weeks" aria-selected="true">주차 일정</button>
+  <button role="tab" data-tab="compare" aria-selected="false">결과 비교</button>
+  <button role="tab" data-tab="gallery" aria-selected="false">제출 갤러리</button>
+  <button role="tab" data-tab="library" aria-selected="false">프롬프트 라이브러리</button>
+  <button role="tab" data-tab="submit" aria-selected="false">제출하기</button>
+</nav>
+
+<section class="panel" id="p-weeks"></section>
+<section class="panel" id="p-compare" hidden></section>
+<section class="panel" id="p-gallery" hidden></section>
+<section class="panel" id="p-library" hidden></section>
+<section class="panel" id="p-submit" hidden></section>
+</div>
+
+<script>
+const WEEKS=[
+ {n:1,type:"lec",title:"데이터 이해와 전처리",desc:"운동상상 EEG 데이터 구조, 필터링, 에포크 분할"},
+ {n:2,type:"lab",title:"전처리 실습",desc:"밴드패스 필터와 아티팩트 제거를 직접 해보고 파형 비교",method:"전처리"},
+ {n:3,type:"lec",title:"지도학습 ①",desc:"CSP 특징 추출, LDA·SVM 분류기"},
+ {n:4,type:"lab",title:"지도학습 실습",desc:"CSP+LDA / CSP+SVM으로 좌·우손 상상 분류",method:"지도학습"},
+ {n:5,type:"lec",title:"비지도학습",desc:"PCA, ICA, k-means로 데이터 구조 탐색"},
+ {n:6,type:"lab",title:"비지도학습 실습",desc:"군집 결과를 실제 라벨과 비교",method:"비지도학습"},
+ {n:7,type:"lec",title:"딥러닝",desc:"EEGNet, ShallowConvNet 구조 이해"},
+ {n:8,type:"lab",title:"딥러닝 실습",desc:"같은 데이터로 CNN 학습, 앞선 방법과 비교",method:"딥러닝"},
+ {n:9,type:"lec",title:"최종 발표",desc:"한 학기 분석을 하나의 이야기로 정리해 발표"}
+];
+const CURRENT=4;
+const SUBS=[
+ {id:1,who:"학생 A",week:4,method:"지도학습",algo:"CSP + LDA",tool:"ChatGPT",acc:71.5,
+  prompt:"MNE-Python으로 운동상상 EEG(C3, Cz, C4 포함 22채널)를 8–30Hz로 필터링하고, CSP 4개 성분을 뽑아 LDA로 좌/우 분류하는 코드를 작성해줘. 5-fold 교차검증 정확도를 출력하고, 각 단계에 주석을 달아줘.",
+  note:"CSP 성분 수를 2→6으로 바꿔보니 4개에서 가장 좋았다.",comments:[{who:"학생 C",t:"필터 대역을 mu(8–13Hz)만 쓰면 어떻게 달라지는지 궁금해요."}]},
+ {id:2,who:"학생 B",week:4,method:"지도학습",algo:"CSP + SVM (RBF)",tool:"Claude",acc:74.2,
+  prompt:"CSP 특징으로 SVM(RBF 커널)을 학습시키고 C와 gamma를 그리드서치로 찾는 코드를 써줘. 데이터 누수가 생기지 않도록 CSP를 교차검증 fold 안에서 학습하도록 해줘.",
+  note:"처음에는 CSP를 전체 데이터로 학습해서 정확도가 89%로 너무 높게 나왔다. AI에게 누수를 막아 달라고 다시 요청했다.",comments:[{who:"학생 A",t:"누수 얘기 좋네요. 저도 다시 확인해봐야겠어요."},{who:"교수",t:"이번 주 발표에서 이 부분을 같이 짚어봅시다."}]},
+ {id:3,who:"학생 C",week:4,method:"지도학습",algo:"Filter-bank CSP + LDA",tool:"Claude",acc:76.8,
+  prompt:"4–40Hz를 4Hz 간격 9개 대역으로 나눠 각 대역에서 CSP를 하고, 상호정보량으로 특징을 골라 LDA로 분류하는 Filter-Bank CSP를 구현해줘.",
+  note:"대역별로 어떤 특징이 선택됐는지 그림으로 그려보니 mu·beta 대역이 대부분이었다.",comments:[]},
+ {id:4,who:"학생 D",week:2,method:"전처리",algo:"ICA 기반 안구 아티팩트 제거",tool:"Gemini",acc:null,
+  prompt:"EOG 채널을 이용해 ICA 성분 중 눈 깜빡임 성분을 자동으로 찾아 제거하고, 제거 전후 파형을 겹쳐 그려줘.",
+  note:"자동으로 고른 성분이 실제로 눈 깜빡임인지 토포맵을 보고 직접 확인했다.",comments:[]},
+ {id:5,who:"학생 E",week:4,method:"지도학습",algo:"Riemannian (MDM)",tool:"ChatGPT",acc:73.0,
+  prompt:"pyriemann으로 공분산 행렬을 구하고 MDM 분류기로 좌/우 운동상상을 분류해줘. CSP+LDA와 같은 교차검증 분할을 써서 비교할 수 있게 해줘.",
+  note:"코드는 금방 나왔지만 pyriemann 버전이 달라 함수 이름 오류가 있었다.",comments:[]}
+];
+let subs=SUBS.map(s=>({...s,comments:[...s.comments]}));
+
+function el(tag,attrs={},...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs)){if(k==="class")e.className=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v)}for(const k of kids)e.append(k instanceof Node?k:document.createTextNode(k??""));return e}
+
+/* tabs */
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+function showTab(t){document.querySelectorAll('nav button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));document.querySelectorAll('.panel').forEach(p=>p.hidden=p.id!=="p-"+t);try{localStorage.setItem('odl-tab',t)}catch(e){}}
+
+/* weeks */
+function renderWeeks(){const p=document.getElementById('p-weeks');p.replaceChildren(
+ el('div',{},el('h2',{},'주차 일정'),el('p',{class:'note'},'강의 주차에 기법을 배우고, 이어지는 실습 주차에 같은 데이터로 분석해 결과와 프롬프트를 제출합니다.')),
+ el('div',{class:'weeks'},...WEEKS.map(w=>{const cnt=subs.filter(s=>s.week===w.n).length;return el('div',{class:'week'+(w.n===CURRENT?' cur':'')},
+  el('div',{class:'row'},el('span',{class:'n'},'WEEK '+String(w.n).padStart(2,'0')),el('span',{class:'chip '+w.type},w.type==='lec'?'강의':'실습'),w.n===CURRENT?el('span',{class:'chip now'},'이번 주'):''),
+  el('h3',{},w.title),el('p',{class:'note'},w.desc),
+  w.type==='lab'?el('span',{class:'cnt'},`제출 ${cnt}건`):'')})))}
+
+/* compare */
+function renderCompare(){const p=document.getElementById('p-compare');const rows=subs.filter(s=>s.acc!=null).sort((a,b)=>b.acc-a.acc);
+ const W=640,rowH=34,top=10,left=190,right=60,H=top+rows.length*rowH+30,x=v=>left+(v-50)/(100-50)*(W-left-right);
+ const ns="http://www.w3.org/2000/svg";const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.setAttribute('role','img');svg.setAttribute('aria-label','방법별 분류 정확도 비교');
+ const mk=(t,a,txt)=>{const e=document.createElementNS(ns,t);for(const k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;svg.append(e);return e};
+ [50,60,70,80,90,100].forEach(v=>{mk('line',{x1:x(v),x2:x(v),y1:top,y2:H-24,stroke:'var(--line)','stroke-width':1});mk('text',{x:x(v),y:H-8,'text-anchor':'middle'},v+'%')});
+ mk('line',{x1:x(50),x2:x(50),y1:top,y2:H-24,stroke:'var(--muted)','stroke-dasharray':'3 3'});
+ rows.forEach((s,i)=>{const y=top+i*rowH;mk('text',{x:left-10,y:y+20,'text-anchor':'end',class:'lbl'},s.algo);
+  mk('rect',{x:x(50),y:y+7,width:x(s.acc)-x(50),height:18,rx:3,fill:i===0?'var(--warm)':'var(--accent)'});
+  mk('text',{x:x(s.acc)+6,y:y+20,style:'font-family:var(--mono)'},s.acc.toFixed(1)+'%')});
+ p.replaceChildren(el('div',{},el('h2',{},'4주차 · 같은 데이터, 다른 분류기'),el('p',{class:'note'},'모두 같은 데이터와 같은 5-fold 교차검증 분할을 썼기 때문에 숫자를 바로 비교할 수 있습니다. 점선은 우연 수준(50%)입니다.')),
+  el('div',{class:'chart'},svg),
+  el('div',{class:'tablebox'},el('table',{},el('thead',{},el('tr',{},...['학생','방법','AI 도구','정확도'].map(h=>el('th',{},h)))),
+   el('tbody',{},...rows.map(s=>el('tr',{},el('td',{},s.who),el('td',{},s.algo),el('td',{},s.tool),el('td',{class:'num'},s.acc.toFixed(1)+'%')))))))}
+
+/* gallery */
+let gWeek="all",gTool="all";
+function renderGallery(){const p=document.getElementById('p-gallery');
+ const weekSel=el('select',{id:'g-week','aria-label':'주차 선택',onchange:e=>{gWeek=e.target.value;renderGallery()}},el('option',{value:'all'},'전체 주차'),...WEEKS.filter(w=>w.type==='lab').map(w=>el('option',{value:w.n},`${w.n}주차 · ${w.method}`)));weekSel.value=gWeek;
+ const tools=[...new Set(subs.map(s=>s.tool))];const toolSel=el('select',{id:'g-tool','aria-label':'AI 도구 선택',onchange:e=>{gTool=e.target.value;renderGallery()}},el('option',{value:'all'},'모든 AI 도구'),...tools.map(t=>el('option',{value:t},t)));toolSel.value=gTool;
+ const list=subs.filter(s=>(gWeek==='all'||s.week==+gWeek)&&(gTool==='all'||s.tool===gTool));
+ p.replaceChildren(el('div',{},el('h2',{},'제출 갤러리'),el('p',{class:'note'},'다른 학생의 결과와 프롬프트를 보고 질문이나 아이디어를 남겨주세요.')),el('div',{class:'filters'},weekSel,toolSel),
+  list.length?el('div',{class:'cards'},...list.map(card)):el('p',{class:'note'},'이 조건에 맞는 제출물이 아직 없습니다.'))}
+function card(s){const inp=el('input',{id:'c-'+s.id,placeholder:'댓글 남기기','aria-label':s.who+' 제출물에 댓글'});
+ return el('article',{class:'card'},
+  el('div',{class:'row'},el('span',{class:'chip'},s.week+'주차'),el('span',{class:'chip'},s.method),el('span',{class:'chip'},s.tool)),
+  el('div',{},el('h3',{},s.algo),el('p',{class:'meta'},s.who)),
+  s.acc!=null?el('div',{class:'metric'},s.acc.toFixed(1)+'%',el('small',{},'5-fold 정확도')):el('div',{class:'meta'},'정량 지표 없음 · 전처리 결과 그림 제출'),
+  el('details',{},el('summary',{},'사용한 프롬프트 보기'),el('pre',{class:'prompt'},s.prompt)),
+  el('p',{class:'meta'},'배운 점: '+s.note),
+  el('div',{class:'comments'},...s.comments.map(c=>el('div',{class:'comment'},el('b',{},c.who+' '),c.t))),
+  el('form',{class:'cmtform',style:'padding:0;border:0;background:none',onsubmit:e=>{e.preventDefault();const t=inp.value.trim();if(!t)return;s.comments.push({who:'나',t});renderGallery()}},inp,el('button',{class:'btn',type:'submit'},'등록')))}
+
+/* library */
+let libM="all";
+function renderLibrary(){const p=document.getElementById('p-library');const methods=[...new Set(subs.map(s=>s.method))];
+ const sel=el('select',{id:'l-method','aria-label':'기법 선택',onchange:e=>{libM=e.target.value;renderLibrary()}},el('option',{value:'all'},'모든 기법'),...methods.map(m=>el('option',{value:m},m)));sel.value=libM;
+ const list=subs.filter(s=>libM==='all'||s.method===libM);
+ p.replaceChildren(el('div',{},el('h2',{},'프롬프트 라이브러리'),el('p',{class:'note'},'학기 동안 제출된 프롬프트가 기법별로 쌓입니다. 결과가 좋았던 프롬프트를 복사해 자기 분석에 맞게 고쳐 쓰세요.')),el('div',{class:'filters'},sel),
+  el('div',{class:'lib'},...list.map(s=>{const pre=el('pre',{class:'prompt'},s.prompt);const b=el('button',{class:'btn',type:'button',onclick:async()=>{try{await navigator.clipboard.writeText(s.prompt);b.textContent='복사됨'}catch(e){const r=document.createRange();r.selectNodeContents(pre);const sel=getSelection();sel.removeAllRanges();sel.addRange(r);b.textContent='선택됨 · Ctrl+C'}setTimeout(()=>b.textContent='복사',1800)}},'복사');
+   return el('div',{class:'libitem'},el('div',{class:'row'},el('span',{class:'chip'},s.method),el('b',{},s.algo),el('span',{class:'note'},s.acc!=null?`· ${s.acc.toFixed(1)}%`:''),el('span',{style:'flex:1'}),b),pre)})))}
+
+/* submit */
+function renderSubmit(){const p=document.getElementById('p-submit');const toast=el('p',{class:'toast',role:'status'});
+ const f=el('form',{onsubmit:e=>{e.preventDefault();const d=new FormData(f);const wk=+d.get('week');const w=WEEKS.find(x=>x.n===wk);
+   subs.unshift({id:Date.now(),who:d.get('who')||'나',week:wk,method:w.method,algo:d.get('algo'),tool:d.get('tool'),acc:d.get('acc')?+d.get('acc'):null,prompt:d.get('prompt'),note:d.get('note')||'',comments:[]});
+   f.reset();toast.textContent='제출했습니다. 제출 갤러리와 프롬프트 라이브러리에 추가되었습니다.';renderAll(false)}},
+  el('div',{class:'two'},
+   el('div',{class:'field'},el('label',{for:'f-who'},'이름'),el('input',{id:'f-who',name:'who',required:'',placeholder:'홍길동'})),
+   el('div',{class:'field'},el('label',{for:'f-week'},'실습 주차'),el('select',{id:'f-week',name:'week'},...WEEKS.filter(w=>w.type==='lab').map(w=>el('option',{value:w.n},`${w.n}주차 · ${w.method}`))))),
+  el('div',{class:'two'},
+   el('div',{class:'field'},el('label',{for:'f-algo'},'사용한 방법'),el('input',{id:'f-algo',name:'algo',required:'',placeholder:'예: CSP + LDA'})),
+   el('div',{class:'field'},el('label',{for:'f-tool'},'사용한 AI 도구'),el('select',{id:'f-tool',name:'tool'},...['ChatGPT','Claude','Gemini','Copilot','기타'].map(t=>el('option',{},t))))),
+  el('div',{class:'field'},el('label',{for:'f-acc'},'정확도 (%) · 없으면 비워두세요'),el('input',{id:'f-acc',name:'acc',type:'number',min:'0',max:'100',step:'0.1',placeholder:'72.5'})),
+  el('div',{class:'field'},el('label',{for:'f-prompt'},'AI에게 준 프롬프트 (그대로 붙여넣기)'),el('textarea',{id:'f-prompt',name:'prompt',rows:'5',required:''})),
+  el('div',{class:'field'},el('label',{for:'f-note'},'배운 점 · AI가 틀렸던 부분'),el('textarea',{id:'f-note',name:'note',rows:'3'})),
+  el('label',{class:'check',for:'f-ok'},el('input',{id:'f-ok',type:'checkbox',required:''}),'프롬프트에 개인정보나 원본 피험자 정보를 넣지 않았고, AI가 만든 코드와 결과를 직접 확인했습니다.'),
+  el('div',{class:'row'},el('button',{class:'btn primary',type:'submit'},'제출'),toast));
+ p.replaceChildren(el('div',{},el('h2',{},'실습 결과 제출'),el('p',{class:'note'},'시제품에서는 제출 내용이 이 화면에만 임시로 표시되고, 새로고침하면 사라집니다.')),f)}
+
+function renderAll(withSubmit=true){renderWeeks();renderCompare();renderGallery();renderLibrary();if(withSubmit)renderSubmit()}
+renderAll();
+try{const t=localStorage.getItem('odl-tab');if(t&&document.getElementById('p-'+t))showTab(t)}catch(e){}
+
+/* EEG-like trace in header */
+(function(){const c=document.getElementById('trace');const ctx=c.getContext('2d');
+ function draw(){const r=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*r;c.height=h*r;ctx.scale(r,r);
+  const col=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();ctx.strokeStyle=col;ctx.lineWidth=1.2;ctx.globalAlpha=.8;ctx.beginPath();
+  let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647-.5;
+  for(let x=0;x<=w;x++){const t=x/w*40;const v=Math.sin(t*2.1)*.35+Math.sin(t*5.3+1)*.18*(1+Math.sin(t*.4))+rnd()*.22;const y=h/2+v*h*.7;x?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.stroke()}
+ draw();addEventListener('resize',draw);matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw)})();
+</script>
