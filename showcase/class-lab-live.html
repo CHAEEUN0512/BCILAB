@@ -1,0 +1,303 @@
+<title>EEG 분석 실습실</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Nanum+Gothic+Coding&display=swap">
+<style>
+/* Layout: plain document — no boxes, no shadows; type, whitespace and thin dividers only */
+:root{
+  --rule:#2b2d31; --line2:#c4c8cd;
+  --bg:#ffffff; --ink:#1b1c1e; --muted:#4e5258; --line:#dcdee1; --accent:#2457c5; --accent-ink:#ffffff; --good:#1d7a3e; --warn:#c0392b;
+  --sans:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --mono:"Nanum Gothic Coding",ui-monospace,Menlo,Consolas,monospace;
+  --red:var(--accent); --warm:var(--warn); --surface:var(--bg);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17181a;--ink:#e8e8e6;--muted:#b4b6ba;--line:#2c2e31;--accent:#7ea2ff;--accent-ink:#17181a;--good:#6cc98a;--warn:#ff7b6b;--rule:#d5d6d8;--line2:#4a4d52;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#17181a;--ink:#e8e8e6;--muted:#b4b6ba;--line:#2c2e31;--accent:#7ea2ff;--accent-ink:#17181a;--good:#6cc98a;--warn:#ff7b6b;--rule:#d5d6d8;--line2:#4a4d52;color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.75;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding-inline:16px;padding-block:40px 64px}
+header{display:grid;gap:8px}
+.eyebrow{font-size:15px;color:var(--muted)}
+h1{font-size:clamp(26px,4.5vw,34px);font-weight:700;line-height:1.3;margin:0;text-wrap:balance}
+h2{font-size:22px;font-weight:700;margin:0 0 2px}
+h3{font-size:18px;font-weight:700;margin:0}
+p{margin:0}
+.sub{color:var(--muted);max-width:60ch;font-size:17px}
+.demo{font-size:15px;color:var(--muted)}
+canvas#trace{display:none}
+nav{display:flex;flex-wrap:wrap;gap:4px 22px;margin-block:28px 28px;border-bottom:1.5px solid var(--rule);position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:2}
+nav button{font:inherit;font-size:16px;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1.5px;color:var(--muted);padding:10px 0;cursor:pointer}
+nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink);font-weight:500}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+.panel{display:grid;gap:20px}
+.panel>div:first-child{padding-bottom:4px}
+.row{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center}
+.chip{font-size:15px;color:var(--muted)}
+.chip.now{color:var(--accent);font-weight:500}
+.chip.lab{color:var(--ink)}
+/* weeks: plain list */
+.weeks{display:grid}
+.week{display:grid;grid-template-columns:80px 1fr;column-gap:16px;row-gap:2px;padding-block:18px;border-top:1px solid var(--line2)}
+.weeks{border-bottom:1.5px solid var(--rule)}
+.weeks>.week:first-child{border-top:1.5px solid var(--rule)}
+.week>*{grid-column:2}
+.week>.row{grid-column:1;grid-row:1/span 3;align-self:start;flex-direction:column;align-items:flex-start;gap:0}
+.week .n{font-size:15px;color:var(--muted);font-variant-numeric:tabular-nums}
+.week.cur h3{color:var(--accent)}
+.week .cnt{font-size:15px;color:var(--muted)}
+/* chart + table */
+.chart{overflow-x:auto}
+.chart svg{display:block;min-width:520px;width:100%;max-width:760px;height:auto}
+.chart text{fill:var(--muted);font-family:var(--sans);font-size:13px}
+.chart .lbl{fill:var(--ink);font-size:14px}
+.note{font-size:16px;color:var(--muted);max-width:64ch}
+table{border-collapse:collapse;width:100%;font-size:16px}
+th,td{text-align:left;padding:10px 12px 10px 0;border-bottom:1px solid var(--line2)}
+th{font-weight:500;color:var(--muted);font-size:14px;border-bottom:1.5px solid var(--rule)}
+td.num{font-variant-numeric:tabular-nums;text-align:right}
+.tablebox{overflow-x:auto}
+/* controls */
+.filters{display:flex;flex-wrap:wrap;gap:8px}
+select,input,textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:7px 10px}
+select:focus,input:focus,textarea:focus{border-color:var(--muted);outline:none}
+.btn{font:inherit;font-size:16px;border:0;background:none;color:var(--accent);padding:4px 0;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--bg);border-radius:4px;padding:8px 18px}
+.btn.ghost{color:var(--muted);font-size:14px}
+/* gallery: list of entries */
+.cards{display:grid}
+.card{display:grid;gap:12px;padding-block:28px 32px;border-top:2px solid var(--rule);min-width:0}
+.card .comments{border-top:1px solid var(--line2);padding-top:14px;margin-top:4px}
+.card details{border-top:1px solid var(--line);padding-top:12px}
+.card .meta{font-size:15px;color:var(--muted)}
+.card p.meta{font-size:16px;color:var(--ink)}
+.metric{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.metric small{font-size:15px;font-weight:400;color:var(--muted);margin-left:6px}
+.prompt{font-family:var(--mono);font-size:15px;line-height:1.7;color:var(--ink);white-space:pre-wrap;word-break:break-word;margin:8px 0 0;padding-left:14px;border-left:2px solid var(--line)}
+details summary{cursor:pointer;font-size:16px;font-weight:500;color:var(--accent)}
+.comments{display:grid;gap:8px;font-size:16px;padding-top:4px}
+.comments:empty{display:none}
+.comment b{font-weight:700;margin-right:4px}
+.cmtform{display:flex;gap:10px;align-items:center}
+.cmtform input{flex:1;min-width:0}
+/* library */
+.lib{display:grid}
+.libitem{display:grid;gap:10px;padding-block:24px;border-top:2px solid var(--rule);min-width:0}
+/* form */
+form{display:grid;gap:16px;max-width:640px}
+.field{display:grid;gap:4px}
+.field label{font-size:15px;font-weight:500;color:var(--ink)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:560px){.two{grid-template-columns:1fr}.week{grid-template-columns:56px 1fr}}
+.toast{font-size:16px;color:var(--good)}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:15px;color:var(--muted)}
+.check input{margin-top:5px}
+</style>
+<style>
+.banner{font-size:15px;color:var(--muted)}
+.banner.warn{color:var(--warn)}
+.fig img{display:block;max-width:100%;height:auto;border-radius:4px}
+.fig.loading{font-size:15px;color:var(--muted)}
+.author{display:flex;align-items:center;gap:8px}
+.author img{width:20px;height:20px;border-radius:50%}
+.empty{padding-block:32px;color:var(--muted);font-size:16px;border-top:2px solid var(--rule)}
+.preview{max-width:240px;border-radius:4px}
+</style>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">BCI 데이터 분석 · 2026-2학기</span>
+  <h1>하나의 EEG 데이터, 여러 갈래의 분석</h1>
+  <p class="sub">매주 새 분석 기법을 배우고, 다음 주에 같은 데이터로 실습합니다. 결과와 함께 AI에게 준 프롬프트를 제출하고, 서로의 분석을 보며 의견을 남깁니다.</p>
+  <p class="banner" id="status" role="status">수업 저장소에 연결하는 중입니다…</p>
+  <canvas id="trace" aria-hidden="true"></canvas>
+</header>
+
+<nav role="tablist">
+  <button role="tab" data-tab="weeks" aria-selected="true">주차 일정</button>
+  <button role="tab" data-tab="compare" aria-selected="false">결과 비교</button>
+  <button role="tab" data-tab="gallery" aria-selected="false">제출 갤러리</button>
+  <button role="tab" data-tab="library" aria-selected="false">프롬프트 라이브러리</button>
+  <button role="tab" data-tab="submit" aria-selected="false">제출하기</button>
+</nav>
+
+<section class="panel" id="p-weeks"></section>
+<section class="panel" id="p-compare" hidden></section>
+<section class="panel" id="p-gallery" hidden></section>
+<section class="panel" id="p-library" hidden></section>
+<section class="panel" id="p-submit" hidden></section>
+</div>
+
+<script>
+/* 주차 계획: 실제 수업 계획에 맞게 이 목록만 고치면 됩니다 */
+const WEEKS=[
+ {n:1,type:"lec",title:"데이터 이해와 전처리",desc:"운동상상 EEG 데이터 구조, 필터링, 에포크 분할"},
+ {n:2,type:"lab",title:"전처리 실습",desc:"밴드패스 필터와 아티팩트 제거를 직접 해보고 파형 비교",method:"전처리"},
+ {n:3,type:"lec",title:"지도학습",desc:"CSP 특징 추출, LDA·SVM 분류기"},
+ {n:4,type:"lab",title:"지도학습 실습",desc:"좌·우손 운동상상 분류, 교차검증 정확도 비교",method:"지도학습"},
+ {n:5,type:"lec",title:"비지도학습",desc:"PCA, ICA, k-means로 데이터 구조 탐색"},
+ {n:6,type:"lab",title:"비지도학습 실습",desc:"군집 결과를 실제 라벨과 비교",method:"비지도학습"},
+ {n:7,type:"lec",title:"딥러닝",desc:"EEGNet, ShallowConvNet 구조 이해"},
+ {n:8,type:"lab",title:"딥러닝 실습",desc:"같은 데이터로 CNN 학습, 앞선 방법과 비교",method:"딥러닝"},
+ {n:9,type:"lec",title:"최종 발표",desc:"한 학기 분석을 하나의 이야기로 정리해 발표"}
+];
+const LABS=WEEKS.filter(w=>w.type==="lab");
+const methodOf=n=>(WEEKS.find(w=>w.n===n)||{}).method||"기타";
+
+let db=null,user=null,me={id:null,isOwner:false},canWrite=true;
+let subDocs={},comDocs={},names={},avatars={};
+const figCache={};
+
+function el(tag,attrs={},...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs)){if(v==null||v===false)continue;if(k==="class")e.className=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v===true?"":v)}for(const k of kids){if(k==null||k==="")continue;e.append(k instanceof Node?k:document.createTextNode(k))}return e}
+const fmtAcc=a=>a==null?"":(+a).toFixed(1)+"%";
+function setStatus(t,warn){const s=document.getElementById('status');s.textContent=t;s.className='banner'+(warn?' warn':'');s.hidden=!t}
+
+/* 모든 제출물을 한 목록으로 */
+function allSubs(){const out=[];for(const[uid,d]of Object.entries(subDocs)){for(const it of(d.items||[]))out.push({...it,uid,key:uid+":"+it.id,displayName:d.displayName||""})}return out.sort((a,b)=>(b.at||0)-(a.at||0))}
+function commentsFor(key){const out=[];for(const[uid,d]of Object.entries(comDocs)){for(const c of(d.items||[]))if(c.target===key)out.push({...c,uid})}return out.sort((a,b)=>(a.at||0)-(b.at||0))}
+function whoName(uid){const d=subDocs[uid];return names[uid]||(d&&d.displayName)||(uid===me.id?"나":"수강생")}
+
+async function resolveNames(){if(!user)return;const ids=new Set([...Object.keys(subDocs),...Object.keys(comDocs)]);if(!ids.size)return;const ps=await user.profiles([...ids]);for(const id of ids){names[id]=ps[id]?.name||"";avatars[id]=ps[id]?.avatarUrl||""}}
+
+/* tabs */
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+function showTab(t){document.querySelectorAll('nav button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));document.querySelectorAll('.panel').forEach(p=>p.hidden=p.id!=="p-"+t);try{localStorage.setItem('odl-tab',t)}catch(e){}}
+
+/* 주차 일정 */
+function renderWeeks(){const subs=allSubs();document.getElementById('p-weeks').replaceChildren(
+ el('div',{},el('h2',{},'주차 일정'),el('p',{class:'note'},'강의 주차에 기법을 배우고, 이어지는 실습 주차에 같은 데이터로 분석해 결과와 프롬프트를 제출합니다.')),
+ el('div',{class:'weeks'},...WEEKS.map(w=>{const cnt=subs.filter(s=>s.week===w.n).length;return el('div',{class:'week'},
+  el('div',{class:'row'},el('span',{class:'n'},'WEEK '+String(w.n).padStart(2,'0')),el('span',{class:'chip '+w.type},w.type==='lec'?'강의':'실습')),
+  el('h3',{},w.title),el('p',{class:'note'},w.desc),
+  w.type==='lab'?el('span',{class:'cnt'},`제출 ${cnt}건`):null)})))}
+
+/* 결과 비교 */
+let cWeek=null;
+function renderCompare(){const p=document.getElementById('p-compare');const subs=allSubs().filter(s=>s.acc!=null);
+ const weeksWith=LABS.filter(w=>subs.some(s=>s.week===w.n));
+ if(!weeksWith.length){p.replaceChildren(el('div',{},el('h2',{},'결과 비교')),el('div',{class:'empty'},'정확도를 입력한 제출물이 생기면 여기에 방법별 비교 그래프가 나타납니다.'));return}
+ if(!weeksWith.some(w=>w.n===cWeek))cWeek=weeksWith[weeksWith.length-1].n;
+ const sel=el('select',{id:'c-week','aria-label':'주차 선택',onchange:e=>{cWeek=+e.target.value;renderCompare()}},...weeksWith.map(w=>el('option',{value:w.n},`${w.n}주차 · ${w.method}`)));sel.value=cWeek;
+ const rows=subs.filter(s=>s.week===cWeek).sort((a,b)=>b.acc-a.acc);
+ const lo=Math.min(50,Math.floor(Math.min(...rows.map(r=>r.acc))/10)*10);
+ const W=640,rowH=34,top=10,left=210,right=60,H=top+rows.length*rowH+30,x=v=>left+(v-lo)/(100-lo)*(W-left-right);
+ const ns="http://www.w3.org/2000/svg";const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.setAttribute('role','img');svg.setAttribute('aria-label','방법별 정확도 비교');
+ const mk=(t,a,txt)=>{const e=document.createElementNS(ns,t);for(const k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;svg.append(e);return e};
+ for(let v=lo;v<=100;v+=10){mk('line',{x1:x(v),x2:x(v),y1:top,y2:H-24,stroke:'var(--line)','stroke-width':1});mk('text',{x:x(v),y:H-8,'text-anchor':'middle'},v+'%')}
+ if(lo<=50)mk('line',{x1:x(50),x2:x(50),y1:top,y2:H-24,stroke:'var(--muted)','stroke-dasharray':'3 3'});
+ rows.forEach((s,i)=>{const y=top+i*rowH;const lab=(s.algo||'').length>22?s.algo.slice(0,21)+'…':s.algo;mk('text',{x:left-10,y:y+20,'text-anchor':'end',class:'lbl'},lab);
+  mk('rect',{x:x(lo),y:y+7,width:Math.max(1,x(s.acc)-x(lo)),height:18,rx:0,fill:i===0?'var(--accent)':'var(--line)'});
+  mk('text',{x:x(s.acc)+6,y:y+20,style:'font-family:var(--mono)'},fmtAcc(s.acc))});
+ p.replaceChildren(el('div',{},el('h2',{},'같은 데이터, 다른 방법'),el('p',{class:'note'},'같은 데이터와 같은 평가 방식을 썼다면 숫자를 바로 비교할 수 있습니다. 점선은 우연 수준(50%)입니다.')),
+  el('div',{class:'filters'},sel),el('div',{class:'chart'},svg),
+  el('div',{class:'tablebox'},el('table',{},el('thead',{},el('tr',{},...['학생','방법','AI 도구','정확도'].map(h=>el('th',{},h)))),
+   el('tbody',{},...rows.map(s=>el('tr',{},el('td',{},whoName(s.uid)),el('td',{},s.algo),el('td',{},s.tool),el('td',{class:'num'},fmtAcc(s.acc))))))))}
+
+/* 제출 갤러리 */
+let gWeek="all",gTool="all";
+function renderGallery(){const p=document.getElementById('p-gallery');
+ const drafts={};p.querySelectorAll('input[data-draft]').forEach(i=>{if(i.value)drafts[i.id]=i.value});const focused=document.activeElement&&p.contains(document.activeElement)?document.activeElement.id:null;
+ const subs=allSubs();
+ const weekSel=el('select',{id:'g-week','aria-label':'주차 선택',onchange:e=>{gWeek=e.target.value;renderGallery()}},el('option',{value:'all'},'전체 주차'),...LABS.map(w=>el('option',{value:w.n},`${w.n}주차 · ${w.method}`)));weekSel.value=gWeek;
+ const tools=[...new Set(subs.map(s=>s.tool))];const toolSel=el('select',{id:'g-tool','aria-label':'AI 도구 선택',onchange:e=>{gTool=e.target.value;renderGallery()}},el('option',{value:'all'},'모든 AI 도구'),...tools.map(t=>el('option',{value:t},t)));toolSel.value=tools.includes(gTool)?gTool:'all';
+ const list=subs.filter(s=>(gWeek==='all'||s.week==+gWeek)&&(gTool==='all'||s.tool===gTool));
+ p.replaceChildren(el('div',{},el('h2',{},'제출 갤러리'),el('p',{class:'note'},'다른 학생의 결과와 프롬프트를 보고 질문이나 아이디어를 남겨주세요.')),el('div',{class:'filters'},weekSel,toolSel),
+  list.length?el('div',{class:'cards'},...list.map(card)):el('div',{class:'empty'},subs.length?'이 조건에 맞는 제출물이 없습니다.':'아직 제출물이 없습니다. "제출하기" 탭에서 첫 실습 결과를 올려보세요.'));
+ for(const[id,v]of Object.entries(drafts)){const i=document.getElementById(id);if(i)i.value=v}
+ if(focused){const f=document.getElementById(focused);if(f)f.focus()}}
+function card(s){const mine=s.uid===me.id;const cid='c-'+s.key.replace(/[^\w-]/g,'_');
+ const inp=el('input',{id:cid,'data-draft':'1',placeholder:'댓글 남기기','aria-label':'댓글 입력',maxlength:'500'});
+ const figBox=s.hasFig?el('div',{class:'fig loading'},'결과 그림 불러오는 중…'):null;if(figBox)loadFig(s,figBox);
+ const av=avatars[s.uid];
+ return el('article',{class:'card'},
+  el('div',{class:'row'},el('span',{class:'chip'},s.week+'주차'),el('span',{class:'chip'},methodOf(s.week)),el('span',{class:'chip'},s.tool)),
+  el('div',{},el('h3',{},s.algo),el('div',{class:'author meta'},av?el('img',{src:av,alt:''}):null,whoName(s.uid))),
+  s.acc!=null?el('div',{class:'metric'},fmtAcc(s.acc),el('small',{},'정확도')):null,
+  figBox,
+  el('details',{},el('summary',{},'사용한 프롬프트 보기'),el('pre',{class:'prompt'},s.prompt)),
+  s.note?el('p',{class:'meta'},'배운 점: '+s.note):null,
+  el('div',{class:'comments'},...commentsFor(s.key).map(c=>el('div',{class:'comment'},el('b',{},whoName(c.uid)+' '),c.text,
+    (c.uid===me.id||me.isOwner)?el('button',{class:'btn ghost',type:'button',style:'margin-left:6px;padding:0 6px;font-size:11px',onclick:()=>deleteComment(c)},'삭제'):null))),
+  canWrite&&me.id?el('form',{class:'cmtform',style:'padding:0;border:0;background:none',onsubmit:e=>{e.preventDefault();const t=inp.value.trim();if(t){inp.value='';addComment(s.key,t)}}},inp,el('button',{class:'btn',type:'submit'},'등록')):null,
+  (mine||me.isOwner)?el('div',{class:'row'},el('button',{class:'btn ghost',type:'button',onclick:e=>confirmDelete(e.currentTarget,s)},'제출물 삭제')):null)}
+function confirmDelete(btn,s){if(btn.dataset.armed){deleteSub(s);return}btn.dataset.armed='1';btn.textContent='한 번 더 누르면 삭제됩니다';setTimeout(()=>{if(btn.isConnected){delete btn.dataset.armed;btn.textContent='제출물 삭제'}},4000)}
+async function loadFig(s,box){try{if(!(s.key in figCache)){const snap=await db.doc(`figs/${s.uid}/f/${s.id}`).get();figCache[s.key]=snap.exists?snap.data().src:null}
+ const src=figCache[s.key];if(src){box.className='fig';box.replaceChildren(el('img',{src,alt:s.algo+' 결과 그림'}))}else box.remove()}catch(e){box.textContent='그림을 불러오지 못했습니다.'}}
+
+/* 프롬프트 라이브러리 */
+let libW="all";
+function renderLibrary(){const p=document.getElementById('p-library');
+ const sel=el('select',{id:'l-week','aria-label':'기법 선택',onchange:e=>{libW=e.target.value;renderLibrary()}},el('option',{value:'all'},'모든 기법'),...LABS.map(w=>el('option',{value:w.n},w.method)));sel.value=libW;
+ const list=allSubs().filter(s=>libW==='all'||s.week==+libW).sort((a,b)=>(b.acc??-1)-(a.acc??-1));
+ p.replaceChildren(el('div',{},el('h2',{},'프롬프트 라이브러리'),el('p',{class:'note'},'학기 동안 제출된 프롬프트가 기법별로 쌓입니다. 정확도가 높은 순서로 보여줍니다. 복사해서 자기 분석에 맞게 고쳐 쓰세요.')),el('div',{class:'filters'},sel),
+  list.length?el('div',{class:'lib'},...list.map(s=>{const pre=el('pre',{class:'prompt'},s.prompt);const b=el('button',{class:'btn',type:'button',onclick:async()=>{try{await navigator.clipboard.writeText(s.prompt);b.textContent='복사됨'}catch(e){const r=document.createRange();r.selectNodeContents(pre);const sl=getSelection();sl.removeAllRanges();sl.addRange(r);b.textContent='선택됨 · Ctrl+C'}setTimeout(()=>b.textContent='복사',1800)}},'복사');
+   return el('div',{class:'libitem'},el('div',{class:'row'},el('span',{class:'chip'},methodOf(s.week)),el('b',{},s.algo),el('span',{class:'note'},s.acc!=null?'· '+fmtAcc(s.acc):''),el('span',{style:'flex:1'}),b),pre)})):el('div',{class:'empty'},'제출된 프롬프트가 아직 없습니다.'))}
+
+/* 제출하기 */
+let pendingFig=null;
+function renderSubmit(){const p=document.getElementById('p-submit');const toast=el('p',{class:'toast',role:'status'});
+ if(!db||!me.id){p.replaceChildren(el('div',{class:'empty'},'제출하려면 claude.ai에 로그인한 상태로, 교수님께 초대받은 계정으로 이 페이지를 열어주세요.'));return}
+ if(!canWrite){p.replaceChildren(el('div',{class:'empty'},'이 계정은 보기 권한만 있습니다. 제출하려면 교수님께 편집자(Editor) 초대를 요청해주세요.'));return}
+ const prev=el('div',{});const fileIn=el('input',{id:'f-fig',type:'file',accept:'image/*'});
+ fileIn.addEventListener('change',async()=>{pendingFig=null;prev.replaceChildren();const f=fileIn.files[0];if(!f)return;prev.textContent='그림 준비 중…';try{pendingFig=await compress(f);prev.replaceChildren(el('img',{src:pendingFig,class:'preview',alt:'첨부 그림 미리보기'}))}catch(e){prev.textContent='이 그림은 올릴 수 없습니다. PNG나 JPG로 다시 시도해주세요.'}});
+ const saved=subDocs[me.id]?.displayName||'';
+ const f=el('form',{onsubmit:async e=>{e.preventDefault();const d=new FormData(f);const btn=f.querySelector('button[type=submit]');btn.disabled=true;toast.style.color='';toast.textContent='제출하는 중…';
+   try{await submit({displayName:String(d.get('who')).trim(),week:+d.get('week'),algo:String(d.get('algo')).trim(),tool:d.get('tool'),acc:d.get('acc')===''?null:+d.get('acc'),prompt:String(d.get('prompt')),note:String(d.get('note')||'').trim()});
+    f.reset();f.querySelector('#f-who').value=subDocs[me.id]?.displayName||'';prev.replaceChildren();pendingFig=null;toast.textContent='제출했습니다. 제출 갤러리와 프롬프트 라이브러리에 바로 보입니다.'}
+   catch(err){toast.style.color='var(--warm)';toast.textContent=errMsg(err)}finally{btn.disabled=false}}},
+  el('div',{class:'two'},
+   el('div',{class:'field'},el('label',{for:'f-who'},'이름 (다른 학생에게 보이는 이름)'),el('input',{id:'f-who',name:'who',required:true,maxlength:'30',value:saved,placeholder:'홍길동'})),
+   el('div',{class:'field'},el('label',{for:'f-week'},'실습 주차'),el('select',{id:'f-week',name:'week'},...LABS.map(w=>el('option',{value:w.n},`${w.n}주차 · ${w.method}`))))),
+  el('div',{class:'two'},
+   el('div',{class:'field'},el('label',{for:'f-algo'},'사용한 방법'),el('input',{id:'f-algo',name:'algo',required:true,maxlength:'60',placeholder:'예: CSP + LDA'})),
+   el('div',{class:'field'},el('label',{for:'f-tool'},'사용한 AI 도구'),el('select',{id:'f-tool',name:'tool'},...['ChatGPT','Claude','Gemini','Copilot','기타'].map(t=>el('option',{},t))))),
+  el('div',{class:'field'},el('label',{for:'f-acc'},'정확도 (%) · 없으면 비워두세요'),el('input',{id:'f-acc',name:'acc',type:'number',min:'0',max:'100',step:'0.1',placeholder:'72.5'})),
+  el('div',{class:'field'},el('label',{for:'f-prompt'},'AI에게 준 프롬프트 (그대로 붙여넣기)'),el('textarea',{id:'f-prompt',name:'prompt',rows:'5',required:true,maxlength:'6000'})),
+  el('div',{class:'field'},el('label',{for:'f-note'},'배운 점 · AI가 틀렸던 부분'),el('textarea',{id:'f-note',name:'note',rows:'3',maxlength:'1500'})),
+  el('div',{class:'field'},el('label',{for:'f-fig'},'결과 그림 (선택 · 한 장)'),fileIn,prev),
+  el('label',{class:'check',for:'f-ok'},el('input',{id:'f-ok',type:'checkbox',required:true}),'프롬프트에 개인정보나 원본 피험자 정보를 넣지 않았고, AI가 만든 코드와 결과를 직접 확인했습니다.'),
+  el('div',{class:'row'},el('button',{class:'btn primary',type:'submit'},'제출'),toast));
+ p.replaceChildren(el('div',{},el('h2',{},'실습 결과 제출'),el('p',{class:'note'},'제출하면 수강생 모두가 바로 볼 수 있습니다. 자기 제출물은 갤러리에서 삭제할 수 있습니다.')),f)}
+
+function errMsg(e){const c=e&&e.code;if(c==='invalid_argument')return'저장 권한이 없습니다. 교수님께 편집자(Editor) 초대를 요청해주세요.';if(c==='quota_exceeded')return'저장 공간이 가득 찼습니다. 교수님께 알려주세요.';if(c==='resource_exhausted')return'요청이 너무 많습니다. 잠시 후 다시 시도해주세요.';return'저장하지 못했습니다. 잠시 후 다시 시도해주세요.'}
+
+/* 이미지는 문서 크기 제한(256KB) 안에 들어오도록 줄여서 저장 */
+async function compress(file){const img=await createImageBitmap(file);let side=1400;
+ for(let k=0;k<6;k++){const s=Math.min(1,side/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);
+  for(const q of[.85,.7,.55]){const u=c.toDataURL('image/jpeg',q);if(u.length<180000)return u}side*=.7}
+ throw new Error('too large')}
+
+async function submit(v){const id=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+ if(pendingFig)await db.doc(`figs/${me.id}/f/${id}`).set({src:pendingFig});
+ const cur=subDocs[me.id]?.items||[];
+ await db.doc('subs/'+me.id).set({displayName:v.displayName,items:[...cur,{id,week:v.week,algo:v.algo,tool:v.tool,acc:v.acc,prompt:v.prompt,note:v.note,hasFig:!!pendingFig,at:Date.now()}]})}
+async function deleteSub(s){try{const d=subDocs[s.uid];await db.doc('subs/'+s.uid).set({...d,items:(d.items||[]).filter(i=>i.id!==s.id)});if(s.hasFig)await db.doc(`figs/${s.uid}/f/${s.id}`).delete()}catch(e){setStatus(errMsg(e),true)}}
+async function addComment(target,text){try{const cur=comDocs[me.id]?.items||[];await db.doc('comments/'+me.id).set({items:[...cur,{id:Date.now().toString(36),target,text,at:Date.now()}]})}catch(e){setStatus(errMsg(e),true)}}
+async function deleteComment(c){try{const d=comDocs[c.uid];await db.doc('comments/'+c.uid).set({items:(d.items||[]).filter(i=>i.id!==c.id)})}catch(e){setStatus(errMsg(e),true)}}
+
+let renderQueued=false;
+function scheduleRender(){if(renderQueued)return;renderQueued=true;setTimeout(async()=>{renderQueued=false;await resolveNames();renderWeeks();renderCompare();renderGallery();renderLibrary()},0)}
+
+renderWeeks();renderCompare();renderGallery();renderLibrary();renderSubmit();
+try{const t=localStorage.getItem('odl-tab');if(t&&document.getElementById('p-'+t))showTab(t)}catch(e){}
+
+(async()=>{
+ const cl=window.claude;
+ [db,user]=cl?await Promise.all([cl.use("db"),cl.use("user")]):[null,null];
+ if(!db){setStatus('수업 저장소에 연결할 수 없습니다. claude.ai에 로그인했는지, 초대받은 계정인지 확인해주세요.',true);renderSubmit();return}
+ if(user){const m=await user.me();me={id:m.id,isOwner:m.isOwner};const cw=await user.can("data.write");if(cw===false&&!m.isOwner)canWrite=false}
+ setStatus('');renderSubmit();
+ const onErr=e=>{if(e.code==='revoked')setStatus('이 페이지에 대한 접근 권한이 바뀌었습니다.',true);else setStatus('저장소 연결이 끊겼습니다. 새로고침해주세요.',true)};
+ db.collection('subs').onSnapshot(snap=>{const n={};snap.docs.forEach(d=>n[d.id]=d.data());subDocs=n;scheduleRender()},onErr);
+ db.collection('comments').onSnapshot(snap=>{const n={};snap.docs.forEach(d=>n[d.id]=d.data());comDocs=n;scheduleRender()},onErr);
+})();
+
+/* 헤더: 운동영역 채널 4개를 기록지에 그린 모양 */
+(function(){const c=document.getElementById('trace');const ctx=c.getContext('2d');const CH=["C3","Cz","C4","Pz"];
+ function draw(){const r=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*r;c.height=h*r;ctx.setTransform(r,0,0,r,0,0);
+  const cs=getComputedStyle(document.documentElement),ink=cs.getPropertyValue('--ink').trim(),red=cs.getPropertyValue('--red').trim(),mono=cs.getPropertyValue('--mono');
+  let seed=11;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647-.5;const band=h/CH.length;
+  CH.forEach((name,k)=>{const y0=band*(k+.5);ctx.fillStyle=ink;ctx.font="12px "+mono;ctx.fillText(name,8,y0+4);
+   ctx.strokeStyle=k===1?red:ink;ctx.lineWidth=k===1?1.4:1;ctx.beginPath();
+   for(let x=40;x<=w-6;x++){const t=x/60;const mu=Math.sin(t*10.5+k)*(.5+.5*Math.sin(t*.7+k*2));const v=mu*.32+Math.sin(t*3.1+k*1.7)*.18+rnd()*.28;const y=y0+v*band*.8;x===40?ctx.moveTo(x,y):ctx.lineTo(x,y)}ctx.stroke()});
+  ctx.fillStyle=cs.getPropertyValue('--muted').trim();ctx.font="11px "+mono;ctx.fillText("1 s",w-60,h-8);ctx.fillRect(w-60,h-22,50,1.5)}
+ draw();addEventListener('resize',draw);matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);document.fonts&&document.fonts.ready.then(draw)})();
+</script>
