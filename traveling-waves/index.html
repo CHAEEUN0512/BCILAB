@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>구면 뇌파 전파 시뮬레이터</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+/* Layout: lab console. 3D head viewport + EEG trace strip on the left, a control rack on the right, field notes below. Single dark look on purpose (colormaps read best on a dark ground). */
+:root{
+  --bg:#0a0e15;
+  --panel:#111824;
+  --panel-2:#172133;
+  --line:#25334b;
+  --fg:#e4eaf4;
+  --muted:#8b9ab3;
+  --accent:#ffc04a;
+  --accent-ink:#1b1305;
+  --warn:#ff8a65;
+  --scrim:rgba(10,14,21,.72);
+  --f-ui:"IBM Plex Sans KR","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+html,body{background:var(--bg);color:var(--fg)}
+[hidden]{display:none!important}
+body{
+  font-family:var(--f-ui);font-size:14px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:22px 48px;
+}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+header{display:flex;flex-direction:column;gap:4px}
+header .eyebrow{font:500 11px/1 var(--f-mono);letter-spacing:.12em;color:var(--accent);text-transform:uppercase}
+header h1{font-size:24px;line-height:1.3;font-weight:600;margin:0;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:0;color:var(--muted);max-width:70ch}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
+@media (max-width:880px){.grid{grid-template-columns:minmax(0,1fr)}}
+.stage{display:flex;flex-direction:column;gap:12px;min-width:0}
+
+.viewer{position:relative;width:100%;aspect-ratio:4/3;max-width:100%;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  background:radial-gradient(120% 90% at 50% 40%,var(--panel-2),var(--bg) 70%);touch-action:none}
+@media (max-width:560px){.viewer{aspect-ratio:1/1}}
+.viewer canvas{display:block;width:100%;height:100%;cursor:grab}
+.viewer canvas:active{cursor:grabbing}
+.elabel{position:absolute;left:0;top:0;font:500 11px/1 var(--f-mono);padding:3px 5px;border-radius:4px;background:var(--scrim);
+  pointer-events:none;white-space:nowrap;transform:translate(-50%,-150%);transition:opacity .15s}
+.overlay{position:absolute;display:flex;gap:8px;align-items:center;font:400 11px/1.3 var(--f-mono);color:var(--muted);pointer-events:none}
+.ov-tl{top:10px;left:12px;flex-direction:column;align-items:flex-start}
+.ov-bl{bottom:10px;left:12px}
+.ov-br{bottom:10px;right:12px;text-align:right}
+.modeTag{font:600 13px/1.2 var(--f-ui);color:var(--fg)}
+.cbar{width:120px;height:8px;border-radius:2px}
+.hint{max-width:46%}
+@media (max-width:560px){.hint{display:none}}
+
+.traces{border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+.traces-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;padding:10px 14px 0}
+.traces-head h2{margin:0;font-size:13px;font-weight:600}
+.traces-head span{font:400 11px/1.3 var(--f-mono);color:var(--muted)}
+#traceCanvas{display:block;width:100%;height:230px}
+
+.rack{display:flex;flex-direction:column;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.sec{display:flex;flex-direction:column;gap:8px}
+.sec + .sec{border-top:1px solid var(--line);padding-top:14px}
+.lab{font:500 11px/1 var(--f-mono);letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+.modes{display:flex;flex-direction:column;gap:6px}
+.mode{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:baseline;text-align:left;background:transparent;color:var(--fg);
+  border:1px solid var(--line);border-radius:7px;padding:8px 10px;cursor:pointer;font:inherit}
+.mode b{font-weight:600;font-size:13px}
+.mode small{grid-column:2;color:var(--muted);font-size:12px;line-height:1.4}
+.mode i{font:500 11px/1 var(--f-mono);font-style:normal;color:var(--muted);grid-row:span 2;padding-top:2px}
+.mode[aria-pressed="true"]{border-color:var(--accent);background:var(--panel-2)}
+.mode[aria-pressed="true"] i{color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:500 12px/1 var(--f-ui);padding:7px 10px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--fg);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.chip .g{font-family:var(--f-mono);margin-right:4px}
+.row{display:flex;flex-direction:column;gap:4px}
+.row .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.row label{font-size:13px}
+.val{font:500 12px/1 var(--f-mono);color:var(--accent);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent);margin:2px 0}
+.check{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+.check input{accent-color:var(--accent);width:16px;height:16px}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.btn{font:500 13px/1 var(--f-ui);padding:9px 12px;border-radius:7px;border:1px solid var(--line);background:var(--panel-2);color:var(--fg);cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.readout{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:12.5px}
+.readout dt{color:var(--muted)}
+.readout dd{margin:0;font:500 12.5px/1.6 var(--f-mono);text-align:right;font-variant-numeric:tabular-nums}
+.warn{color:var(--warn);font-size:12px;line-height:1.4}
+
+.notes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;border-top:1px solid var(--line);padding-top:18px}
+@media (max-width:880px){.notes{grid-template-columns:minmax(0,1fr)}}
+.notes h3{margin:0 0 6px;font-size:14px;font-weight:600}
+.notes p,.notes li{color:var(--muted);font-size:13px;max-width:62ch}
+.notes p{margin:0 0 8px}
+.notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.notes b{color:var(--fg);font-weight:500}
+.mono{font-family:var(--f-mono)}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Traveling waves · spherical head model</span>
+    <h1>구면 뇌파 전파 시뮬레이터</h1>
+    <p>머리를 반지름 9&nbsp;cm 구로 단순화하고, 그 표면에서 뇌파가 퍼져 나가는 모습을 보여 줍니다. 아래 파형은 10-20 전극 위치에서 같은 파를 EEG처럼 기록한 것입니다. 전극 사이의 시간 차이가 곧 진행파의 흔적입니다.</p>
+  </header>
+
+  <div class="grid">
+    <div class="stage">
+      <div class="viewer" id="viewer">
+        <canvas id="gl" aria-label="구 표면의 뇌파 3D 시각화. 드래그하여 회전"></canvas>
+        <div id="labels"></div>
+        <div class="overlay ov-tl"><span class="modeTag" id="modeTag">점 소스</span><span id="modeSub">Oz에서 퍼지는 파</span></div>
+        <div class="overlay ov-bl"><span id="cbarLo">−</span><canvas class="cbar" id="cbar" width="240" height="16"></canvas><span id="cbarHi">+</span></div>
+        <div class="overlay ov-br hint" id="hint">드래그: 회전 · 휠/핀치: 확대<br>표면 클릭: 소스 위치 이동</div>
+      </div>
+      <div class="traces">
+        <div class="traces-head">
+          <h2>가상 EEG 전극 파형</h2>
+          <span id="traceInfo">최근 4주기 · 오른쪽 끝이 현재</span>
+        </div>
+        <canvas id="traceCanvas" aria-label="전극별 시간 파형"></canvas>
+      </div>
+    </div>
+
+    <aside class="rack" aria-label="시뮬레이션 설정">
+      <div class="sec">
+        <span class="lab">예시 장면</span>
+        <div class="chips" id="scenes">
+          <button class="chip" data-scene="fwd" aria-pressed="false">시각 α 뒤→앞</button>
+          <button class="chip" data-scene="bwd" aria-pressed="false">휴지기 α 앞→뒤</button>
+          <button class="chip" data-scene="spindle" aria-pressed="false">수면 방추파 회전</button>
+          <button class="chip" data-scene="pulse" aria-pressed="false">자극 펄스</button>
+        </div>
+      </div>
+
+      <div class="sec">
+        <span class="lab">파의 종류</span>
+        <div class="modes" id="modes">
+          <button class="mode" data-mode="point" aria-pressed="true"><i>01</i><b>점 소스</b><small>한 지점에서 동심원으로 퍼짐</small></button>
+          <button class="mode" data-mode="plane" aria-pressed="false"><i>02</i><b>평면파</b><small>머리 전체를 한 방향으로 쓸고 지나감</small></button>
+          <button class="mode" data-mode="rotate" aria-pressed="false"><i>03</i><b>회전파</b><small>축을 중심으로 빙글 도는 파</small></button>
+          <button class="mode" data-mode="spiral" aria-pressed="false"><i>04</i><b>나선파</b><small>중심에서 감기며 퍼지는 파</small></button>
+          <button class="mode" data-mode="phys" aria-pressed="false"><i>05</i><b>파동방정식</b><small>구 표면 메시에서 감쇠 파동방정식을 직접 계산</small></button>
+        </div>
+      </div>
+
+      <div class="sec">
+        <span class="lab">파라미터</span>
+        <div class="chips" id="bands">
+          <button class="chip" data-f="2" aria-pressed="false"><span class="g">δ</span>2</button>
+          <button class="chip" data-f="6" aria-pressed="false"><span class="g">θ</span>6</button>
+          <button class="chip" data-f="10" aria-pressed="true"><span class="g">α</span>10</button>
+          <button class="chip" data-f="20" aria-pressed="false"><span class="g">β</span>20</button>
+          <button class="chip" data-f="40" aria-pressed="false"><span class="g">γ</span>40</button>
+        </div>
+        <div class="row"><div class="top"><label for="fR">주파수</label><span class="val" id="fV"></span></div>
+          <input type="range" id="fR" min="1" max="45" step="0.5" value="10"></div>
+        <div class="row" id="rowV"><div class="top"><label for="vR">전파 속도</label><span class="val" id="vV"></span></div>
+          <input type="range" id="vR" min="0" max="100" step="1" value="50"></div>
+        <div class="row" id="rowD"><div class="top"><label for="dR">감쇠</label><span class="val" id="dV"></span></div>
+          <input type="range" id="dR" min="0" max="100" step="1" value="25"></div>
+        <div class="row" id="rowDir"><span class="lab" style="margin-top:4px">진행 방향</span>
+          <div class="chips" id="dirs">
+            <button class="chip" data-dir="pa" aria-pressed="true">뒤 → 앞</button>
+            <button class="chip" data-dir="ap" aria-pressed="false">앞 → 뒤</button>
+            <button class="chip" data-dir="lr" aria-pressed="false">왼 → 오</button>
+            <button class="chip" data-dir="rl" aria-pressed="false">오 → 왼</button>
+          </div></div>
+        <div class="row" id="rowArms"><span class="lab" style="margin-top:4px">팔 개수 (위상 감김 수)</span>
+          <div class="chips" id="arms">
+            <button class="chip" data-arms="1" aria-pressed="true">1</button>
+            <button class="chip" data-arms="2" aria-pressed="false">2</button>
+            <button class="chip" data-arms="3" aria-pressed="false">3</button>
+          </div></div>
+        <label class="check" id="rowRev"><input type="checkbox" id="revC"> 방향 반전 (퍼짐 ↔ 모임)</label>
+        <div id="rowPhys" class="sec" style="border:0;padding:0">
+          <label class="check"><input type="checkbox" id="oscC" checked> 소스 위치에서 계속 진동</label>
+          <div class="btns">
+            <button class="btn" id="pulseB">펄스 자극</button>
+            <button class="btn" id="resetB">초기화</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <span class="lab">표시</span>
+        <div class="chips" id="cmaps">
+          <button class="chip" data-cmap="amp" aria-pressed="true">진폭 (전위)</button>
+          <button class="chip" data-cmap="phase" aria-pressed="false">위상</button>
+        </div>
+        <div class="row"><div class="top"><label for="sR">시간 배율</label><span class="val" id="sV"></span></div>
+          <input type="range" id="sR" min="0" max="100" step="1" value="43"></div>
+        <div class="btns"><button class="btn primary" id="playB">일시정지</button></div>
+      </div>
+
+      <div class="sec">
+        <span class="lab">계산값</span>
+        <dl class="readout" id="readout"></dl>
+        <div class="warn" id="warn" hidden></div>
+      </div>
+    </aside>
+  </div>
+
+  <section class="notes">
+    <div>
+      <h3>읽는 법</h3>
+      <p><b>진폭</b> 보기에서 주황은 양(+)전위, 파랑은 음(−)전위입니다. 같은 색 띠가 이동하는 방향이 파의 진행 방향입니다.</p>
+      <p><b>위상</b> 보기는 각 지점이 한 주기 중 어디쯤에 있는지를 색 고리로 보여 줍니다. 색 순서가 공간에 깔린 방향이 진행 방향이고, 모든 색이 한 점에 모이는 곳이 위상 특이점(회전파의 중심)입니다.</p>
+      <p>아래 파형에서 위에서 아래로(Fpz→Oz) 봉우리가 비스듬히 밀리면 진행파, 모든 봉우리가 세로로 정렬되면 동시에 흔들리는 정상파입니다.</p>
+    </div>
+    <div>
+      <h3>숫자로 보기</h3>
+      <p>파장 <span class="mono">λ = v / f</span>. 예: α 10&nbsp;Hz, 2&nbsp;m/s면 λ = 20&nbsp;cm. 앞뒤 반둘레(Fpz→Cz→Oz)가 πR ≈ 28&nbsp;cm이므로 머리 위에 약 1.4개의 파장이 놓입니다.</p>
+      <p>속도를 10&nbsp;m/s로 올리면 λ = 1&nbsp;m가 되어 머리 전체가 거의 같은 위상으로 보입니다. 두피 EEG에서 진행파가 완만한 위상 기울기로만 보이는 이유입니다.</p>
+      <p>위상차는 2π마다 접히므로, 파장이 짧으면 두 전극의 위상차만으로는 진짜 지연 시간을 알 수 없습니다.</p>
+    </div>
+    <div>
+      <h3>실제 뇌와의 관계</h3>
+      <ul>
+        <li>두피·피질에서 관측되는 대규모 진행파는 대략 <b>1–10 m/s</b>로, 피질 사이를 잇는 유수 축삭의 전도 속도와 비슷합니다. 피질 안에서 국소적으로 퍼지는 파는 <b>0.1–0.8 m/s</b> 정도로 훨씬 느립니다.</li>
+        <li>α파는 시각 자극 처리 중에는 뒤→앞, 눈을 감은 휴지기에는 앞→뒤로 진행한다는 보고가 있습니다 (Alamia &amp; VanRullen, 2019).</li>
+        <li>수면 방추파(11–15&nbsp;Hz)는 피질 위에서 회전파로 나타난다는 보고가 있습니다 (Muller 등, 2016).</li>
+        <li>구 모델은 Nunez의 구면 피질 모델에서 쓰이는 단순화입니다. 실제 피질은 접혀 있고, 두개골과 두피가 신호를 공간적으로 흐리게 합니다. 구의 아래 반쪽은 실제 머리에는 없는 부분이며, 점 소스의 파가 반대편 극에 다시 모이는 것은 구의 기하 때문에 생기는 현상입니다.</li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+"use strict";
+const R = 0.09;                 // head radius [m]
+const TAU = Math.PI * 2;
+const LEVEL = 6;                // icosphere subdivision -> 40962 vertices
+const css = getComputedStyle(document.documentElement);
+const tok = n => css.getPropertyValue(n).trim();
+
+/* ---------- state ---------- */
+const S = {
+  mode: "point", f: 10, v: 1, damp: 0.25, slow: 0.05, cmap: "amp",
+  dir: "pa", arms: 1, sign: 1, osc: true, playing: true,
+  centers: { point: [0,0,-1], rotate: [0,1,0], spiral: [0,1,0], phys: [0,0,-1] }
+};
+if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) S.playing = false;
+
+/* ---------- 10-20 electrodes (theta from vertex, azimuth toward subject's left = +x) ---------- */
+const EL = {
+  Fpz:[90,0], Fp1:[90,18], Fp2:[90,-18], F7:[90,54], F8:[90,-54], T7:[90,90], T8:[90,-90],
+  P7:[90,126], P8:[90,-126], O1:[90,162], O2:[90,-162], Oz:[90,180],
+  Fz:[45,0], F3:[60,40], F4:[60,-40], Cz:[0,0], C3:[45,90], C4:[45,-90], Pz:[45,180], P3:[60,140], P4:[60,-140]
+};
+const d2r = Math.PI/180;
+const elPos = (th, az) => [Math.sin(th*d2r)*Math.sin(az*d2r), Math.cos(th*d2r), Math.sin(th*d2r)*Math.cos(az*d2r)];
+const TRACED = [
+  { n:"Fpz", c:"#ffd166" }, { n:"Fz", c:"#ff9f5a" }, { n:"Cz", c:"#f2667a" },
+  { n:"Pz", c:"#c784ff" }, { n:"Oz", c:"#6f8dff" }, { n:"T7", c:"#45d6b5" }, { n:"T8", c:"#b5e85a" }
+];
+TRACED.forEach(t => t.p = elPos(...EL[t.n]));
+
+/* ---------- icosphere ---------- */
+function icosphere(level){
+  const t = (1 + Math.sqrt(5)) / 2;
+  const base = [[-1,t,0],[1,t,0],[-1,-t,0],[1,-t,0],[0,-1,t],[0,1,t],[0,-1,-t],[0,1,-t],[t,0,-1],[t,0,1],[-t,0,-1],[-t,0,1]];
+  const pos = [];
+  base.forEach(v => { const l = Math.hypot(v[0],v[1],v[2]); pos.push(v[0]/l, v[1]/l, v[2]/l); });
+  let faces = [[0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],[1,5,9],[5,11,4],[11,10,2],[10,7,6],[7,1,8],
+               [3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],[4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1]];
+  for (let L = 0; L < level; L++){
+    const cache = new Map(), nf = [];
+    const mid = (a, b) => {
+      const key = a < b ? a * 1e6 + b : b * 1e6 + a;
+      let m = cache.get(key);
+      if (m !== undefined) return m;
+      let x = pos[3*a] + pos[3*b], y = pos[3*a+1] + pos[3*b+1], z = pos[3*a+2] + pos[3*b+2];
+      const l = Math.hypot(x, y, z);
+      m = pos.length / 3; pos.push(x/l, y/l, z/l); cache.set(key, m); return m;
+    };
+    for (const [a,b,c] of faces){
+      const ab = mid(a,b), bc = mid(b,c), ca = mid(c,a);
+      nf.push([a,ab,ca],[b,bc,ab],[c,ca,bc],[ab,bc,ca]);
+    }
+    faces = nf;
+  }
+  return { pos: Float32Array.from(pos), faces };
+}
+const ico = icosphere(LEVEL);
+const N = ico.pos.length / 3;
+const P = ico.pos;
+
+/* neighbours (CSR) + Laplacian coefficients  lap(u)_i ≈ 4/h_i² (mean_j u_j − u_i) */
+const nb = Array.from({length:N}, () => new Set());
+const index = new Uint32Array(ico.faces.length * 3);
+ico.faces.forEach((f, k) => {
+  index[3*k] = f[0]; index[3*k+1] = f[1]; index[3*k+2] = f[2];
+  nb[f[0]].add(f[1]); nb[f[0]].add(f[2]); nb[f[1]].add(f[0]); nb[f[1]].add(f[2]); nb[f[2]].add(f[0]); nb[f[2]].add(f[1]);
+});
+const nbStart = new Int32Array(N + 1);
+for (let i = 0; i < N; i++) nbStart[i+1] = nbStart[i] + nb[i].size;
+const nbIdx = new Int32Array(nbStart[N]);
+const lapC = new Float32Array(N);
+const invDeg = new Float32Array(N);
+let hMin = Infinity;
+for (let i = 0; i < N; i++){
+  let k = nbStart[i], hs = 0;
+  for (const j of nb[i]){
+    nbIdx[k++] = j;
+    hs += R * Math.hypot(P[3*i]-P[3*j], P[3*i+1]-P[3*j+1], P[3*i+2]-P[3*j+2]);
+  }
+  const h = hs / nb[i].size;
+  if (h < hMin) hMin = h;
+  lapC[i] = 4 / (h*h);
+  invDeg[i] = 1 / nb[i].size;
+}
+const hMean = R * 1.1071 / Math.pow(2, LEVEL);
+
+function nearestVertex(p){
+  let best = 0, bd = -2;
+  for (let i = 0; i < N; i++){
+    const d = P[3*i]*p[0] + P[3*i+1]*p[1] + P[3*i+2]*p[2];
+    if (d > bd){ bd = d; best = i; }
+  }
+  return best;
+}
+TRACED.forEach(t => t.vi = nearestVertex(t.p));
+const OZ = TRACED.find(t => t.n === "Oz"), FPZ = TRACED.find(t => t.n === "Fpz");
+
+/* ---------- colormaps ---------- */
+function hex(h){ const n = parseInt(h.slice(1), 16); return [(n>>16&255)/255, (n>>8&255)/255, (n&255)/255]; }
+function lut(stops, size){
+  const out = new Float32Array(size * 3);
+  for (let i = 0; i < size; i++){
+    const x = i / (size - 1) * (stops.length - 1);
+    const k = Math.min(Math.floor(x), stops.length - 2), f = x - k;
+    for (let c = 0; c < 3; c++) out[3*i+c] = stops[k][c] * (1-f) + stops[k+1][c] * f;
+  }
+  return out;
+}
+const BASE = hex("#2a3445");
+const DIV = lut(["#7fd8ff","#2f8fe0","#1f4f8c","#2a3445","#8c3f24","#e0702e","#ffd27a"].map(hex), 512);
+const CYC = lut(["#ffc04a","#f0567c","#7a5cf0","#2f8fe0","#34d1bf","#ffc04a"].map(hex), 512);
+function drawCbar(){
+  const c = document.getElementById("cbar"), x = c.getContext("2d");
+  const L = S.cmap === "amp" ? DIV : CYC;
+  for (let i = 0; i < c.width; i++){
+    const k = Math.round(i / (c.width - 1) * 511);
+    x.fillStyle = `rgb(${L[3*k]*255|0},${L[3*k+1]*255|0},${L[3*k+2]*255|0})`;
+    x.fillRect(i, 0, 1, c.height);
+  }
+  document.getElementById("cbarLo").textContent = S.cmap === "amp" ? "−" : "0";
+  document.getElementById("cbarHi").textContent = S.cmap === "amp" ? "+" : "2π";
+}
+
+/* ---------- three.js scene ---------- */
+const canvas = document.getElementById("gl");
+const viewer = document.getElementById("viewer");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 4/3, 0.1, 100);
+camera.position.set(4.5, 1.6, -1.3);
+const controls = new THREE.OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.enablePan = false;
+controls.minDistance = 2.2; controls.maxDistance = 9;
+scene.add(new THREE.AmbientLight(0xffffff, 0.66));
+const key = new THREE.DirectionalLight(0xffffff, 0.5);
+key.position.set(1.2, 1.6, 2.5); camera.add(key); scene.add(camera);
+
+const geo = new THREE.BufferGeometry();
+geo.setAttribute("position", new THREE.BufferAttribute(P, 3));
+geo.setAttribute("normal", new THREE.BufferAttribute(P.slice(), 3));
+const colors = new Float32Array(N * 3);
+const colAttr = new THREE.BufferAttribute(colors, 3);
+colAttr.setUsage(THREE.DynamicDrawUsage);
+geo.setAttribute("color", colAttr);
+geo.setIndex(new THREE.BufferAttribute(index, 1));
+const sphere = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }));
+scene.add(sphere);
+
+const headMat = new THREE.MeshLambertMaterial({ color: 0x3a4862 });
+const nose = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.24, 24), headMat);
+nose.rotation.x = Math.PI / 2; nose.position.set(0, -0.08, 1.07); scene.add(nose);
+[1, -1].forEach(s => {
+  const ear = new THREE.Mesh(new THREE.SphereGeometry(0.12, 20, 14), headMat);
+  ear.scale.set(0.35, 1, 0.65); ear.position.set(1.0 * s, -0.12, -0.02); scene.add(ear);
+});
+{
+  const pts = [];
+  for (let i = 0; i <= 128; i++){ const a = i / 128 * TAU; pts.push(new THREE.Vector3(Math.sin(a)*1.004, 0, Math.cos(a)*1.004)); }
+  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x4a5d80 })));
+}
+const dotGeo = new THREE.SphereGeometry(0.018, 12, 8);
+const greyDot = new THREE.MeshBasicMaterial({ color: 0x9aa8c0 });
+const tracedNames = new Set(TRACED.map(t => t.n));
+Object.keys(EL).forEach(n => {
+  if (tracedNames.has(n)) return;
+  const p = elPos(...EL[n]);
+  const m = new THREE.Mesh(dotGeo, greyDot); m.position.set(p[0]*1.012, p[1]*1.012, p[2]*1.012); scene.add(m);
+});
+const labelBox = document.getElementById("labels");
+TRACED.forEach(t => {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.028, 14, 10), new THREE.MeshBasicMaterial({ color: new THREE.Color(t.c) }));
+  m.position.set(t.p[0]*1.015, t.p[1]*1.015, t.p[2]*1.015); scene.add(m);
+  const el = document.createElement("div"); el.className = "elabel"; el.textContent = t.n; el.style.color = t.c;
+  labelBox.appendChild(el); t.label = el;
+});
+const marker = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.016, 10, 40), new THREE.MeshBasicMaterial({ color: new THREE.Color(tok("--accent")) }));
+scene.add(marker);
+function placeMarker(){
+  const show = S.mode !== "plane";
+  marker.visible = show;
+  if (!show) return;
+  const c = S.centers[S.mode];
+  marker.position.set(c[0]*1.02, c[1]*1.02, c[2]*1.02);
+  marker.lookAt(c[0]*2, c[1]*2, c[2]*2);
+}
+
+function resize(){
+  const w = viewer.clientWidth, h = viewer.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+  resizeTraces();
+}
+new ResizeObserver(resize).observe(viewer);
+
+/* ---------- analytic wave fields ---------- */
+const PLANE = { pa:[0,0,1], ap:[0,0,-1], lr:[-1,0,0], rl:[1,0,0] };
+const Q = {}; // per-frame parameters
+function frameOf(c){
+  const a = Math.abs(c[1]) < 0.9 ? [0,1,0] : [0,0,1];
+  let e1 = [a[1]*c[2]-a[2]*c[1], a[2]*c[0]-a[0]*c[2], a[0]*c[1]-a[1]*c[0]];
+  const l = Math.hypot(...e1); e1 = e1.map(x => x / l);
+  const e2 = [c[1]*e1[2]-c[2]*e1[1], c[2]*e1[0]-c[0]*e1[2], c[0]*e1[1]-c[1]*e1[0]];
+  return [e1, e2];
+}
+function updateQ(){
+  Q.w = TAU * S.f; Q.k = Q.w / S.v; Q.alpha = S.damp * 4 / (Math.PI * R);
+  Q.c = S.centers[S.mode] || [0,1,0];
+  [Q.e1, Q.e2] = frameOf(Q.c);
+  Q.n = PLANE[S.dir];
+}
+const out = { u:0, ph:0, en:0 };
+function evalAt(x, y, z, t){
+  let ph, en;
+  const m = S.mode;
+  if (m === "point"){
+    const c = Q.c; let cs = x*c[0] + y*c[1] + z*c[2]; cs = cs > 1 ? 1 : cs < -1 ? -1 : cs;
+    const d = R * Math.acos(cs);
+    ph = Q.w * t - S.sign * Q.k * d; en = Math.exp(-Q.alpha * d);
+  } else if (m === "plane"){
+    const n = Q.n, s = R * (x*n[0] + y*n[1] + z*n[2] + 1);
+    ph = Q.w * t - Q.k * s; en = Math.exp(-Q.alpha * s);
+  } else {
+    const c = Q.c; let cs = x*c[0] + y*c[1] + z*c[2]; cs = cs > 1 ? 1 : cs < -1 ? -1 : cs;
+    const psi = Math.atan2(x*Q.e2[0] + y*Q.e2[1] + z*Q.e2[2], x*Q.e1[0] + y*Q.e1[1] + z*Q.e1[2]);
+    if (m === "rotate"){
+      ph = Q.w * t - S.sign * S.arms * psi; en = Math.sqrt(1 - cs*cs);
+    } else {
+      const th = Math.acos(cs);
+      ph = Q.w * t - S.sign * (S.arms * psi + Q.k * R * th);
+      en = Math.tanh(th / 0.3) * Math.tanh((Math.PI - th) / 0.3) * Math.exp(-Q.alpha * R * th);
+    }
+  }
+  out.u = en * Math.cos(ph); out.ph = ph; out.en = en;
+}
+
+/* ---------- physical model: damped wave equation on the sphere ----------
+   u_tt = c² ∇²u − 2γ u_t + A sin(ωt) g(x),  symplectic Euler on the icosphere graph Laplacian */
+const U = new Float32Array(N), V = new Float32Array(N), G = new Float32Array(N);
+let physT = 0, msPerStep = 0.5, physScale = 1e-6;
+const SIGMA = 0.008; // source width [m]
+function gaussAt(c, sigma, arr, add, gain){
+  for (let i = 0; i < N; i++){
+    let cs = P[3*i]*c[0] + P[3*i+1]*c[1] + P[3*i+2]*c[2]; cs = cs > 1 ? 1 : cs < -1 ? -1 : cs;
+    const d = R * Math.acos(cs);
+    const g = d > 4*sigma ? 0 : Math.exp(-d*d / (2*sigma*sigma));
+    if (add) arr[i] += gain * g; else arr[i] = g;
+  }
+}
+function setPhysSource(){ gaussAt(S.centers.phys, SIGMA, G, false); }
+function pulse(){ gaussAt(S.centers.phys, 0.012, V, true, 6 * S.v / R); }
+function physReset(){ U.fill(0); V.fill(0); physT = 0; physScale = 1e-6; clearTraces(); }
+setPhysSource();
+function physStep(dt){
+  const c2 = S.v * S.v, gam = S.v * S.damp * 4 / (Math.PI * R) + 0.6;
+  const drive = S.osc ? Math.sin(TAU * S.f * physT) * (S.v / R) * 40 : 0;
+  for (let i = 0; i < N; i++){
+    let s = 0;
+    for (let k = nbStart[i], e = nbStart[i+1]; k < e; k++) s += U[nbIdx[k]];
+    const lap = lapC[i] * (s * invDeg[i] - U[i]);
+    V[i] += dt * (c2 * lap - 2 * gam * V[i] + drive * G[i]);
+  }
+  for (let i = 0; i < N; i++) U[i] += dt * V[i];
+  physT += dt;
+}
+
+/* ---------- traces (ring buffer of sampled electrode values) ---------- */
+const TB = 3000;
+const tBuf = new Float64Array(TB);
+const vBuf = TRACED.map(() => new Float32Array(TB));
+let head = 0, count = 0, traceScale = 1;
+function clearTraces(){ head = 0; count = 0; traceScale = 1e-6; }
+function pushSample(t){
+  tBuf[head] = t;
+  if (S.mode === "phys"){
+    TRACED.forEach((e, j) => vBuf[j][head] = U[e.vi]);
+  } else {
+    TRACED.forEach((e, j) => { evalAt(e.p[0], e.p[1], e.p[2], t); vBuf[j][head] = out.u; });
+  }
+  head = (head + 1) % TB; if (count < TB) count++;
+}
+const tc = document.getElementById("traceCanvas"), tx = tc.getContext("2d");
+let tcW = 0, tcH = 0;
+function resizeTraces(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  tcW = tc.clientWidth; tcH = tc.clientHeight;
+  tc.width = Math.round(tcW * dpr); tc.height = Math.round(tcH * dpr);
+  tx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+const COL = { fg: tok("--fg"), muted: tok("--muted"), line: tok("--line"), panel: tok("--panel") };
+function drawTraces(tNow){
+  const W = 4 / S.f, t0 = tNow - W;
+  const padL = 46, padR = 14, padT = 12, padB = 24;
+  const w = tcW - padL - padR, h = tcH - padT - padB;
+  tx.clearRect(0, 0, tcW, tcH);
+  tx.font = "500 11px " + tok("--f-mono");
+  tx.textBaseline = "middle";
+  // cycle grid
+  tx.strokeStyle = COL.line; tx.fillStyle = COL.muted; tx.lineWidth = 1;
+  tx.textAlign = "center";
+  for (let k = 0; k <= 4; k++){
+    const x = padL + w - k / 4 * w;
+    tx.beginPath(); tx.moveTo(x + .5, padT); tx.lineTo(x + .5, padT + h); tx.stroke();
+    tx.fillText(k === 0 ? "0 ms" : "−" + Math.round(k * 1000 / S.f), x, padT + h + 13);
+  }
+  // scale: common across channels so relative amplitudes stay honest
+  let mx = 0;
+  for (let n = 0; n < count; n++){
+    const i = (head - 1 - n + TB) % TB;
+    if (tBuf[i] < t0) break;
+    for (let j = 0; j < TRACED.length; j++){ const a = Math.abs(vBuf[j][i]); if (a > mx) mx = a; }
+  }
+  traceScale = Math.max(mx, traceScale * 0.97, 1e-9);
+  const rowH = h / TRACED.length;
+  TRACED.forEach((e, j) => {
+    const y0 = padT + rowH * (j + .5);
+    tx.textAlign = "left"; tx.fillStyle = e.c; tx.fillText(e.n, 6, y0);
+    tx.strokeStyle = COL.line; tx.globalAlpha = .5;
+    tx.beginPath(); tx.moveTo(padL, y0 + .5); tx.lineTo(padL + w, y0 + .5); tx.stroke(); tx.globalAlpha = 1;
+    tx.strokeStyle = e.c; tx.lineWidth = 1.5; tx.beginPath();
+    let started = false;
+    for (let n = count - 1; n >= 0; n--){
+      const i = (head - 1 - n + TB) % TB;
+      if (tBuf[i] < t0) continue;
+      const x = padL + (tBuf[i] - t0) / W * w;
+      const y = y0 - vBuf[j][i] / traceScale * rowH * 0.46;
+      if (!started){ tx.moveTo(x, y); started = true; } else tx.lineTo(x, y);
+    }
+    tx.stroke();
+  });
+}
+
+/* ---------- colour the sphere ---------- */
+function paint(t){
+  const amp = S.cmap === "amp";
+  if (S.mode === "phys"){
+    let mx = 0;
+    for (let i = 0; i < N; i++){ const a = Math.abs(U[i]); if (a > mx) mx = a; }
+    physScale = Math.max(mx, physScale * 0.985, 1e-9);
+  }
+  const w = TAU * S.f;
+  for (let i = 0; i < N; i++){
+    let u, ph, en;
+    if (S.mode === "phys"){
+      const q = -V[i] / w;
+      u = U[i] / physScale; ph = Math.atan2(q, U[i]); en = Math.hypot(U[i], q) / physScale;
+    } else {
+      evalAt(P[3*i], P[3*i+1], P[3*i+2], t); u = out.u; ph = out.ph; en = out.en;
+    }
+    let r, g, b;
+    if (amp){
+      let x = u; x = x > 1 ? 1 : x < -1 ? -1 : x;
+      const k = Math.round((x + 1) * 255.5) * 3;
+      r = DIV[k]; g = DIV[k+1]; b = DIV[k+2];
+    } else {
+      let x = (ph / TAU) % 1; if (x < 0) x += 1;
+      const k = Math.round(x * 511) * 3;
+      let a = en * 1.25; a = a > 1 ? 1 : a;
+      r = BASE[0] + (CYC[k] - BASE[0]) * a; g = BASE[1] + (CYC[k+1] - BASE[1]) * a; b = BASE[2] + (CYC[k+2] - BASE[2]) * a;
+    }
+    colors[3*i] = r; colors[3*i+1] = g; colors[3*i+2] = b;
+  }
+  colAttr.needsUpdate = true;
+}
+
+/* ---------- labels ---------- */
+const vtmp = new THREE.Vector3();
+function placeLabels(){
+  const w = viewer.clientWidth, h = viewer.clientHeight;
+  const cp = camera.position, cl = cp.length();
+  TRACED.forEach(t => {
+    const facing = (t.p[0]*cp.x + t.p[1]*cp.y + t.p[2]*cp.z) / cl;
+    vtmp.set(t.p[0]*1.02, t.p[1]*1.02, t.p[2]*1.02).project(camera);
+    t.label.style.left = ((vtmp.x + 1) / 2 * w) + "px";
+    t.label.style.top = ((1 - vtmp.y) / 2 * h) + "px";
+    t.label.style.opacity = facing > 0.05 ? 1 : 0;
+  });
+}
+
+/* ---------- readouts ---------- */
+const MODE_TXT = {
+  point: ["점 소스", () => `${nameOf(S.centers.point)}에서 ${S.sign > 0 ? "퍼지는" : "모여드는"} 파`],
+  plane: ["평면파", () => ({ pa:"뒤(후두)에서 앞(전두)으로", ap:"앞(전두)에서 뒤(후두)로", lr:"왼쪽에서 오른쪽으로", rl:"오른쪽에서 왼쪽으로" })[S.dir] + " 진행"],
+  rotate: ["회전파", () => `${nameOf(S.centers.rotate)} 축을 중심으로 회전 · 팔 ${S.arms}개`],
+  spiral: ["나선파", () => `${nameOf(S.centers.spiral)}을 중심으로 감기는 파 · 팔 ${S.arms}개`],
+  phys:   ["파동방정식", () => `${nameOf(S.centers.phys)} 소스 · 감쇠 파동방정식 수치해`]
+};
+function nameOf(c){
+  let best = "", bd = -2;
+  for (const n in EL){ const p = elPos(...EL[n]); const d = p[0]*c[0] + p[1]*c[1] + p[2]*c[2]; if (d > bd){ bd = d; best = n; } }
+  return bd > 0.985 ? best : best + " 부근";
+}
+const fmt = (x, d = 1) => x.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
+let effSlow = S.slow;
+function phaseAt(e, t){
+  if (S.mode === "phys"){ const w = TAU * S.f; const q = -V[e.vi] / w; return [Math.atan2(q, U[e.vi]), Math.hypot(U[e.vi], q) / physScale]; }
+  evalAt(e.p[0], e.p[1], e.p[2], t); return [out.ph, out.en];
+}
+function readouts(t){
+  const rows = [];
+  const half = Math.PI * R;
+  if (S.mode === "rotate"){
+    rows.push(["한 바퀴 회전 시간", fmt(S.arms / S.f * 1000, 0) + " ms"]);
+    rows.push(["적도 위 겉보기 속도", fmt(TAU * R * S.f / S.arms, 2) + " m/s"]);
+  } else {
+    const lam = S.v / S.f;
+    rows.push(["파장 λ = v/f", lam >= 1 ? fmt(lam, 2) + " m" : fmt(lam * 100, 1) + " cm"]);
+    rows.push(["앞→뒤 반둘레 전파 시간", fmt(half / S.v * 1000, 0) + " ms"]);
+    rows.push(["반둘레(πR) 위 파장 수", fmt(half / lam, 2) + " 개"]);
+  }
+  const [pO, eO] = phaseAt(OZ, t), [pF, eF] = phaseAt(FPZ, t);
+  if (eO > 0.03 && eF > 0.03){
+    let d = pO - pF; d = ((d % TAU) + TAU + Math.PI) % TAU - Math.PI;
+    const deg = d / d2r, ms = d / (TAU * S.f) * 1000;
+    rows.push(["Oz 대비 Fpz 위상차", (deg >= 0 ? "+" : "") + fmt(deg, 0) + "° (" + fmt(ms, 1) + " ms)"]);
+  } else rows.push(["Oz 대비 Fpz 위상차", "— (진폭 작음)"]);
+  rows.push(["시뮬레이션 시각", fmt(simT * 1000, 0) + " ms"]);
+  if (S.mode === "phys") rows.push(["실효 시간 배율", "×" + effSlow.toPrecision(2)]);
+  document.getElementById("readout").innerHTML = rows.map(r => `<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join("");
+  const warn = document.getElementById("warn");
+  const lam = S.v / S.f;
+  let msg = "";
+  if (S.mode !== "rotate" && lam < 5 * hMean) msg = "파장이 표면 메시 간격의 5배보다 짧아 무늬가 깨질 수 있습니다. 속도를 올리거나 주파수를 낮춰 보세요.";
+  else if (S.mode === "phys" && effSlow < S.slow * 0.8) msg = "계산량 때문에 설정한 시간 배율보다 느리게 진행 중입니다.";
+  warn.textContent = msg; warn.hidden = !msg;
+}
+
+/* ---------- UI wiring ---------- */
+const $ = id => document.getElementById(id);
+const vFromR = s => 0.1 * Math.pow(100, s / 100);
+const rFromV = v => Math.round(100 * Math.log(v / 0.1) / Math.log(100));
+const sFromR = s => 0.005 * Math.pow(200, s / 100);
+const rFromS = v => Math.round(100 * Math.log(v / 0.005) / Math.log(200));
+function press(group, attr, val){
+  document.querySelectorAll(`#${group} [data-${attr}]`).forEach(b => b.setAttribute("aria-pressed", String(b.dataset[attr] === String(val))));
+}
+function syncUI(){
+  $("fR").value = S.f; $("vR").value = rFromV(S.v); $("dR").value = Math.round(S.damp * 100); $("sR").value = rFromS(S.slow);
+  $("fV").textContent = fmt(S.f, S.f % 1 ? 1 : 0) + " Hz";
+  $("vV").textContent = fmt(S.v, S.v < 1 ? 2 : 1) + " m/s";
+  $("dV").textContent = S.damp === 0 ? "없음" : fmt(S.damp, 2);
+  $("sV").textContent = "×" + (S.slow < 0.1 ? S.slow.toFixed(3) : S.slow.toFixed(2)) + " (1초 → " + fmt(S.slow * 1000, S.slow < 0.01 ? 1 : 0) + " ms)";
+  $("revC").checked = S.sign < 0; $("oscC").checked = S.osc;
+  press("modes", "mode", S.mode); press("bands", "f", S.f); press("dirs", "dir", S.dir);
+  press("arms", "arms", S.arms); press("cmaps", "cmap", S.cmap);
+  const m = S.mode;
+  $("rowV").hidden = m === "rotate";
+  $("rowD").hidden = m === "rotate";
+  $("rowDir").hidden = m !== "plane";
+  $("rowArms").hidden = !(m === "rotate" || m === "spiral");
+  $("rowRev").hidden = !(m === "point" || m === "rotate" || m === "spiral");
+  $("rowPhys").hidden = m !== "phys";
+  $("hint").innerHTML = "드래그: 회전 · 휠/핀치: 확대<br>" + (m === "plane" ? "방향은 오른쪽 패널에서 선택" : m === "phys" ? "표면 클릭: 그 위치에 자극" : "표면 클릭: 중심 위치 이동");
+  $("modeTag").textContent = MODE_TXT[m][0]; $("modeSub").textContent = MODE_TXT[m][1]();
+  $("playB").textContent = S.playing ? "일시정지" : "재생";
+  $("traceInfo").textContent = `최근 4주기 (${fmt(4000 / S.f, 0)} ms) · 오른쪽 끝이 현재`;
+  document.querySelectorAll("#scenes .chip").forEach(b => b.setAttribute("aria-pressed", "false"));
+  drawCbar(); placeMarker(); updateQ();
+}
+function setMode(m){
+  if (m === S.mode) return;
+  S.mode = m; clearTraces();
+  if (m === "phys"){ simT = physT; setPhysSource(); }
+  syncUI();
+}
+$("modes").addEventListener("click", e => { const b = e.target.closest("[data-mode]"); if (b) setMode(b.dataset.mode); });
+$("bands").addEventListener("click", e => { const b = e.target.closest("[data-f]"); if (b){ S.f = +b.dataset.f; clearTraces(); syncUI(); } });
+$("dirs").addEventListener("click", e => { const b = e.target.closest("[data-dir]"); if (b){ S.dir = b.dataset.dir; syncUI(); } });
+$("arms").addEventListener("click", e => { const b = e.target.closest("[data-arms]"); if (b){ S.arms = +b.dataset.arms; syncUI(); } });
+$("cmaps").addEventListener("click", e => { const b = e.target.closest("[data-cmap]"); if (b){ S.cmap = b.dataset.cmap; syncUI(); } });
+$("fR").addEventListener("input", e => { S.f = +e.target.value; clearTraces(); syncUI(); });
+$("vR").addEventListener("input", e => { S.v = vFromR(+e.target.value); syncUI(); });
+$("dR").addEventListener("input", e => { S.damp = +e.target.value / 100; syncUI(); });
+$("sR").addEventListener("input", e => { S.slow = sFromR(+e.target.value); syncUI(); });
+$("revC").addEventListener("change", e => { S.sign = e.target.checked ? -1 : 1; syncUI(); });
+$("oscC").addEventListener("change", e => { S.osc = e.target.checked; syncUI(); });
+$("pulseB").addEventListener("click", () => pulse());
+$("resetB").addEventListener("click", () => { physReset(); simT = 0; });
+$("playB").addEventListener("click", () => { S.playing = !S.playing; syncUI(); });
+
+const SCENES = {
+  fwd:     { mode:"point", f:10, v:3, damp:0.25, sign:1, center:["point",[0,0,-1]], cmap:"amp" },
+  bwd:     { mode:"plane", f:10, v:3, damp:0.1, dir:"ap", cmap:"amp" },
+  spindle: { mode:"rotate", f:13, arms:1, sign:1, center:["rotate",[0,1,0]], cmap:"phase" },
+  pulse:   { mode:"phys", f:10, v:2, damp:0.15, osc:false, center:["phys", elPos(45,90)], cmap:"amp", pulse:true }
+};
+$("scenes").addEventListener("click", e => {
+  const b = e.target.closest("[data-scene]"); if (!b) return;
+  const sc = SCENES[b.dataset.scene];
+  ["f","v","damp","sign","dir","arms","cmap","osc"].forEach(k => { if (sc[k] !== undefined) S[k] = sc[k]; });
+  if (sc.center) S.centers[sc.center[0]] = sc.center[1];
+  const prev = S.mode; S.mode = sc.mode; clearTraces();
+  if (sc.mode === "phys"){ setPhysSource(); if (sc.pulse){ physReset(); pulse(); } simT = physT; }
+  else if (prev === "phys") simT = 0;
+  S.playing = true;
+  syncUI();
+  b.setAttribute("aria-pressed", "true");
+});
+
+/* click on the sphere (distinguished from an orbit drag) */
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+let down = null;
+canvas.addEventListener("pointerdown", e => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+canvas.addEventListener("pointerup", e => {
+  if (!down) return;
+  const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+  const quick = performance.now() - down.t < 500;
+  down = null;
+  if (moved > 6 || !quick || S.mode === "plane") return;
+  const r = canvas.getBoundingClientRect();
+  ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hit = ray.intersectObject(sphere)[0];
+  if (!hit) return;
+  const p = hit.point.clone().normalize();
+  S.centers[S.mode] = [p.x, p.y, p.z];
+  if (S.mode === "phys"){ setPhysSource(); pulse(); }
+  else clearTraces();
+  syncUI();
+});
+
+/* ---------- main loop ---------- */
+let simT = 0, last = performance.now();
+function tick(now){
+  const dtReal = Math.min((now - last) / 1000, 0.05); last = now;
+  if (S.playing){
+    const want = dtReal * S.slow;
+    const W = 4 / S.f, dts = W / 900;
+    if (S.mode === "phys"){
+      const dt = Math.min(0.35 * hMin / S.v, 1 / (S.f * 40));
+      let steps = Math.ceil(want / dt);
+      const maxSteps = Math.max(2, Math.floor(14 / msPerStep));
+      if (steps > maxSteps) steps = maxSteps;
+      const every = Math.max(1, Math.round(dts / dt));
+      const t0 = performance.now();
+      for (let s = 0; s < steps; s++){
+        physStep(dt);
+        if (s % every === 0) { simT = physT; pushSample(physT); }
+      }
+      if (steps > 0) msPerStep = msPerStep * 0.9 + 0.1 * (performance.now() - t0) / steps;
+      simT = physT;
+      effSlow = dtReal > 0 ? (steps * dt) / dtReal : S.slow;
+    } else {
+      let n = Math.min(2000, Math.max(1, Math.ceil(want / dts)));
+      const step = want / n;
+      for (let s = 1; s <= n; s++) pushSample(simT + s * step);
+      simT += want;
+    }
+  }
+  controls.update();
+  paint(simT);
+  placeLabels();
+  drawTraces(simT);
+  readouts(simT);
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+syncUI();
+resize();
+requestAnimationFrame(t => { last = t; tick(t); });
+})();
+</script>
