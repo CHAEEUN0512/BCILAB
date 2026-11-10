@@ -53,6 +53,7 @@ header p{margin:0;color:var(--muted);max-width:70ch}
 .overlay{position:absolute;display:flex;gap:8px;align-items:center;font:400 11px/1.3 var(--f-mono);color:var(--muted);pointer-events:none}
 .ov-tl{top:10px;left:12px;flex-direction:column;align-items:flex-start}
 .ov-bl{bottom:10px;left:12px}
+.ov-bl span{white-space:nowrap}
 .ov-br{bottom:10px;right:12px;text-align:right}
 .modeTag{font:600 13px/1.2 var(--f-ui);color:var(--fg)}
 .cbar{width:120px;height:8px;border-radius:2px}
@@ -122,6 +123,12 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 #gchart{display:block;width:100%;height:120px;background:var(--panel-2);border-radius:6px}
 .glegend{padding:0}
 .notes .wide{grid-column:1/-1;border-top:1px solid var(--line);padding-top:16px}
+.elec{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:880px){.elec{grid-template-columns:minmax(0,1fr)}}
+.notes .elec ul.plain{display:flex;flex-direction:column}
+.hlfig{margin:0;display:flex;flex-direction:column;gap:6px}
+#hlChart{display:block;width:100%;height:210px;background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.hlfig figcaption{color:var(--muted);font-size:12px;line-height:1.5}
 .notes .wide ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 28px}
 @media (max-width:880px){.notes .wide ul{grid-template-columns:minmax(0,1fr)}}
 
@@ -180,6 +187,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
               </div></div>
             <div class="grp"><label class="lab" for="cmpS">비교 채널</label>
               <select id="cmpS"></select></div>
+            <div class="grp"><span class="lab">전원 잡음</span>
+              <label class="check"><input type="checkbox" id="lineC"> 60 Hz 섞기</label></div>
             <div class="grp grow"><div class="row"><div class="top"><label for="nR">측정 잡음</label><span class="val" id="nV"></span></div>
               <input type="range" id="nR" min="0" max="100" step="1" value="20"></div></div>
           </div>
@@ -276,7 +285,19 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
       </div>
 
       <div class="sec">
-        <span class="lab">표시</span>
+        <span class="lab">관측 층</span>
+        <div class="chips" id="layers">
+          <button class="chip" data-layer="src" aria-pressed="true">피질 활동 (전류원)</button>
+          <button class="chip" data-layer="eeg" aria-pressed="false">두피 EEG (전위)</button>
+        </div>
+        <div class="row" id="rowRef"><span class="lab" style="margin-top:4px">기준 전극</span>
+          <div class="chips" id="refs">
+            <button class="chip" data-ref="ears" aria-pressed="true">연결 귓불</button>
+            <button class="chip" data-ref="avg" aria-pressed="false">평균</button>
+            <button class="chip" data-ref="cz" aria-pressed="false">Cz</button>
+            <button class="chip" data-ref="none" aria-pressed="false">없음 (이상적)</button>
+          </div></div>
+        <span class="lab" style="margin-top:4px">색 표시</span>
         <div class="chips" id="cmaps">
           <button class="chip" data-cmap="amp" aria-pressed="true">진폭 (전위)</button>
           <button class="chip" data-cmap="phase" aria-pressed="false">위상</button>
@@ -335,6 +356,24 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
         <li>이 모드는 가설을 실험해 보기 위한 장난감 모델입니다. 결합 세기와 성장률은 현상이 잘 보이도록 고른 값이고, 실제 뇌에서 어느 가설이 맞는지 알려 주지는 않습니다.</li>
       </ul>
     </div>
+    <div class="wide">
+      <h3>전기 신호로 보면: 피질 활동이 두피 EEG가 되기까지</h3>
+      <div class="elec">
+        <ul class="plain">
+          <li><b>전류원</b>: 피질의 피라미드 뉴런은 표면에 수직으로 늘어서 있어, 같은 위상으로 활동하면 표면에 수직인 전류 쌍극자층이 됩니다. 시뮬레이션의 활동 1을 0.05&nbsp;nA·m/mm²로 두었습니다.</li>
+          <li><b>볼륨 전도</b>: 뇌 0.33, 뇌척수액 1.79, 두개골 0.0105, 두피 0.33&nbsp;S/m인 4층 구(반지름 8.0 / 8.2 / 8.7 / 9.2&nbsp;cm)에서 라플라스 방정식을 풀었습니다. 두개골이 전류를 잘 통하지 않아 전위가 옆으로 번지고, 무늬가 작을수록 크게 줄어듭니다(오른쪽 그래프).</li>
+          <li>그래서 파장이 몇 cm인 국소 진행파와 소용돌이는 두피에서 거의 보이지 않고 큰 흐름만 남습니다. "국소 ↔ 전역" 모드에서 관측 층을 두피 EEG로 바꿔 비교해 보세요.</li>
+          <li>머리 전체가 완전히 같은 위상으로 활동하면 두피 어디서나 전위가 같아집니다. 전위 차이를 재는 EEG에는 아무것도 잡히지 않습니다.</li>
+          <li><b>기준 전극</b>: EEG는 항상 두 점의 전위 차이입니다. 기준 전극 근처의 활동이 모든 채널에 부호가 바뀐 채 섞이므로, 기준을 바꾸면 파형과 채널 사이 위상차가 달라집니다.</li>
+          <li><b>전원 잡음</b>: 한국의 전원 주파수는 60&nbsp;Hz입니다. 차동 증폭기가 대부분 걸러내지만 남은 성분이 섞일 수 있습니다(채널 관찰의 "60 Hz 섞기").</li>
+          <li>한계: 실제 피질은 접혀 있어 고랑 벽의 쌍극자는 접선 방향을 향하고, 두께와 전도도는 사람마다 다릅니다. 파의 위치는 각도만 옮겨 전기 모델에 넣었습니다.</li>
+        </ul>
+        <figure class="hlfig">
+          <canvas id="hlChart" aria-label="무늬 크기별로 두피에 도달하는 전위의 비율"></canvas>
+          <figcaption>무늬 크기(구면조화 차수 l)별로 피질 표면 전위 중 두피에 도달하는 비율. 노란 선은 지금 설정한 파장입니다.</figcaption>
+        </figure>
+      </div>
+    </div>
   </section>
 </div>
 
@@ -352,7 +391,7 @@ const tok = n => css.getPropertyValue(n).trim();
 /* ---------- state ---------- */
 const S = {
   mode: "point", f: 10, v: 1, damp: 0.25, slow: 0.05, cmap: "amp",
-  dir: "pa", arms: 1, sign: 1, osc: true, playing: true,
+  dir: "pa", arms: 1, sign: 1, osc: true, playing: true, layer: "src", ref: "ears",
   centers: { point: [0,0,-1], rotate: [0,1,0], spiral: [0,1,0], phys: [0,0,-1] }
 };
 if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) S.playing = false;
@@ -376,7 +415,8 @@ const BY = {};
 ALL.forEach((e, i) => { e.ai = i; BY[e.n] = e; });
 TRACED.forEach(t => { t.ai = BY[t.n].ai; BY[t.n].c = t.c; });
 /* single-channel observation: what an EEG amplifier would record at that site */
-const OBS = { sel: "Cz", cmp: "Oz", fs: 250, win: 4, noise: 2 };
+const OBS = { sel: "Cz", cmp: "Oz", fs: 250, win: 4, noise: 2, line: false };
+const LINE_UV = 3;   // residual 60 Hz mains pickup [µV]
 const AMP_UV = 20;   // peak amplitude [µV] where the wave envelope is 1
 
 /* ---------- icosphere ---------- */
@@ -618,6 +658,133 @@ function interToDisplay(){
   }
 }
 const isField = () => S.mode === "phys" || S.mode === "inter";
+/* ---------- electrical forward model ----------
+   Source: a radial current-dipole layer (pyramidal cells perpendicular to a smooth cortex) at r = 7.85 cm.
+   Volume conductor: brain / CSF / skull / scalp shells (radii 8.0 / 8.2 / 8.7 / 9.2 cm,
+   conductivities 0.33 / 1.79 / 0.0105 / 0.33 S/m). Laplace's equation is solved per spherical-harmonic
+   degree l, so the scalp potential is the source pattern filtered by H_l (a spatial low-pass).
+   Positions are carried over by angle only. Degree l = 0 (perfectly uniform activity) gives no
+   potential difference anywhere, so it is dropped.                                                     */
+function createElec(M){
+  const { P, N, N4, faces4, par } = M;
+  const SHELL = { rs: 0.0785, r: [0.080, 0.082, 0.087, 0.092], s: [0.33, 1.79, 0.0105, 0.33] };
+  const LMAX = 16, P_DIP = 5e-5;            // dipole density [A/m] for source activity 1 (0.05 nA·m/mm²)
+  const NC = (LMAX + 1) * (LMAX + 1);
+
+  function solveLin(A, b){
+    const n = b.length, X = A.map((r, i) => [...r, b[i]]);
+    for (let c = 0; c < n; c++){
+      let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(X[r][c]) > Math.abs(X[p][c])) p = r;
+      [X[c], X[p]] = [X[p], X[c]];
+      for (let r = 0; r < n; r++){ if (r === c) continue; const f = X[r][c] / X[c][c]; for (let k = c; k <= n; k++) X[r][k] -= f * X[c][k]; }
+    }
+    return X.map((r, i) => r[n] / r[i]);
+  }
+  /* potential at the scalp and at the cortical surface per unit dipole density, degree l */
+  function shellH(l){
+    const rs = SHELL.rs, r = SHELL.r, s = SHELL.s, R4 = r[3];
+    const f = x => Math.pow(x / R4, l), g = x => Math.pow(x / R4, -(l + 1));
+    const df = x => l * f(x) / x, dg = x => -(l + 1) * g(x) / x;
+    const A = [], b = [], row = () => new Array(9).fill(0);
+    let q = row(); q[1] = f(rs); q[2] = g(rs); q[0] = -f(rs); A.push(q); b.push(1 / s[0]);   // potential jump p/σ
+    q = row(); q[1] = df(rs); q[2] = dg(rs); q[0] = -df(rs); A.push(q); b.push(0);          // current continuous
+    for (let k = 0; k < 3; k++){
+      const x = r[k], i = 1 + 2 * k, j = i + 2;
+      q = row(); q[i] = f(x); q[i+1] = g(x); q[j] = -f(x); q[j+1] = -g(x); A.push(q); b.push(0);
+      q = row(); q[i] = s[k]*df(x); q[i+1] = s[k]*dg(x); q[j] = -s[k+1]*df(x); q[j+1] = -s[k+1]*dg(x); A.push(q); b.push(0);
+    }
+    q = row(); q[7] = df(R4); q[8] = dg(R4); A.push(q); b.push(0);                          // no current into air
+    const x = solveLin(A, b);
+    return { scalp: x[7] * f(R4) + x[8] * g(R4), cortex: x[1] * f(r[0]) + x[2] * g(r[0]) };
+  }
+  const HL = new Float64Array(LMAX + 1), HC = new Float64Array(LMAX + 1);
+  for (let l = 1; l <= LMAX; l++){ const h = shellH(l); HL[l] = h.scalp * P_DIP * 1e6; HC[l] = h.cortex * P_DIP * 1e6; }
+
+  /* orthonormal real spherical harmonics up to LMAX (polar axis z) */
+  const L1 = LMAX + 1, PLM = new Float64Array(L1 * L1), KLM = new Float64Array(L1 * L1), LOF = new Int32Array(NC);
+  const FACT = [1]; for (let i = 1; i <= 2 * LMAX + 1; i++) FACT[i] = FACT[i-1] * i;
+  for (let l = 0; l <= LMAX; l++) for (let m = 0; m <= l; m++) KLM[l*L1+m] = Math.sqrt((2*l + 1) / (4*Math.PI) * FACT[l-m] / FACT[l+m]);
+  { let k = 0; for (let l = 0; l <= LMAX; l++) for (let j = 0; j < 2*l + 1; j++) LOF[k++] = l; }
+  function shEval(x, y, z, out){
+    const ct = z, st = Math.sqrt(Math.max(0, 1 - z*z)), ph = Math.atan2(y, x);
+    let pmm = 1;
+    for (let m = 0; m <= LMAX; m++){
+      if (m > 0) pmm *= (2*m - 1) * st;
+      PLM[m*L1+m] = pmm;
+      if (m < LMAX) PLM[(m+1)*L1+m] = ct * (2*m + 1) * pmm;
+      for (let l = m + 2; l <= LMAX; l++) PLM[l*L1+m] = ((2*l - 1) * ct * PLM[(l-1)*L1+m] - (l + m - 1) * PLM[(l-2)*L1+m]) / (l - m);
+    }
+    let k = 0;
+    for (let l = 0; l <= LMAX; l++){
+      out[k++] = KLM[l*L1] * PLM[l*L1];
+      for (let m = 1; m <= l; m++){
+        const v = Math.SQRT2 * KLM[l*L1+m] * PLM[l*L1+m];
+        out[k++] = v * Math.cos(m * ph); out[k++] = v * Math.sin(m * ph);
+      }
+    }
+  }
+  /* vertex areas of the level-4 sampling mesh */
+  const A4 = new Float64Array(N4);
+  for (const [a, b, c] of faces4){
+    const ux = P[3*b]-P[3*a], uy = P[3*b+1]-P[3*a+1], uz = P[3*b+2]-P[3*a+2];
+    const vx = P[3*c]-P[3*a], vy = P[3*c+1]-P[3*a+1], vz = P[3*c+2]-P[3*a+2];
+    const ar = 0.5 * Math.hypot(uy*vz - uz*vy, uz*vx - ux*vz, ux*vy - uy*vx) / 3;
+    A4[a] += ar; A4[b] += ar; A4[c] += ar;
+  }
+  { let s = 0; for (let i = 0; i < N4; i++) s += A4[i]; for (let i = 0; i < N4; i++) A4[i] *= 4 * Math.PI / s; }
+  const Y4 = new Float32Array(N4 * NC), tmp = new Float64Array(NC);
+  for (let i = 0; i < N4; i++){ shEval(P[3*i], P[3*i+1], P[3*i+2], tmp); Y4.set(tmp, i * NC); }
+
+  /* electrode weights: V(e) = Σ_i W[e,i] s_i */
+  function weightsFor(positions){
+    const W = new Float32Array(positions.length * N4), ye = new Float64Array(NC);
+    positions.forEach((p, c) => {
+      shEval(p[0], p[1], p[2], ye);
+      for (let k = 0; k < NC; k++) ye[k] *= HL[LOF[k]];
+      for (let i = 0; i < N4; i++){
+        let s = 0; const o = i * NC;
+        for (let k = 0; k < NC; k++) s += ye[k] * Y4[o + k];
+        W[c * N4 + i] = s * A4[i];
+      }
+    });
+    return W;
+  }
+  /* whole-scalp potential (complex) on the display mesh from complex source samples on level 4 */
+  const CR = new Float64Array(NC), CI = new Float64Array(NC);
+  const VR = new Float32Array(N), VI = new Float32Array(N);
+  function scalpField(SR, SI){
+    CR.fill(0); CI.fill(0);
+    for (let i = 0; i < N4; i++){
+      const sr = SR[i] * A4[i], si = SI[i] * A4[i], o = i * NC;
+      if (sr === 0 && si === 0) continue;
+      for (let k = 0; k < NC; k++){ const y = Y4[o + k]; CR[k] += sr * y; CI[k] += si * y; }
+    }
+    for (let k = 0; k < NC; k++){ const h = HL[LOF[k]]; CR[k] *= h; CI[k] *= h; }
+    for (let i = 0; i < N4; i++){
+      let r = 0, im = 0; const o = i * NC;
+      for (let k = 0; k < NC; k++){ const y = Y4[o + k]; r += CR[k] * y; im += CI[k] * y; }
+      VR[i] = r; VI[i] = im;
+    }
+    for (let i = N4; i < N; i++){ const a = par[2*i], b = par[2*i+1]; VR[i] = 0.5 * (VR[a] + VR[b]); VI[i] = 0.5 * (VI[a] + VI[b]); }
+    return [VR, VI];
+  }
+  return { HL, HC, LMAX, NC, N4, A4, shEval, weightsFor, scalpField, SHELL };
+}
+
+const N4 = 2562;
+const ELEC = createElec({ P, N, N4, faces4: G5.cfaces, par: ico.par });
+const EARS = [elPos(100, 95), elPos(100, -95)];          // A1 (left ear), A2 (right ear)
+const CH_POS = ALL.map(e => e.p).concat(EARS);
+const NCH = CH_POS.length;
+const WCH = ELEC.weightsFor(CH_POS);                     // NCH × N4 lead-field weights [µV per unit source]
+const ROW_EARS = ALL.length, ROW_AVG = ALL.length + 1;   // extra trace-buffer rows for references
+const SRC_T = new Float32Array(N4), SRC_R = new Float32Array(N4), SRC_I = new Float32Array(N4);
+const ELR = new Float64Array(NCH), ELI = new Float64Array(NCH);
+let refR = 0, refI = 0, eegScale = 1e-6, VRd = null, VId = null;
+function refRow(){
+  if (S.layer !== "eeg") return -1;
+  return S.ref === "ears" ? ROW_EARS : S.ref === "avg" ? ROW_AVG : S.ref === "cz" ? BY.Cz.ai : -1;
+}
 const OZ = TRACED.find(t => t.n === "Oz"), FPZ = TRACED.find(t => t.n === "Fpz");
 
 /* ---------- colormaps ---------- */
@@ -642,8 +809,7 @@ function drawCbar(){
     x.fillStyle = `rgb(${L[3*k]*255|0},${L[3*k+1]*255|0},${L[3*k+2]*255|0})`;
     x.fillRect(i, 0, 1, c.height);
   }
-  document.getElementById("cbarLo").textContent = S.cmap === "amp" ? "−" : "0";
-  document.getElementById("cbarHi").textContent = S.cmap === "amp" ? "+" : "2π";
+  cbarLast = "";
 }
 
 /* ---------- three.js scene ---------- */
@@ -707,6 +873,13 @@ function ringMesh(color, tube){
   scene.add(m); return m;
 }
 const selRing = ringMesh(tok("--accent"), 0.010), cmpRing = ringMesh(tok("--cmp"), 0.007);
+const earDots = [elPos(100, 95), elPos(100, -95)].map((p, k) => {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(tok("--cmp")) }));
+  m.position.set(p[0]*1.03, p[1]*1.03, p[2]*1.03); m.visible = false; scene.add(m);
+  const el = document.createElement("div"); el.className = "elabel"; el.textContent = k ? "A2" : "A1"; el.style.color = tok("--cmp"); el.style.opacity = 0;
+  labelBox.appendChild(el); m.userData = { p, el };
+  return m;
+});
 function placeRing(ring, e){
   ring.visible = !!e; if (!e) return;
   ring.position.set(e.p[0]*1.016, e.p[1]*1.016, e.p[2]*1.016);
@@ -832,12 +1005,24 @@ function physStep(dt){
 /* ---------- traces (ring buffer of sampled electrode values) ---------- */
 const TB = 6000;                       // ~34 cycles of history at W/700 spacing
 const tBuf = new Float64Array(TB);
-const vBuf = ALL.map(() => new Float32Array(TB));
+const vBuf = Array.from({ length: ALL.length + 2 }, () => new Float32Array(TB));
+const rv = (ai, i, rr) => rr >= 0 ? vBuf[ai][i] - vBuf[rr][i] : vBuf[ai][i];
 let head = 0, count = 0, traceScale = 1;
 function clearTraces(){ head = 0; count = 0; traceScale = 1e-6; }
 function pushSample(t){
   tBuf[head] = t;
-  if (S.mode === "phys"){
+  if (S.layer === "eeg"){
+    if (S.mode === "phys") SRC_T.set(U.subarray(0, N4));
+    else if (S.mode === "inter") SRC_T.set(IM.st.ZR.subarray(0, N4));
+    else for (let i = 0; i < N4; i++){ evalAt(P[3*i], P[3*i+1], P[3*i+2], t); SRC_T[i] = out.u; }
+    let avg = 0, ears = 0;
+    for (let c = 0; c < NCH; c++){
+      let v = 0; const o = c * N4;
+      for (let i = 0; i < N4; i++) v += WCH[o + i] * SRC_T[i];
+      if (c < ALL.length){ vBuf[c][head] = v; avg += v; } else ears += 0.5 * v;
+    }
+    vBuf[ROW_EARS][head] = ears; vBuf[ROW_AVG][head] = avg / ALL.length;
+  } else if (S.mode === "phys"){
     for (let j = 0; j < ALL.length; j++) vBuf[j][head] = U[ALL[j].vi];
   } else if (S.mode === "inter"){
     for (let j = 0; j < ALL.length; j++) vBuf[j][head] = IM.st.ZR[ALL[j].vi5];
@@ -854,8 +1039,8 @@ function bufAt(ai, t){
   if (t < tBuf[phys(lo)] || t > tBuf[phys(hi)]) return NaN;
   while (hi - lo > 1){ const m = (lo + hi) >> 1; if (tBuf[phys(m)] <= t) lo = m; else hi = m; }
   const a = phys(lo), b = phys(hi), ta = tBuf[a], tb = tBuf[b];
-  const f = tb > ta ? (t - ta) / (tb - ta) : 0;
-  return vBuf[ai][a] * (1 - f) + vBuf[ai][b] * f;
+  const f = tb > ta ? (t - ta) / (tb - ta) : 0, rr = refRow();
+  return rv(ai, a, rr) * (1 - f) + rv(ai, b, rr) * f;
 }
 const tc = document.getElementById("traceCanvas"), tx = tc.getContext("2d");
 let tcW = 0, tcH = 0;
@@ -883,11 +1068,11 @@ function drawTraces(tNow){
     tx.fillText(k === 0 ? "0 ms" : "−" + Math.round(k * 1000 / S.f), x, padT + h + 13);
   }
   // scale: common across channels so relative amplitudes stay honest
-  let mx = 0;
+  let mx = 0; const rr = refRow();
   for (let n = 0; n < count; n++){
     const i = (head - 1 - n + TB) % TB;
     if (tBuf[i] < t0) break;
-    for (let j = 0; j < TRACED.length; j++){ const a = Math.abs(vBuf[TRACED[j].ai][i]); if (a > mx) mx = a; }
+    for (let j = 0; j < TRACED.length; j++){ const a = Math.abs(rv(TRACED[j].ai, i, rr)); if (a > mx) mx = a; }
   }
   traceScale = Math.max(mx, traceScale * 0.97, 1e-9);
   const rowH = h / TRACED.length;
@@ -904,7 +1089,7 @@ function drawTraces(tNow){
       const i = (head - 1 - n + TB) % TB;
       if (tBuf[i] < t0) continue;
       const x = padL + (tBuf[i] - t0) / W * w;
-      const y = y0 - vBuf[e.ai][i] / traceScale * rowH * 0.46;
+      const y = y0 - rv(e.ai, i, rr) / traceScale * rowH * 0.46;
       if (!started){ tx.moveTo(x, y); started = true; } else tx.lineTo(x, y);
     }
     tx.stroke();
@@ -924,10 +1109,14 @@ function paint(t){
     for (let i = 0; i < N5; i++){ const a = Math.hypot(IM.st.ZR[i], IM.st.ZI[i]); if (a > mx) mx = a; }
     physScale = Math.max(mx, physScale * 0.985, 1e-9);
   }
-  const w = TAU * S.f;
+  const w = TAU * S.f, eeg = S.layer === "eeg";
+  if (eeg) eegFrame(t, w);
   for (let i = 0; i < N; i++){
     let u, ph, en;
-    if (S.mode === "phys"){
+    if (eeg){
+      const vr = VRd[i] - refR, vi = VId[i] - refI;
+      u = vr / eegScale; ph = Math.atan2(vi, vr); en = Math.hypot(vr, vi) / eegScale;
+    } else if (S.mode === "phys"){
       const q = -V[i] / w;
       u = U[i] / physScale; ph = Math.atan2(q, U[i]); en = Math.hypot(U[i], q) / physScale;
     } else if (S.mode === "inter"){
@@ -949,6 +1138,40 @@ function paint(t){
     colors[3*i] = r; colors[3*i+1] = g; colors[3*i+2] = b;
   }
   colAttr.needsUpdate = true;
+  cbarText();
+}
+/* scalp potential of the current frame: display field + complex values at every electrode */
+function eegFrame(t, w){
+  for (let i = 0; i < N4; i++){
+    if (S.mode === "phys"){ SRC_R[i] = U[i] / physScale; SRC_I[i] = -V[i] / w / physScale; }
+    else if (S.mode === "inter"){ SRC_R[i] = IM.st.ZR[i] / physScale; SRC_I[i] = IM.st.ZI[i] / physScale; }
+    else { evalAt(P[3*i], P[3*i+1], P[3*i+2], t); SRC_R[i] = out.en * Math.cos(out.ph); SRC_I[i] = out.en * Math.sin(out.ph); }
+  }
+  [VRd, VId] = ELEC.scalpField(SRC_R, SRC_I);
+  let ar = 0, ai = 0;
+  for (let c = 0; c < NCH; c++){
+    let r = 0, im = 0; const o = c * N4;
+    for (let i = 0; i < N4; i++){ const wv = WCH[o + i]; r += wv * SRC_R[i]; im += wv * SRC_I[i]; }
+    ELR[c] = r; ELI[c] = im;
+    if (c < ALL.length){ ar += r; ai += im; }
+  }
+  if (S.ref === "ears"){ refR = 0.5 * (ELR[NCH-2] + ELR[NCH-1]); refI = 0.5 * (ELI[NCH-2] + ELI[NCH-1]); }
+  else if (S.ref === "avg"){ refR = ar / ALL.length; refI = ai / ALL.length; }
+  else if (S.ref === "cz"){ refR = ELR[BY.Cz.ai]; refI = ELI[BY.Cz.ai]; }
+  else { refR = 0; refI = 0; }
+  let mx = 0;
+  for (let i = 0; i < N4; i++){ const a = Math.abs(VRd[i] - refR); if (a > mx) mx = a; }
+  eegScale = Math.max(mx, eegScale * 0.985, 0.05);
+}
+let cbarLast = "";
+function cbarText(){
+  let lo, hi;
+  if (S.cmap !== "amp"){ lo = "0"; hi = "2π"; }
+  else if (S.layer === "eeg"){ const v = eegScale >= 10 ? Math.round(eegScale) : Math.round(eegScale * 10) / 10; lo = "−" + v + " µV"; hi = "+" + v + " µV"; }
+  else { lo = "−"; hi = "+"; }
+  if (lo + hi === cbarLast) return;
+  cbarLast = lo + hi;
+  document.getElementById("cbarLo").textContent = lo; document.getElementById("cbarHi").textContent = hi;
 }
 
 /* ---------- labels ---------- */
@@ -967,6 +1190,17 @@ function placeLabels(){
     vtmp.set(e.p[0]*1.02, e.p[1]*1.02, e.p[2]*1.02).project(camera);
     e.label.style.left = ((vtmp.x + 1) / 2 * w) + "px";
     e.label.style.top = ((1 - vtmp.y) / 2 * h) + "px";
+  });
+}
+function placeEarLabels(){
+  const w = viewer.clientWidth, h = viewer.clientHeight, cp = camera.position, cl = cp.length();
+  earDots.forEach(m => {
+    const { p, el } = m.userData;
+    const show = m.visible && (p[0]*cp.x + p[1]*cp.y + p[2]*cp.z) / cl > 0.05;
+    el.style.opacity = show ? 1 : 0;
+    if (!show) return;
+    vtmp.set(p[0]*1.03, p[1]*1.03, p[2]*1.03).project(camera);
+    el.style.left = ((vtmp.x + 1) / 2 * w) + "px"; el.style.top = ((1 - vtmp.y) / 2 * h) + "px";
   });
 }
 function pickElectrode(px, py){
@@ -999,21 +1233,32 @@ function hash01(n, c){
 }
 /* sensor noise (white) + slow background drift; deterministic per sample so a paused frame holds still */
 function noiseAt(k, t, ai){
-  if (OBS.noise === 0) return 0;
+  let n = OBS.line ? LINE_UV * Math.sin(TAU * 60 * t + 0.4 * ai) : 0;
+  if (OBS.noise === 0) return n;
   const g = Math.sqrt(-2 * Math.log(hash01(k, 2*ai + 1))) * Math.cos(TAU * hash01(k, 2*ai + 2));
   const q = ai * 1.7;
   const drift = (Math.sin(TAU*0.7*t + q) + 0.7*Math.sin(TAU*1.9*t + 2.3*q) + 0.5*Math.sin(TAU*3.1*t + 0.6*q)) / 1.33;
-  return OBS.noise * (0.8 * g + 0.6 * drift);
+  return n + OBS.noise * (0.8 * g + 0.6 * drift);
 }
 const NOISE_RMS = 0.9; // RMS of noiseAt() per unit of OBS.noise
+let scopeYM = 10;
 function drawScope(tNow){
   const e = BY[OBS.sel], c = OBS.cmp ? BY[OBS.cmp] : null;
   const W = OBS.win / S.f, t0 = tNow - W;
   const padL = 58, padR = 14, padT = 14, padB = 26;
   const w = scW - padL - padR, h = scH - padT - padB;
   if (w <= 0 || h <= 0) return;
-  const gain = (isField() ? 1 / physScale : 1) * AMP_UV;
-  const yMax = Math.max(10, Math.ceil((AMP_UV + 2.5 * OBS.noise) / 10) * 10);
+  const eeg = S.layer === "eeg", rr = refRow();
+  const gain = (isField() ? 1 / physScale : 1) * (eeg ? 1 : AMP_UV);
+  const extra = 2.5 * OBS.noise + (OBS.line ? LINE_UV : 0);
+  let yMax;
+  if (eeg){
+    let mx = 0;
+    for (let n = 0; n < count; n++){ const i = (head - 1 - n + TB) % TB; if (tBuf[i] < t0) break; const a = Math.abs(rv(e.ai, i, rr)); if (a > mx) mx = a; if (c){ const b2 = Math.abs(rv(c.ai, i, rr)); if (b2 > mx) mx = b2; } }
+    const target = Math.max(5, Math.ceil((mx * gain + extra) / 5) * 5);
+    if (target > scopeYM || target < scopeYM * 0.6) scopeYM = target;
+    yMax = scopeYM;
+  } else yMax = Math.max(10, Math.ceil((AMP_UV + extra) / 10) * 10);
   const X = t => padL + (t - t0) / W * w;
   const Y = v => padT + h / 2 - v / yMax * h / 2;
   sx.clearRect(0, 0, scW, scH);
@@ -1038,7 +1283,7 @@ function drawScope(tNow){
     for (let n = count - 1; n >= 0; n--){
       const i = (head - 1 - n + TB) % TB;
       if (tBuf[i] < t0) continue;
-      const x = X(tBuf[i]), y = Y(vBuf[ai][i] * gain);
+      const x = X(tBuf[i]), y = Y(rv(ai, i, rr) * gain);
       if (!on){ sx.moveTo(x, y); on = true; } else sx.lineTo(x, y);
     }
     sx.stroke(); sx.setLineDash([]);
@@ -1066,7 +1311,7 @@ function scopeReadouts(t){
   const [pS, eS] = phaseAt(e, t);
   const rows = [];
   rows.push(["원 신호 진폭", fmt(eS * AMP_UV, 1) + " µV"]);
-  const sig = eS * AMP_UV / Math.SQRT2, nz = OBS.noise * NOISE_RMS;
+  const sig = eS * AMP_UV / Math.SQRT2, nz = Math.hypot(OBS.noise * NOISE_RMS, OBS.line ? LINE_UV / Math.SQRT2 : 0);
   rows.push(["신호 대 잡음비", nz === 0 ? "∞ (잡음 없음)" : (sig < 1e-3 ? "—" : fmt(20 * Math.log10(sig / nz), 1) + " dB")]);
   rows.push(["주기당 샘플 수", fmt(OBS.fs / S.f, 1) + " 개"]);
   if (c){
@@ -1099,6 +1344,7 @@ function nameOf(c){
 const fmt = (x, d = 1) => x.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
 let effSlow = S.slow;
 function phaseAt(e, t){
+  if (S.layer === "eeg"){ const vr = ELR[e.ai] - refR, vi = ELI[e.ai] - refI; return [Math.atan2(vi, vr), Math.hypot(vr, vi) / AMP_UV]; }
   if (S.mode === "phys"){ const w = TAU * S.f; const q = -V[e.vi] / w; return [Math.atan2(q, U[e.vi]), Math.hypot(U[e.vi], q) / physScale]; }
   if (S.mode === "inter"){ const zr = IM.st.ZR[e.vi5], zi = IM.st.ZI[e.vi5]; return [Math.atan2(zi, zr), Math.hypot(zr, zi) / physScale]; }
   evalAt(e.p[0], e.p[1], e.p[2], t); return [out.ph, out.en];
@@ -1172,9 +1418,14 @@ function syncUI(){
   $("rowRev").hidden = !(m === "point" || m === "rotate" || m === "spiral");
   $("rowPhys").hidden = m !== "phys";
   $("hint").innerHTML = "드래그: 회전 · 휠/핀치: 확대<br>" + "전극 클릭: 채널 관찰<br>" + (m === "plane" ? "방향은 오른쪽 패널에서 선택" : m === "phys" ? "표면 클릭: 그 위치에 자극" : m === "inter" ? "표면 클릭: 국소 패치 추가<br>흰·검은 점: 소용돌이 중심" : "표면 클릭: 중심 위치 이동");
-  $("modeTag").textContent = MODE_TXT[m][0]; $("modeSub").textContent = MODE_TXT[m][1]();
+  press("layers", "layer", S.layer); press("refs", "ref", S.ref);
+  $("rowRef").hidden = S.layer !== "eeg";
+  earDots.forEach(d => d.visible = S.layer === "eeg" && S.ref === "ears");
+  $("modeTag").textContent = MODE_TXT[m][0];
+  $("modeSub").textContent = MODE_TXT[m][1]() + (S.layer === "eeg" ? ` · 두피 EEG (${REF_TXT[S.ref]} 기준)` : "");
+  drawHL();
   $("playB").textContent = S.playing ? "일시정지" : "재생";
-  $("traceInfo").textContent = `최근 4주기 (${fmt(4000 / S.f, 0)} ms) · 오른쪽 끝이 현재 · 행을 누르면 아래에서 자세히`;
+  $("traceInfo").textContent = (S.layer === "eeg" ? `두피 EEG · ${REF_TXT[S.ref]} 기준 · ` : "피질 활동 · ") + `최근 4주기 (${fmt(4000 / S.f, 0)} ms) · 오른쪽 끝이 현재 · 행을 누르면 아래에서 자세히`;
   document.querySelectorAll("#scenes .chip").forEach(b => b.setAttribute("aria-pressed", "false"));
   drawCbar(); placeMarker(); updateQ();
   syncScope();
@@ -1260,6 +1511,40 @@ $("dfR").addEventListener("input", e => { IM.st.df = +e.target.value; IM.st.muDi
 $("restartB").addEventListener("click", () => { interRestart(IM.st.hyp, false); syncUI(); });
 $("clearPB").addEventListener("click", () => { IM.st.patches.length = 0; IM.st.muDirty = true; syncUI(); });
 
+/* electrical view controls */
+const REF_TXT = { ears: "연결 귓불", avg: "평균", cz: "Cz", none: "무한원" };
+$("layers").addEventListener("click", e => { const b = e.target.closest("[data-layer]"); if (!b || b.dataset.layer === S.layer) return; S.layer = b.dataset.layer; clearTraces(); scopeYM = 10; syncUI(); });
+$("refs").addEventListener("click", e => { const b = e.target.closest("[data-ref]"); if (b){ S.ref = b.dataset.ref; scopeYM = 10; syncUI(); } });
+$("lineC").addEventListener("change", e => { OBS.line = e.target.checked; syncScope(); });
+const hc = document.getElementById("hlChart"), hx = hc.getContext("2d");
+function drawHL(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2), W = hc.clientWidth, H = hc.clientHeight;
+  if (!W || !H) return;
+  hc.width = Math.round(W * dpr); hc.height = Math.round(H * dpr); hx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  hx.clearRect(0, 0, W, H);
+  const L = ELEC.LMAX, pl = 40, pr = 12, pt = 14, pb = 38, w = W - pl - pr, h = H - pt - pb, bw = w / L;
+  hx.font = "500 10px " + tok("--f-mono"); hx.textBaseline = "middle";
+  hx.strokeStyle = COL.line; hx.fillStyle = COL.muted; hx.textAlign = "right"; hx.lineWidth = 1;
+  [0, 25, 50, 75, 100].forEach(v => { const y = Math.round(pt + h - v / 100 * h) + .5; hx.beginPath(); hx.moveTo(pl, y); hx.lineTo(pl + w, y); hx.stroke(); hx.fillText(v + "%", pl - 6, y); });
+  hx.textAlign = "center";
+  for (let l = 1; l <= L; l++){
+    const r = ELEC.HL[l] / ELEC.HC[l], x = pl + (l - 1) * bw;
+    hx.fillStyle = COL.cmp; hx.fillRect(x + bw * 0.18, pt + h - r * h, bw * 0.64, r * h);
+    hx.fillStyle = COL.muted;
+    if (l === 1 || l % 3 === 0) hx.fillText(l, x + bw / 2, pt + h + 10);
+    if (l === 1 || l === 4 || l === 8 || l === 16) hx.fillText(Math.round(TAU * R * 100 / l) + "cm", x + bw / 2, pt + h + 24);
+  }
+  hx.textAlign = "left"; hx.fillText("l", pl + w + 2, pt + h + 10); 
+  const lam = S.v / S.f, lc = TAU * R / lam;
+  if (S.mode !== "rotate" && lc >= 0.5 && lc <= L + 0.5){
+    const x = pl + (lc - 0.5) * bw;
+    hx.strokeStyle = COL.accent; hx.lineWidth = 2; hx.beginPath(); hx.moveTo(x, pt); hx.lineTo(x, pt + h); hx.stroke();
+    hx.fillStyle = COL.accent; hx.textAlign = x > pl + w * 0.6 ? "right" : "left";
+    hx.fillText("현재 λ " + fmt(lam * 100, 0) + " cm", x + (hx.textAlign === "left" ? 5 : -5), pt + 6);
+  }
+}
+new ResizeObserver(() => drawHL()).observe(hc);
+
 /* channel observation controls */
 $("chans").innerHTML = ORDER.map(n => `<button class="chip" data-ch="${n}" aria-pressed="false">${n}</button>`).join("");
 $("cmpS").innerHTML = `<option value="">없음</option>` + ORDER.map(n => `<option value="${n}">${n}</option>`).join("");
@@ -1284,7 +1569,9 @@ function syncScope(){
   $("nV").textContent = OBS.noise === 0 ? "없음" : "약 " + fmt(OBS.noise * NOISE_RMS, 1) + " µV RMS";
   $("scName").textContent = OBS.sel;
   $("lgCmp").hidden = !OBS.cmp;
-  $("scInfo").textContent = `${OBS.win}주기 (${fmt(OBS.win * 1000 / S.f, 0)} ms) · ${OBS.fs} Hz 샘플링 · 신호 최대 ${AMP_UV} µV 가정`;
+  $("lineC").checked = OBS.line;
+  $("scInfo").textContent = `${OBS.win}주기 (${fmt(OBS.win * 1000 / S.f, 0)} ms) · ${OBS.fs} Hz 샘플링 · ` +
+    (S.layer === "eeg" ? `두피 전위, ${REF_TXT[S.ref]} 기준` : `피질 활동, 최대 ${AMP_UV} µV로 환산`);
   placeRing(selRing, BY[OBS.sel]); placeRing(cmpRing, OBS.cmp ? BY[OBS.cmp] : null);
 }
 $("chans").addEventListener("click", e => { const b = e.target.closest("[data-ch]"); if (b) selectChannel(b.dataset.ch, false); });
@@ -1382,7 +1669,7 @@ function tick(now){
       effSlow = dtReal > 0 ? (steps * dt) / dtReal : S.slow;
       IM.findVortices(); gPush();
     } else {
-      let n = Math.min(2000, Math.max(1, Math.ceil(want / dts)));
+      let n = Math.min(S.layer === "eeg" ? 60 : 2000, Math.max(1, Math.ceil(want / dts)));
       const step = want / n;
       for (let s = 1; s <= n; s++) pushSample(simT + s * step);
       simT += want;
@@ -1391,6 +1678,7 @@ function tick(now){
   controls.update();
   paint(simT);
   placeLabels();
+  placeEarLabels();
   placeInterMarkers();
   if (S.mode === "inter") drawGChart();
   drawTraces(simT);
