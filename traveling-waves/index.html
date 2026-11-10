@@ -19,6 +19,7 @@
   --accent:#ffc04a;
   --accent-ink:#1b1305;
   --warn:#ff8a65;
+  --cmp:#7fb2ff;
   --scrim:rgba(10,14,21,.72);
   --f-ui:"IBM Plex Sans KR","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -62,7 +63,28 @@ header p{margin:0;color:var(--muted);max-width:70ch}
 .traces-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;padding:10px 14px 0}
 .traces-head h2{margin:0;font-size:13px;font-weight:600}
 .traces-head span{font:400 11px/1.3 var(--f-mono);color:var(--muted)}
-#traceCanvas{display:block;width:100%;height:230px}
+#traceCanvas{display:block;width:100%;height:230px;cursor:pointer}
+
+.scope{border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden;display:flex;flex-direction:column}
+.scope h2 .scname{font:600 13px/1 var(--f-mono);color:var(--accent);margin-left:6px}
+.scope-ctl{display:flex;flex-direction:column;gap:10px;padding:10px 14px 4px}
+.chans{gap:4px}
+.chans .chip{font:500 11px/1 var(--f-mono);padding:6px 7px;min-width:38px;text-align:center}
+.chans .chip.cmp{border-color:var(--cmp);color:var(--cmp)}
+.scope-opts{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:flex-end}
+.scope-opts .grp{display:flex;flex-direction:column;gap:5px;min-width:0}
+.scope-opts .grp.grow{flex:1 1 180px}
+.scope-opts .chip{padding:6px 9px;font-size:12px}
+select{font:500 12px/1 var(--f-mono);background:var(--panel-2);color:var(--fg);border:1px solid var(--line);border-radius:7px;padding:6px 8px}
+select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#scopeCanvas{display:block;width:100%;height:240px}
+.scope-read{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:4px 18px;padding:2px 14px 12px}
+.scope-read div{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:5px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font:400 11px/1.3 var(--f-mono);color:var(--muted);padding:8px 14px 2px}
+.legend i{display:inline-block;width:14px;height:0;border-top:2px solid;vertical-align:middle;margin-right:5px}
+.legend i.dash{border-top-style:dashed}
+.elabel.sel{outline:1px solid var(--accent);color:var(--accent)!important}
+.elabel.cmpl{outline:1px dashed var(--cmp);color:var(--cmp)!important}
 
 .rack{display:flex;flex-direction:column;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
 .sec{display:flex;flex-direction:column;gap:8px}
@@ -120,14 +142,48 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
         <div id="labels"></div>
         <div class="overlay ov-tl"><span class="modeTag" id="modeTag">점 소스</span><span id="modeSub">Oz에서 퍼지는 파</span></div>
         <div class="overlay ov-bl"><span id="cbarLo">−</span><canvas class="cbar" id="cbar" width="240" height="16"></canvas><span id="cbarHi">+</span></div>
-        <div class="overlay ov-br hint" id="hint">드래그: 회전 · 휠/핀치: 확대<br>표면 클릭: 소스 위치 이동</div>
+        <div class="overlay ov-br hint" id="hint">드래그: 회전 · 휠/핀치: 확대<br>전극 클릭: 채널 관찰<br>표면 클릭: 소스 위치 이동</div>
       </div>
       <div class="traces">
         <div class="traces-head">
           <h2>가상 EEG 전극 파형</h2>
           <span id="traceInfo">최근 4주기 · 오른쪽 끝이 현재</span>
         </div>
-        <canvas id="traceCanvas" aria-label="전극별 시간 파형"></canvas>
+        <canvas id="traceCanvas" aria-label="전극별 시간 파형. 채널 이름을 누르면 아래에서 자세히 관찰"></canvas>
+      </div>
+      <div class="scope" id="scope">
+        <div class="traces-head">
+          <h2>채널 관찰<span class="scname" id="scName">Cz</span></h2>
+          <span id="scInfo">머리 위 전극이나 아래 채널 버튼을 눌러 선택</span>
+        </div>
+        <div class="scope-ctl">
+          <div class="chips chans" id="chans" role="group" aria-label="관찰할 채널"></div>
+          <div class="scope-opts">
+            <div class="grp"><span class="lab">샘플링</span>
+              <div class="chips" id="fsC">
+                <button class="chip" data-fs="128" aria-pressed="false">128 Hz</button>
+                <button class="chip" data-fs="250" aria-pressed="true">250 Hz</button>
+                <button class="chip" data-fs="500" aria-pressed="false">500 Hz</button>
+                <button class="chip" data-fs="1000" aria-pressed="false">1 kHz</button>
+              </div></div>
+            <div class="grp"><span class="lab">구간</span>
+              <div class="chips" id="winC">
+                <button class="chip" data-win="4" aria-pressed="true">4주기</button>
+                <button class="chip" data-win="8" aria-pressed="false">8주기</button>
+              </div></div>
+            <div class="grp"><label class="lab" for="cmpS">비교 채널</label>
+              <select id="cmpS"></select></div>
+            <div class="grp grow"><div class="row"><div class="top"><label for="nR">측정 잡음</label><span class="val" id="nV"></span></div>
+              <input type="range" id="nR" min="0" max="100" step="1" value="20"></div></div>
+          </div>
+        </div>
+        <div class="legend">
+          <span><i style="border-color:var(--accent)"></i>측정값 (샘플 + 잡음)</span>
+          <span><i style="border-color:var(--muted)"></i>잡음 없는 원 신호</span>
+          <span id="lgCmp"><i class="dash" style="border-color:var(--cmp)"></i>비교 채널 원 신호</span>
+        </div>
+        <canvas id="scopeCanvas" aria-label="선택 채널의 측정 시계열"></canvas>
+        <dl class="readout scope-read" id="scRead"></dl>
       </div>
     </div>
 
@@ -267,6 +323,14 @@ const TRACED = [
   { n:"Pz", c:"#c784ff" }, { n:"Oz", c:"#6f8dff" }, { n:"T7", c:"#45d6b5" }, { n:"T8", c:"#b5e85a" }
 ];
 TRACED.forEach(t => t.p = elPos(...EL[t.n]));
+const ORDER = ["Fp1","Fpz","Fp2","F7","F3","Fz","F4","F8","T7","C3","Cz","C4","T8","P7","P3","Pz","P4","P8","O1","Oz","O2"];
+const ALL = ORDER.map(n => ({ n, p: elPos(...EL[n]) }));
+const BY = {};
+ALL.forEach((e, i) => { e.ai = i; BY[e.n] = e; });
+TRACED.forEach(t => { t.ai = BY[t.n].ai; BY[t.n].c = t.c; });
+/* single-channel observation: what an EEG amplifier would record at that site */
+const OBS = { sel: "Cz", cmp: "Oz", fs: 250, win: 4, noise: 2 };
+const AMP_UV = 20;   // peak amplitude [µV] where the wave envelope is 1
 
 /* ---------- icosphere ---------- */
 function icosphere(level){
@@ -333,6 +397,7 @@ function nearestVertex(p){
   return best;
 }
 TRACED.forEach(t => t.vi = nearestVertex(t.p));
+ALL.forEach(e => e.vi = nearestVertex(e.p));
 const OZ = TRACED.find(t => t.n === "Oz"), FPZ = TRACED.find(t => t.n === "Fpz");
 
 /* ---------- colormaps ---------- */
@@ -411,9 +476,22 @@ const labelBox = document.getElementById("labels");
 TRACED.forEach(t => {
   const m = new THREE.Mesh(new THREE.SphereGeometry(0.028, 14, 10), new THREE.MeshBasicMaterial({ color: new THREE.Color(t.c) }));
   m.position.set(t.p[0]*1.015, t.p[1]*1.015, t.p[2]*1.015); scene.add(m);
-  const el = document.createElement("div"); el.className = "elabel"; el.textContent = t.n; el.style.color = t.c;
-  labelBox.appendChild(el); t.label = el;
 });
+ALL.forEach(e => {
+  const el = document.createElement("div"); el.className = "elabel"; el.textContent = e.n;
+  el.style.color = e.c || tok("--muted");
+  labelBox.appendChild(el); e.label = el;
+});
+function ringMesh(color, tube){
+  const m = new THREE.Mesh(new THREE.TorusGeometry(0.052, tube, 8, 36), new THREE.MeshBasicMaterial({ color: new THREE.Color(color) }));
+  scene.add(m); return m;
+}
+const selRing = ringMesh(tok("--accent"), 0.010), cmpRing = ringMesh(tok("--cmp"), 0.007);
+function placeRing(ring, e){
+  ring.visible = !!e; if (!e) return;
+  ring.position.set(e.p[0]*1.016, e.p[1]*1.016, e.p[2]*1.016);
+  ring.lookAt(e.p[0]*2, e.p[1]*2, e.p[2]*2);
+}
 const marker = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.016, 10, 40), new THREE.MeshBasicMaterial({ color: new THREE.Color(tok("--accent")) }));
 scene.add(marker);
 function placeMarker(){
@@ -505,19 +583,30 @@ function physStep(dt){
 }
 
 /* ---------- traces (ring buffer of sampled electrode values) ---------- */
-const TB = 3000;
+const TB = 6000;                       // ~34 cycles of history at W/700 spacing
 const tBuf = new Float64Array(TB);
-const vBuf = TRACED.map(() => new Float32Array(TB));
+const vBuf = ALL.map(() => new Float32Array(TB));
 let head = 0, count = 0, traceScale = 1;
 function clearTraces(){ head = 0; count = 0; traceScale = 1e-6; }
 function pushSample(t){
   tBuf[head] = t;
   if (S.mode === "phys"){
-    TRACED.forEach((e, j) => vBuf[j][head] = U[e.vi]);
+    for (let j = 0; j < ALL.length; j++) vBuf[j][head] = U[ALL[j].vi];
   } else {
-    TRACED.forEach((e, j) => { evalAt(e.p[0], e.p[1], e.p[2], t); vBuf[j][head] = out.u; });
+    for (let j = 0; j < ALL.length; j++){ const e = ALL[j]; evalAt(e.p[0], e.p[1], e.p[2], t); vBuf[j][head] = out.u; }
   }
   head = (head + 1) % TB; if (count < TB) count++;
+}
+/* value of channel ai at time t, linearly interpolated from the ring buffer (NaN if not recorded) */
+function bufAt(ai, t){
+  if (count < 2) return NaN;
+  const phys = n => (head - count + n + TB) % TB;
+  let lo = 0, hi = count - 1;
+  if (t < tBuf[phys(lo)] || t > tBuf[phys(hi)]) return NaN;
+  while (hi - lo > 1){ const m = (lo + hi) >> 1; if (tBuf[phys(m)] <= t) lo = m; else hi = m; }
+  const a = phys(lo), b = phys(hi), ta = tBuf[a], tb = tBuf[b];
+  const f = tb > ta ? (t - ta) / (tb - ta) : 0;
+  return vBuf[ai][a] * (1 - f) + vBuf[ai][b] * f;
 }
 const tc = document.getElementById("traceCanvas"), tx = tc.getContext("2d");
 let tcW = 0, tcH = 0;
@@ -527,7 +616,8 @@ function resizeTraces(){
   tc.width = Math.round(tcW * dpr); tc.height = Math.round(tcH * dpr);
   tx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
-const COL = { fg: tok("--fg"), muted: tok("--muted"), line: tok("--line"), panel: tok("--panel") };
+const COL = { fg: tok("--fg"), muted: tok("--muted"), line: tok("--line"), panel: tok("--panel"), accent: tok("--accent"), cmp: tok("--cmp") };
+let traceLayout = null;
 function drawTraces(tNow){
   const W = 4 / S.f, t0 = tNow - W;
   const padL = 46, padR = 14, padT = 12, padB = 24;
@@ -548,13 +638,15 @@ function drawTraces(tNow){
   for (let n = 0; n < count; n++){
     const i = (head - 1 - n + TB) % TB;
     if (tBuf[i] < t0) break;
-    for (let j = 0; j < TRACED.length; j++){ const a = Math.abs(vBuf[j][i]); if (a > mx) mx = a; }
+    for (let j = 0; j < TRACED.length; j++){ const a = Math.abs(vBuf[TRACED[j].ai][i]); if (a > mx) mx = a; }
   }
   traceScale = Math.max(mx, traceScale * 0.97, 1e-9);
   const rowH = h / TRACED.length;
+  traceLayout = { padT, padL, rowH };
   TRACED.forEach((e, j) => {
     const y0 = padT + rowH * (j + .5);
-    tx.textAlign = "left"; tx.fillStyle = e.c; tx.fillText(e.n, 6, y0);
+    tx.textAlign = "left"; tx.fillStyle = e.c; tx.fillText(e.n, 8, y0);
+    if (e.n === OBS.sel){ tx.strokeStyle = COL.accent; tx.lineWidth = 1; tx.strokeRect(3.5, y0 - 8.5, 36, 17); }
     tx.strokeStyle = COL.line; tx.globalAlpha = .5;
     tx.beginPath(); tx.moveTo(padL, y0 + .5); tx.lineTo(padL + w, y0 + .5); tx.stroke(); tx.globalAlpha = 1;
     tx.strokeStyle = e.c; tx.lineWidth = 1.5; tx.beginPath();
@@ -563,7 +655,7 @@ function drawTraces(tNow){
       const i = (head - 1 - n + TB) % TB;
       if (tBuf[i] < t0) continue;
       const x = padL + (tBuf[i] - t0) / W * w;
-      const y = y0 - vBuf[j][i] / traceScale * rowH * 0.46;
+      const y = y0 - vBuf[e.ai][i] / traceScale * rowH * 0.46;
       if (!started){ tx.moveTo(x, y); started = true; } else tx.lineTo(x, y);
     }
     tx.stroke();
@@ -608,13 +700,130 @@ const vtmp = new THREE.Vector3();
 function placeLabels(){
   const w = viewer.clientWidth, h = viewer.clientHeight;
   const cp = camera.position, cl = cp.length();
-  TRACED.forEach(t => {
-    const facing = (t.p[0]*cp.x + t.p[1]*cp.y + t.p[2]*cp.z) / cl;
-    vtmp.set(t.p[0]*1.02, t.p[1]*1.02, t.p[2]*1.02).project(camera);
-    t.label.style.left = ((vtmp.x + 1) / 2 * w) + "px";
-    t.label.style.top = ((1 - vtmp.y) / 2 * h) + "px";
-    t.label.style.opacity = facing > 0.05 ? 1 : 0;
+  ALL.forEach(e => {
+    const facing = (e.p[0]*cp.x + e.p[1]*cp.y + e.p[2]*cp.z) / cl;
+    const isSel = e.n === OBS.sel, isCmp = e.n === OBS.cmp;
+    const show = (e.c || isSel || isCmp) && facing > 0.05;
+    e.label.style.opacity = show ? 1 : 0;
+    e.label.classList.toggle("sel", isSel);
+    e.label.classList.toggle("cmpl", isCmp && !isSel);
+    if (!show) return;
+    vtmp.set(e.p[0]*1.02, e.p[1]*1.02, e.p[2]*1.02).project(camera);
+    e.label.style.left = ((vtmp.x + 1) / 2 * w) + "px";
+    e.label.style.top = ((1 - vtmp.y) / 2 * h) + "px";
   });
+}
+function pickElectrode(px, py){
+  const w = viewer.clientWidth, h = viewer.clientHeight;
+  const cp = camera.position, cl = cp.length();
+  let best = null, bd = 16;
+  ALL.forEach(e => {
+    if ((e.p[0]*cp.x + e.p[1]*cp.y + e.p[2]*cp.z) / cl < 0.05) return;
+    vtmp.set(e.p[0]*1.015, e.p[1]*1.015, e.p[2]*1.015).project(camera);
+    const d = Math.hypot((vtmp.x + 1) / 2 * w - px, (1 - vtmp.y) / 2 * h - py);
+    if (d < bd){ bd = d; best = e; }
+  });
+  return best;
+}
+
+/* ---------- single-channel scope ---------- */
+const scC = document.getElementById("scopeCanvas"), sx = scC.getContext("2d");
+let scW = 0, scH = 0;
+function resizeScope(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  scW = scC.clientWidth; scH = scC.clientHeight;
+  scC.width = Math.round(scW * dpr); scC.height = Math.round(scH * dpr);
+  sx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+new ResizeObserver(resizeScope).observe(scC);
+function hash01(n, c){
+  let h = Math.imul(n | 0, 374761393) ^ Math.imul(c | 0, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
+  return ((h >>> 0) + 0.5) / 4294967296;
+}
+/* sensor noise (white) + slow background drift; deterministic per sample so a paused frame holds still */
+function noiseAt(k, t, ai){
+  if (OBS.noise === 0) return 0;
+  const g = Math.sqrt(-2 * Math.log(hash01(k, 2*ai + 1))) * Math.cos(TAU * hash01(k, 2*ai + 2));
+  const q = ai * 1.7;
+  const drift = (Math.sin(TAU*0.7*t + q) + 0.7*Math.sin(TAU*1.9*t + 2.3*q) + 0.5*Math.sin(TAU*3.1*t + 0.6*q)) / 1.33;
+  return OBS.noise * (0.8 * g + 0.6 * drift);
+}
+const NOISE_RMS = 0.9; // RMS of noiseAt() per unit of OBS.noise
+function drawScope(tNow){
+  const e = BY[OBS.sel], c = OBS.cmp ? BY[OBS.cmp] : null;
+  const W = OBS.win / S.f, t0 = tNow - W;
+  const padL = 58, padR = 14, padT = 14, padB = 26;
+  const w = scW - padL - padR, h = scH - padT - padB;
+  if (w <= 0 || h <= 0) return;
+  const gain = (S.mode === "phys" ? 1 / physScale : 1) * AMP_UV;
+  const yMax = Math.max(10, Math.ceil((AMP_UV + 2.5 * OBS.noise) / 10) * 10);
+  const X = t => padL + (t - t0) / W * w;
+  const Y = v => padT + h / 2 - v / yMax * h / 2;
+  sx.clearRect(0, 0, scW, scH);
+  sx.font = "500 11px " + tok("--f-mono"); sx.textBaseline = "middle"; sx.lineWidth = 1;
+  sx.strokeStyle = COL.line; sx.fillStyle = COL.muted; sx.textAlign = "right";
+  [-yMax, -yMax/2, 0, yMax/2, yMax].forEach(v => {
+    const y = Math.round(Y(v)) + .5;
+    sx.globalAlpha = v === 0 ? 1 : .5;
+    sx.beginPath(); sx.moveTo(padL, y); sx.lineTo(padL + w, y); sx.stroke();
+    sx.globalAlpha = 1;
+    sx.fillText((v > 0 ? "+" : "") + v + " µV", padL - 6, y);
+  });
+  sx.textAlign = "center";
+  for (let k = 0; k <= OBS.win; k++){
+    const x = Math.round(padL + w - k / OBS.win * w) + .5;
+    sx.globalAlpha = .5; sx.beginPath(); sx.moveTo(x, padT); sx.lineTo(x, padT + h); sx.stroke(); sx.globalAlpha = 1;
+    if (OBS.win <= 4 || k % 2 === 0) sx.fillText(k === 0 ? "0 ms" : "−" + Math.round(k * 1000 / S.f), x, padT + h + 14);
+  }
+  const drawTrue = (ai, color, dash, width) => {
+    sx.strokeStyle = color; sx.lineWidth = width; sx.setLineDash(dash);
+    sx.beginPath(); let on = false;
+    for (let n = count - 1; n >= 0; n--){
+      const i = (head - 1 - n + TB) % TB;
+      if (tBuf[i] < t0) continue;
+      const x = X(tBuf[i]), y = Y(vBuf[ai][i] * gain);
+      if (!on){ sx.moveTo(x, y); on = true; } else sx.lineTo(x, y);
+    }
+    sx.stroke(); sx.setLineDash([]);
+  };
+  if (c && c !== e) drawTrue(c.ai, COL.cmp, [5, 4], 1.3);
+  drawTrue(e.ai, COL.muted, [], 1.2);
+  // measured: sampled at fs with noise
+  const fs = OBS.fs, k0 = Math.ceil(t0 * fs), k1 = Math.floor(tNow * fs);
+  const pts = [];
+  for (let k = k0; k <= k1; k++){
+    const t = k / fs, v = bufAt(e.ai, t);
+    if (v !== v) continue;
+    pts.push(X(t), Y(Math.max(-yMax, Math.min(yMax, v * gain + noiseAt(k, t, e.ai)))));
+  }
+  sx.strokeStyle = COL.accent; sx.lineWidth = 1.5; sx.beginPath();
+  for (let i = 0; i < pts.length; i += 2) i ? sx.lineTo(pts[i], pts[i+1]) : sx.moveTo(pts[i], pts[i+1]);
+  sx.stroke();
+  if (w / (W * fs) >= 4){
+    sx.fillStyle = COL.accent;
+    for (let i = 0; i < pts.length; i += 2){ sx.beginPath(); sx.arc(pts[i], pts[i+1], 2, 0, TAU); sx.fill(); }
+  }
+}
+function scopeReadouts(t){
+  const e = BY[OBS.sel], c = OBS.cmp && OBS.cmp !== OBS.sel ? BY[OBS.cmp] : null;
+  const [pS, eS] = phaseAt(e, t);
+  const rows = [];
+  rows.push(["원 신호 진폭", fmt(eS * AMP_UV, 1) + " µV"]);
+  const sig = eS * AMP_UV / Math.SQRT2, nz = OBS.noise * NOISE_RMS;
+  rows.push(["신호 대 잡음비", nz === 0 ? "∞ (잡음 없음)" : (sig < 1e-3 ? "—" : fmt(20 * Math.log10(sig / nz), 1) + " dB")]);
+  rows.push(["주기당 샘플 수", fmt(OBS.fs / S.f, 1) + " 개"]);
+  if (c){
+    const [pC, eC] = phaseAt(c, t);
+    if (eS > 0.03 && eC > 0.03){
+      let d = pC - pS; d = ((d % TAU) + TAU + Math.PI) % TAU - Math.PI;
+      const ms = d / (TAU * S.f) * 1000;
+      const word = Math.abs(d) < 0.02 ? "동시" : d > 0 ? "늦음" : "앞섬";
+      rows.push([`${c.n} 대비 위상`, (d >= 0 ? "+" : "") + fmt(d / d2r, 0) + "°"]);
+      rows.push([`${c.n} 대비 시간`, word === "동시" ? "동시" : fmt(Math.abs(ms), 1) + " ms " + word]);
+    } else rows.push([`${c.n} 대비 위상`, "— (진폭 작음)"]);
+  }
+  document.getElementById("scRead").innerHTML = rows.map(r => `<div><dt>${r[0]}</dt><dd>${r[1]}</dd></div>`).join("");
 }
 
 /* ---------- readouts ---------- */
@@ -690,12 +899,13 @@ function syncUI(){
   $("rowArms").hidden = !(m === "rotate" || m === "spiral");
   $("rowRev").hidden = !(m === "point" || m === "rotate" || m === "spiral");
   $("rowPhys").hidden = m !== "phys";
-  $("hint").innerHTML = "드래그: 회전 · 휠/핀치: 확대<br>" + (m === "plane" ? "방향은 오른쪽 패널에서 선택" : m === "phys" ? "표면 클릭: 그 위치에 자극" : "표면 클릭: 중심 위치 이동");
+  $("hint").innerHTML = "드래그: 회전 · 휠/핀치: 확대<br>" + "전극 클릭: 채널 관찰<br>" + (m === "plane" ? "방향은 오른쪽 패널에서 선택" : m === "phys" ? "표면 클릭: 그 위치에 자극" : "표면 클릭: 중심 위치 이동");
   $("modeTag").textContent = MODE_TXT[m][0]; $("modeSub").textContent = MODE_TXT[m][1]();
   $("playB").textContent = S.playing ? "일시정지" : "재생";
-  $("traceInfo").textContent = `최근 4주기 (${fmt(4000 / S.f, 0)} ms) · 오른쪽 끝이 현재`;
+  $("traceInfo").textContent = `최근 4주기 (${fmt(4000 / S.f, 0)} ms) · 오른쪽 끝이 현재 · 행을 누르면 아래에서 자세히`;
   document.querySelectorAll("#scenes .chip").forEach(b => b.setAttribute("aria-pressed", "false"));
   drawCbar(); placeMarker(); updateQ();
+  syncScope();
 }
 function setMode(m){
   if (m === S.mode) return;
@@ -717,6 +927,44 @@ $("oscC").addEventListener("change", e => { S.osc = e.target.checked; syncUI(); 
 $("pulseB").addEventListener("click", () => pulse());
 $("resetB").addEventListener("click", () => { physReset(); simT = 0; });
 $("playB").addEventListener("click", () => { S.playing = !S.playing; syncUI(); });
+
+/* channel observation controls */
+$("chans").innerHTML = ORDER.map(n => `<button class="chip" data-ch="${n}" aria-pressed="false">${n}</button>`).join("");
+$("cmpS").innerHTML = `<option value="">없음</option>` + ORDER.map(n => `<option value="${n}">${n}</option>`).join("");
+const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+function selectChannel(n, reveal){
+  OBS.sel = n;
+  if (OBS.cmp === n) OBS.cmp = "";
+  syncScope();
+  if (reveal){
+    const r = $("scope").getBoundingClientRect();
+    if (r.top > window.innerHeight - 120 || r.bottom < 0) $("scope").scrollIntoView({ block: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
+  }
+}
+function syncScope(){
+  document.querySelectorAll("#chans [data-ch]").forEach(b => {
+    b.setAttribute("aria-pressed", String(b.dataset.ch === OBS.sel));
+    b.classList.toggle("cmp", b.dataset.ch === OBS.cmp);
+  });
+  press("fsC", "fs", OBS.fs); press("winC", "win", OBS.win);
+  $("cmpS").value = OBS.cmp;
+  $("nR").value = Math.round(OBS.noise * 10);
+  $("nV").textContent = OBS.noise === 0 ? "없음" : "약 " + fmt(OBS.noise * NOISE_RMS, 1) + " µV RMS";
+  $("scName").textContent = OBS.sel;
+  $("lgCmp").hidden = !OBS.cmp;
+  $("scInfo").textContent = `${OBS.win}주기 (${fmt(OBS.win * 1000 / S.f, 0)} ms) · ${OBS.fs} Hz 샘플링 · 신호 최대 ${AMP_UV} µV 가정`;
+  placeRing(selRing, BY[OBS.sel]); placeRing(cmpRing, OBS.cmp ? BY[OBS.cmp] : null);
+}
+$("chans").addEventListener("click", e => { const b = e.target.closest("[data-ch]"); if (b) selectChannel(b.dataset.ch, false); });
+$("cmpS").addEventListener("change", e => { OBS.cmp = e.target.value === OBS.sel ? "" : e.target.value; syncScope(); });
+$("fsC").addEventListener("click", e => { const b = e.target.closest("[data-fs]"); if (b){ OBS.fs = +b.dataset.fs; syncScope(); } });
+$("winC").addEventListener("click", e => { const b = e.target.closest("[data-win]"); if (b){ OBS.win = +b.dataset.win; syncScope(); } });
+$("nR").addEventListener("input", e => { OBS.noise = +e.target.value / 10; syncScope(); });
+tc.addEventListener("click", ev => {
+  if (!traceLayout) return;
+  const j = Math.floor((ev.clientY - tc.getBoundingClientRect().top - traceLayout.padT) / traceLayout.rowH);
+  if (j >= 0 && j < TRACED.length) selectChannel(TRACED[j].n, false);
+});
 
 const SCENES = {
   fwd:     { mode:"point", f:10, v:3, damp:0.25, sign:1, center:["point",[0,0,-1]], cmap:"amp" },
@@ -746,8 +994,11 @@ canvas.addEventListener("pointerup", e => {
   const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
   const quick = performance.now() - down.t < 500;
   down = null;
-  if (moved > 6 || !quick || S.mode === "plane") return;
+  if (moved > 6 || !quick) return;
   const r = canvas.getBoundingClientRect();
+  const el = pickElectrode(e.clientX - r.left, e.clientY - r.top);
+  if (el){ selectChannel(el.n, true); return; }
+  if (S.mode === "plane") return;
   ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ndc, camera);
   const hit = ray.intersectObject(sphere)[0];
@@ -765,7 +1016,7 @@ function tick(now){
   const dtReal = Math.min((now - last) / 1000, 0.05); last = now;
   if (S.playing){
     const want = dtReal * S.slow;
-    const W = 4 / S.f, dts = W / 900;
+    const W = 4 / S.f, dts = W / 700;
     if (S.mode === "phys"){
       const dt = Math.min(0.35 * hMin / S.v, 1 / (S.f * 40));
       let steps = Math.ceil(want / dt);
@@ -791,6 +1042,8 @@ function tick(now){
   paint(simT);
   placeLabels();
   drawTraces(simT);
+  drawScope(simT);
+  scopeReadouts(simT);
   readouts(simT);
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
