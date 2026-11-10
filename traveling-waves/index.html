@@ -117,6 +117,13 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .readout dt{color:var(--muted)}
 .readout dd{margin:0;font:500 12.5px/1.6 var(--f-mono);text-align:right;font-variant-numeric:tabular-nums}
 .warn{color:var(--warn);font-size:12px;line-height:1.4}
+.hypdesc{margin:0;color:var(--muted);font-size:12.5px;line-height:1.5}
+.gwrap{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+#gchart{display:block;width:100%;height:120px;background:var(--panel-2);border-radius:6px}
+.glegend{padding:0}
+.notes .wide{grid-column:1/-1;border-top:1px solid var(--line);padding-top:16px}
+.notes .wide ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 28px}
+@media (max-width:880px){.notes .wide ul{grid-template-columns:minmax(0,1fr)}}
 
 .notes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;border-top:1px solid var(--line);padding-top:18px}
 @media (max-width:880px){.notes{grid-template-columns:minmax(0,1fr)}}
@@ -195,6 +202,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
           <button class="chip" data-scene="bwd" aria-pressed="false">휴지기 α 앞→뒤</button>
           <button class="chip" data-scene="spindle" aria-pressed="false">수면 방추파 회전</button>
           <button class="chip" data-scene="pulse" aria-pressed="false">자극 펄스</button>
+          <button class="chip" data-scene="vortex" aria-pressed="false">소용돌이 형성</button>
         </div>
       </div>
 
@@ -206,6 +214,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
           <button class="mode" data-mode="rotate" aria-pressed="false"><i>03</i><b>회전파</b><small>축을 중심으로 빙글 도는 파</small></button>
           <button class="mode" data-mode="spiral" aria-pressed="false"><i>04</i><b>나선파</b><small>중심에서 감기며 퍼지는 파</small></button>
           <button class="mode" data-mode="phys" aria-pressed="false"><i>05</i><b>파동방정식</b><small>구 표면 메시에서 감쇠 파동방정식을 직접 계산</small></button>
+          <button class="mode" data-mode="inter" aria-pressed="false"><i>06</i><b>국소 ↔ 전역</b><small>국소 패치와 전역 흐름이 만나 소용돌이가 생기는 가설 실험</small></button>
         </div>
       </div>
 
@@ -245,6 +254,25 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
             <button class="btn" id="resetB">초기화</button>
           </div>
         </div>
+        <div id="rowInter" class="sec" style="border:0;padding:0">
+          <span class="lab" style="margin-top:4px">가설: 무엇이 먼저인가</span>
+          <div class="chips" id="hyps">
+            <button class="chip" data-hyp="global" aria-pressed="true">전역 먼저</button>
+            <button class="chip" data-hyp="local" aria-pressed="false">국소 먼저</button>
+            <button class="chip" data-hyp="both" aria-pressed="false">동시 · 양방향</button>
+          </div>
+          <p class="hypdesc" id="hypDesc"></p>
+          <div class="row"><div class="top"><label for="kdR">전역 → 국소 결합 K↓</label><span class="val" id="kdV"></span></div>
+            <input type="range" id="kdR" min="0" max="20" step="0.5" value="2"></div>
+          <div class="row"><div class="top"><label for="kuR">국소 → 전역 결합 K↑</label><span class="val" id="kuV"></span></div>
+            <input type="range" id="kuR" min="0" max="40" step="1" value="0"></div>
+          <div class="row"><div class="top"><label for="dfR">패치 주파수 차이 Δf</label><span class="val" id="dfV"></span></div>
+            <input type="range" id="dfR" min="0" max="5" step="0.25" value="3"></div>
+          <div class="btns">
+            <button class="btn" id="restartB">처음부터 다시</button>
+            <button class="btn" id="clearPB">패치 모두 지우기</button>
+          </div>
+        </div>
       </div>
 
       <div class="sec">
@@ -261,6 +289,15 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
       <div class="sec">
         <span class="lab">계산값</span>
         <dl class="readout" id="readout"></dl>
+        <div id="gWrap" class="gwrap">
+          <span class="lab">전역 상태 변화 (최근 5초)</span>
+          <canvas id="gchart" aria-label="전역 흐름 세기, 동기화, 소용돌이 수의 시간 변화"></canvas>
+          <div class="legend glegend">
+            <span><i style="border-color:var(--accent)"></i>|Γ| 전역 세기</span>
+            <span><i style="border-color:var(--cmp)"></i>동기화 R</span>
+            <span><i style="border-color:var(--fg)" class="dash"></i>소용돌이 수</span>
+          </div>
+        </div>
         <div class="warn" id="warn" hidden></div>
       </div>
     </aside>
@@ -286,6 +323,16 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
         <li>α파는 시각 자극 처리 중에는 뒤→앞, 눈을 감은 휴지기에는 앞→뒤로 진행한다는 보고가 있습니다 (Alamia &amp; VanRullen, 2019).</li>
         <li>수면 방추파(11–15&nbsp;Hz)는 피질 위에서 회전파로 나타난다는 보고가 있습니다 (Muller 등, 2016).</li>
         <li>구 모델은 Nunez의 구면 피질 모델에서 쓰이는 단순화입니다. 실제 피질은 접혀 있고, 두개골과 두피가 신호를 공간적으로 흐리게 합니다. 구의 아래 반쪽은 실제 머리에는 없는 부분이며, 점 소스의 파가 반대편 극에 다시 모이는 것은 구의 기하 때문에 생기는 현상입니다.</li>
+      </ul>
+    </div>
+    <div class="wide">
+      <h3>국소 ↔ 전역 모드는 이렇게 만들었습니다</h3>
+      <ul>
+        <li><b>국소 활동</b>: 표면의 각 지점을 하나의 진동자로 보고, 이웃끼리 확산으로 이었습니다(복소 Ginzburg–Landau 방정식). 그래서 국소 활동은 약 0.3&nbsp;m/s로 천천히 번집니다. 바탕 피질은 약하게, 국소 패치(흰 고리)는 강하게 진동하고, 패치의 주파수는 전역 파와 Δf만큼 다릅니다.</li>
+        <li><b>전역 흐름</b>: 머리 전체를 덮는 진행파 하나(세기와 위상 Γ)로 나타냈습니다. 진행 방향과 속도는 위의 진행 방향, 전파 속도 설정을 따릅니다.</li>
+        <li><b>두 방향의 결합</b>: K↓는 전역 파가 각 지점의 진동을 끌어당기는 세기, K↑는 국소 활동 중 전역 파 무늬와 맞는 성분이 전역 파를 키우는 세기입니다. "국소 먼저" 가설에서는 전역 파가 스스로 켜지지 못하고, 국소 활동이 문턱을 넘겨 줘야 켜지도록(쌍안정) 설정했습니다.</li>
+        <li><b>소용돌이</b>: 한 점을 한 바퀴 돌 때 위상이 2π 감기는 곳(위상 특이점)을 찾아 흰 점과 검은 점으로 표시합니다. 둘은 서로 반대 방향으로 돕니다. 중심의 진폭은 0으로, 토네이도의 눈과 같습니다. 위상 표시로 바꾸면 그 둘레에 색이 바람개비처럼 돌아갑니다. 나선파와 위상 특이점은 쥐 피질 영상(Huang 등, 2010)과 사람 fMRI(Xu 등, 2023)에서도 보고되었습니다.</li>
+        <li>이 모드는 가설을 실험해 보기 위한 장난감 모델입니다. 결합 세기와 성장률은 현상이 잘 보이도록 고른 값이고, 실제 뇌에서 어느 가설이 맞는지 알려 주지는 않습니다.</li>
       </ul>
     </div>
   </section>
@@ -336,8 +383,8 @@ const AMP_UV = 20;   // peak amplitude [µV] where the wave envelope is 1
 function icosphere(level){
   const t = (1 + Math.sqrt(5)) / 2;
   const base = [[-1,t,0],[1,t,0],[-1,-t,0],[1,-t,0],[0,-1,t],[0,1,t],[0,-1,-t],[0,1,-t],[t,0,-1],[t,0,1],[-t,0,-1],[-t,0,1]];
-  const pos = [];
-  base.forEach(v => { const l = Math.hypot(v[0],v[1],v[2]); pos.push(v[0]/l, v[1]/l, v[2]/l); });
+  const pos = [], par = [];
+  base.forEach(v => { const l = Math.hypot(v[0],v[1],v[2]); pos.push(v[0]/l, v[1]/l, v[2]/l); par.push(-1, -1); });
   let faces = [[0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],[1,5,9],[5,11,4],[11,10,2],[10,7,6],[7,1,8],
                [3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],[4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1]];
   for (let L = 0; L < level; L++){
@@ -348,7 +395,7 @@ function icosphere(level){
       if (m !== undefined) return m;
       let x = pos[3*a] + pos[3*b], y = pos[3*a+1] + pos[3*b+1], z = pos[3*a+2] + pos[3*b+2];
       const l = Math.hypot(x, y, z);
-      m = pos.length / 3; pos.push(x/l, y/l, z/l); cache.set(key, m); return m;
+      m = pos.length / 3; pos.push(x/l, y/l, z/l); par.push(a, b); cache.set(key, m); return m;
     };
     for (const [a,b,c] of faces){
       const ab = mid(a,b), bc = mid(b,c), ca = mid(c,a);
@@ -356,7 +403,7 @@ function icosphere(level){
     }
     faces = nf;
   }
-  return { pos: Float32Array.from(pos), faces };
+  return { pos: Float32Array.from(pos), faces, par: Int32Array.from(par) };
 }
 const ico = icosphere(LEVEL);
 const N = ico.pos.length / 3;
@@ -398,6 +445,179 @@ function nearestVertex(p){
 }
 TRACED.forEach(t => t.vi = nearestVertex(t.p));
 ALL.forEach(e => e.vi = nearestVertex(e.p));
+
+/* level-5 graph for the interaction model (its vertices are the first N5 display vertices) */
+const N5 = 10 * Math.pow(4, 5) + 2;
+const G5 = (() => {
+  const f5 = icosphere(5).faces;
+  const nbs = Array.from({length:N5}, () => new Set());
+  f5.forEach(f => { nbs[f[0]].add(f[1]); nbs[f[0]].add(f[2]); nbs[f[1]].add(f[0]); nbs[f[1]].add(f[2]); nbs[f[2]].add(f[0]); nbs[f[2]].add(f[1]); });
+  const st = new Int32Array(N5 + 1);
+  for (let i = 0; i < N5; i++) st[i+1] = st[i] + nbs[i].size;
+  const idx = new Int32Array(st[N5]), lc = new Float32Array(N5), inv = new Float32Array(N5);
+  let hm = Infinity;
+  for (let i = 0; i < N5; i++){
+    let k = st[i], hs = 0;
+    for (const j of nbs[i]){ idx[k++] = j; hs += R * Math.hypot(P[3*i]-P[3*j], P[3*i+1]-P[3*j+1], P[3*i+2]-P[3*j+2]); }
+    const h = hs / nbs[i].size; if (h < hm) hm = h;
+    lc[i] = 4 / (h*h); inv[i] = 1 / nbs[i].size;
+  }
+  return { N5, P, nbStart: st, nbIdx: idx, lapC: lc, invDeg: inv, hMin: hm, R, cfaces: icosphere(4).faces,
+           opts: { muOff: 4, alpha: 0.5, beta: 1.5, thr: 0.01, sig: 0.018 } };
+})();
+function nearest5(p){
+  let best = 0, bd = -2;
+  for (let i = 0; i < N5; i++){ const d = P[3*i]*p[0] + P[3*i+1]*p[1] + P[3*i+2]*p[2]; if (d > bd){ bd = d; best = i; } }
+  return best;
+}
+ALL.forEach(e => e.vi5 = nearest5(e.p));
+TRACED.forEach(t => t.vi5 = BY[t.n].vi5);
+/* ---------- local ↔ global interaction model ----------
+   Runs on the level-5 icosphere (its vertices are the first N5 vertices of the display mesh).
+   z_i : complex local activity. Stuart–Landau oscillators joined by diffusion (complex Ginzburg–Landau),
+         so activity spreads slowly (~0.3 m/s). Background tissue oscillates weakly (μ = 4/s); patches strongly.
+   Γ   : complex amplitude of one large-scale traveling-wave mode, G_i = Γ·P_i, P_i = exp(−i k s_i).
+   dz_i/dt = (μ_i + iω_i) z_i − g|z_i|² z_i + D∇²z_i + K↓·Γ·P_i + noise
+   dΓ/dt   = (μ_g + iΩ) Γ + c3|Γ|²Γ − c5|Γ|⁴Γ + K↑·⟨z·P̄⟩
+   K↓ = global→local coupling, K↑ = local→global coupling.
+   μ_g > 0: the global wave exists on its own. μ_g < 0 with c3 > 0: the global mode is bistable and
+   needs a push from local activity to switch on (a tipping point).                                  */
+function createInter(M){
+  const { N5, P, nbStart, nbIdx, lapC, invDeg, hMin, R, cfaces } = M;
+  const TAU = Math.PI * 2;
+  const O = M.opts || {};
+  const MU_ON = O.muOn ?? 25, MU_OFF = O.muOff ?? -8, GZ = 25, DIFF = O.diff ?? 1.15e-3, PATCH_SIG = O.sig ?? 0.013, NOISE = O.noise ?? 0.02;
+  const ALPHA = O.alpha ?? 0, BETA = O.beta ?? 0;
+  const HYP = {
+    global: { mug: 8,  c3: 0,  c5: 8,  kd: 2, ku: 0,  g0: 0.05, tOn: [1.2, 1.2, 1.2] },
+    local:  { mug: -6, c3: 30, c5: 20, kd: 4, ku: 10, g0: 0,    tOn: [0.2, 0.8, 1.4] },
+    both:   { mug: -2, c3: 12, c5: 10, kd: 3, ku: 8,  g0: 0.02, tOn: [0.3, 0.3, 0.3] }
+  };
+  const ZR = new Float32Array(N5), ZI = new Float32Array(N5), NR = new Float32Array(N5), NI = new Float32Array(N5);
+  const MU = new Float32Array(N5), OM = new Float32Array(N5), PR = new Float32Array(N5), PI = new Float32Array(N5);
+  const CR = new Float32Array(N5), SR = new Float32Array(N5);
+  const st = {
+    t: 0, gr: 0, gi: 0, hyp: "global", kd: 2, ku: 0, df: 3, mug: 8, c3: 0, c5: 8,
+    f: 10, v: 1, dir: [0,0,1], patches: [], muDirty: true, rotDt: -1, ZR, ZI,
+    vort: [], nPlus: 0, nMinus: 0, M: 0, zMean: 0
+  };
+  const DF_MULT = [1, -1, 0.6, -0.6, 0.3, -0.3, 0.8, -0.8];
+
+  function addPatch(p, tOn){
+    if (st.patches.length >= 8) st.patches.shift();
+    const mask = new Float32Array(N5);
+    for (let i = 0; i < N5; i++){
+      let cs = P[3*i]*p[0] + P[3*i+1]*p[1] + P[3*i+2]*p[2]; cs = cs > 1 ? 1 : cs < -1 ? -1 : cs;
+      const d = R * Math.acos(cs);
+      mask[i] = d > 3.5 * PATCH_SIG ? 0 : Math.exp(-d*d / (2*PATCH_SIG*PATCH_SIG));
+    }
+    st.patches.push({ p, tOn, mask, mult: DF_MULT[st.patches.length % DF_MULT.length] });
+    st.muDirty = true;
+  }
+  function setPattern(f, v, dir){
+    st.f = f; st.v = v; st.dir = dir;
+    const k = TAU * f / v;
+    for (let i = 0; i < N5; i++){
+      const s = R * (P[3*i]*dir[0] + P[3*i+1]*dir[1] + P[3*i+2]*dir[2] + 1);
+      PR[i] = Math.cos(k * s); PI[i] = -Math.sin(k * s);
+    }
+    st.muDirty = true;
+  }
+  function updateMu(){
+    let ramping = false;
+    const act = st.patches.map(pt => {
+      const x = (st.t - pt.tOn) / 0.25;
+      if (x > 0 && x < 1) ramping = true;
+      return x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x);
+    });
+    for (let i = 0; i < N5; i++){
+      let m = 0, fo = 0;
+      for (let q = 0; q < st.patches.length; q++){
+        const a = act[q] * st.patches[q].mask[i];
+        if (a > m) m = a;
+        fo += st.patches[q].mask[i] * st.patches[q].mult;
+      }
+      MU[i] = MU_OFF + (MU_ON - MU_OFF) * m;
+      OM[i] = TAU * (st.f + st.df * fo);
+    }
+    st.rotDt = -1;
+    st.muDirty = ramping || st.patches.some(pt => st.t < pt.tOn);
+  }
+  function reset(hyp, defaults){
+    const h = HYP[hyp]; st.hyp = hyp;
+    st.mug = h.mug; st.c3 = h.c3; st.c5 = h.c5;
+    if (defaults){ st.kd = h.kd; st.ku = h.ku; }
+    st.t = 0; st.gr = h.g0; st.gi = 0;
+    for (let i = 0; i < N5; i++){ ZR[i] = (Math.random() - .5) * 0.02; ZI[i] = (Math.random() - .5) * 0.02; }
+    st.patches.forEach((pt, q) => pt.tOn = h.tOn[Math.min(q, h.tOn.length - 1)] + (q >= h.tOn.length ? 0.3 * (q - h.tOn.length + 1) : 0));
+    st.muDirty = true;
+  }
+  function dtMax(){ return Math.min(0.15 * hMin * hMin / DIFF, 1 / (st.f * 30)); }
+  function step(dt){
+    if (st.muDirty) updateMu();
+    if (st.rotDt !== dt){ for (let i = 0; i < N5; i++){ CR[i] = Math.cos(OM[i] * dt); SR[i] = Math.sin(OM[i] * dt); } st.rotDt = dt; }
+    // projection of local activity onto the global pattern
+    let mr = 0, mi = 0;
+    for (let i = 0; i < N5; i++){ mr += ZR[i]*PR[i] + ZI[i]*PI[i]; mi += ZI[i]*PR[i] - ZR[i]*PI[i]; }
+    mr /= N5; mi /= N5;
+    const gr = st.gr, gi = st.gi, kd = st.kd, nz = NOISE * Math.sqrt(dt);
+    for (let i = 0; i < N5; i++){
+      let sr = 0, si = 0;
+      for (let k = nbStart[i], e = nbStart[i+1]; k < e; k++){ const j = nbIdx[k]; sr += ZR[j]; si += ZI[j]; }
+      const zr = ZR[i], zi = ZI[i];
+      const lr = lapC[i] * (sr * invDeg[i] - zr), li = lapC[i] * (si * invDeg[i] - zi);
+      const q = GZ * (zr*zr + zi*zi), a = MU[i] - q;
+      const xr = zr + dt * (a * zr + BETA * q * zi + DIFF * (lr - ALPHA * li) + kd * (gr*PR[i] - gi*PI[i])) + nz * (Math.random() - .5);
+      const xi = zi + dt * (a * zi - BETA * q * zr + DIFF * (li + ALPHA * lr) + kd * (gr*PI[i] + gi*PR[i])) + nz * (Math.random() - .5);
+      NR[i] = xr * CR[i] - xi * SR[i]; NI[i] = xr * SR[i] + xi * CR[i];
+    }
+    ZR.set(NR); ZI.set(NI);
+    const A2 = gr*gr + gi*gi;
+    const g = st.mug + st.c3 * A2 - st.c5 * A2 * A2;
+    let ngr = gr + dt * (g * gr + st.ku * mr), ngi = gi + dt * (g * gi + st.ku * mi);
+    const W = TAU * st.f * dt, c = Math.cos(W), s = Math.sin(W);
+    st.gr = ngr * c - ngi * s; st.gi = ngr * s + ngi * c;
+    st.M = Math.hypot(mr, mi);
+    st.t += dt;
+  }
+  /* phase singularities: winding number of the phase around each coarse (level-3) triangle */
+  function findVortices(){
+    const out = []; let np = 0, nm = 0, zs = 0;
+    for (let i = 0; i < N5; i++) zs += Math.hypot(ZR[i], ZI[i]);
+    st.zMean = zs / N5;
+    const thr = O.thr ?? 0.05;
+    for (const [a, b, c] of cfaces){
+      const ma = Math.hypot(ZR[a], ZI[a]), mb = Math.hypot(ZR[b], ZI[b]), mc = Math.hypot(ZR[c], ZI[c]);
+      if (ma < thr || mb < thr || mc < thr) continue;
+      const pa = Math.atan2(ZI[a], ZR[a]), pb = Math.atan2(ZI[b], ZR[b]), pc = Math.atan2(ZI[c], ZR[c]);
+      const w = d => { d = (d + Math.PI) % TAU; if (d < 0) d += TAU; return d - Math.PI; };
+      const wind = Math.round((w(pb - pa) + w(pc - pb) + w(pa - pc)) / TAU);
+      if (!wind) continue;
+      let x = P[3*a] + P[3*b] + P[3*c], y = P[3*a+1] + P[3*b+1] + P[3*c+1], z = P[3*a+2] + P[3*b+2] + P[3*c+2];
+      const l = Math.hypot(x, y, z);
+      out.push([x/l, y/l, z/l, wind]);
+      if (wind > 0) np++; else nm++;
+    }
+    st.vort = out; st.nPlus = np; st.nMinus = nm;
+    return out;
+  }
+  return { st, HYP, addPatch, setPattern, reset, step, dtMax, findVortices, updateMu };
+}
+
+const IM = createInter(G5);
+const PATCH0 = [elPos(45,90), elPos(60,-140), elPos(45,0)];   // C3, P4, Fz
+PATCH0.forEach(p => IM.addPatch(p, 0));
+IM.setPattern(S.f, S.v, [0,0,1]);
+IM.reset("global", true);
+const ZR6 = new Float32Array(N), ZI6 = new Float32Array(N);
+function interToDisplay(){
+  const zr = IM.st.ZR, zi = IM.st.ZI, par = ico.par;
+  for (let i = 0; i < N; i++){
+    if (i < N5){ ZR6[i] = zr[i]; ZI6[i] = zi[i]; }
+    else { const a = par[2*i], b = par[2*i+1]; ZR6[i] = 0.5 * (zr[a] + zr[b]); ZI6[i] = 0.5 * (zi[a] + zi[b]); }
+  }
+}
+const isField = () => S.mode === "phys" || S.mode === "inter";
 const OZ = TRACED.find(t => t.n === "Oz"), FPZ = TRACED.find(t => t.n === "Fpz");
 
 /* ---------- colormaps ---------- */
@@ -494,8 +714,35 @@ function placeRing(ring, e){
 }
 const marker = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.016, 10, 40), new THREE.MeshBasicMaterial({ color: new THREE.Color(tok("--accent")) }));
 scene.add(marker);
+const patchRings = [], vortDots = [];
+for (let q = 0; q < 8; q++){
+  const m = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.007, 8, 48), new THREE.MeshBasicMaterial({ color: new THREE.Color(tok("--fg")), transparent: true, opacity: 0.7 }));
+  m.visible = false; scene.add(m); patchRings.push(m);
+}
+const vortGeo = new THREE.SphereGeometry(0.03, 12, 8);
+const vortMatP = new THREE.MeshBasicMaterial({ color: 0xffffff }), vortMatM = new THREE.MeshBasicMaterial({ color: 0x0a0e15 });
+for (let q = 0; q < 40; q++){ const m = new THREE.Mesh(vortGeo, vortMatP); m.visible = false; scene.add(m); vortDots.push(m); }
+function placeInterMarkers(){
+  const on = S.mode === "inter";
+  patchRings.forEach((m, q) => {
+    const pt = IM.st.patches[q];
+    m.visible = on && !!pt;
+    if (!m.visible) return;
+    m.position.set(pt.p[0]*1.012, pt.p[1]*1.012, pt.p[2]*1.012);
+    m.lookAt(pt.p[0]*2, pt.p[1]*2, pt.p[2]*2);
+    m.material.opacity = IM.st.t >= pt.tOn ? 0.8 : 0.25;
+  });
+  const vs = on ? IM.st.vort : [];
+  vortDots.forEach((m, q) => {
+    const v = vs[q];
+    m.visible = !!v;
+    if (!v) return;
+    m.position.set(v[0]*1.02, v[1]*1.02, v[2]*1.02);
+    m.material = v[3] > 0 ? vortMatP : vortMatM;
+  });
+}
 function placeMarker(){
-  const show = S.mode !== "plane";
+  const show = S.mode !== "plane" && S.mode !== "inter";
   marker.visible = show;
   if (!show) return;
   const c = S.centers[S.mode];
@@ -592,6 +839,8 @@ function pushSample(t){
   tBuf[head] = t;
   if (S.mode === "phys"){
     for (let j = 0; j < ALL.length; j++) vBuf[j][head] = U[ALL[j].vi];
+  } else if (S.mode === "inter"){
+    for (let j = 0; j < ALL.length; j++) vBuf[j][head] = IM.st.ZR[ALL[j].vi5];
   } else {
     for (let j = 0; j < ALL.length; j++){ const e = ALL[j]; evalAt(e.p[0], e.p[1], e.p[2], t); vBuf[j][head] = out.u; }
   }
@@ -669,6 +918,11 @@ function paint(t){
     let mx = 0;
     for (let i = 0; i < N; i++){ const a = Math.abs(U[i]); if (a > mx) mx = a; }
     physScale = Math.max(mx, physScale * 0.985, 1e-9);
+  } else if (S.mode === "inter"){
+    interToDisplay();
+    let mx = 0;
+    for (let i = 0; i < N5; i++){ const a = Math.hypot(IM.st.ZR[i], IM.st.ZI[i]); if (a > mx) mx = a; }
+    physScale = Math.max(mx, physScale * 0.985, 1e-9);
   }
   const w = TAU * S.f;
   for (let i = 0; i < N; i++){
@@ -676,6 +930,8 @@ function paint(t){
     if (S.mode === "phys"){
       const q = -V[i] / w;
       u = U[i] / physScale; ph = Math.atan2(q, U[i]); en = Math.hypot(U[i], q) / physScale;
+    } else if (S.mode === "inter"){
+      u = ZR6[i] / physScale; ph = Math.atan2(ZI6[i], ZR6[i]); en = Math.hypot(ZR6[i], ZI6[i]) / physScale;
     } else {
       evalAt(P[3*i], P[3*i+1], P[3*i+2], t); u = out.u; ph = out.ph; en = out.en;
     }
@@ -756,7 +1012,7 @@ function drawScope(tNow){
   const padL = 58, padR = 14, padT = 14, padB = 26;
   const w = scW - padL - padR, h = scH - padT - padB;
   if (w <= 0 || h <= 0) return;
-  const gain = (S.mode === "phys" ? 1 / physScale : 1) * AMP_UV;
+  const gain = (isField() ? 1 / physScale : 1) * AMP_UV;
   const yMax = Math.max(10, Math.ceil((AMP_UV + 2.5 * OBS.noise) / 10) * 10);
   const X = t => padL + (t - t0) / W * w;
   const Y = v => padT + h / 2 - v / yMax * h / 2;
@@ -832,7 +1088,8 @@ const MODE_TXT = {
   plane: ["평면파", () => ({ pa:"뒤(후두)에서 앞(전두)으로", ap:"앞(전두)에서 뒤(후두)로", lr:"왼쪽에서 오른쪽으로", rl:"오른쪽에서 왼쪽으로" })[S.dir] + " 진행"],
   rotate: ["회전파", () => `${nameOf(S.centers.rotate)} 축을 중심으로 회전 · 팔 ${S.arms}개`],
   spiral: ["나선파", () => `${nameOf(S.centers.spiral)}을 중심으로 감기는 파 · 팔 ${S.arms}개`],
-  phys:   ["파동방정식", () => `${nameOf(S.centers.phys)} 소스 · 감쇠 파동방정식 수치해`]
+  phys:   ["파동방정식", () => `${nameOf(S.centers.phys)} 소스 · 감쇠 파동방정식 수치해`],
+  inter:  ["국소 ↔ 전역", () => `가설: ${HYP_TXT[IM.st.hyp].name} · 국소 패치 ${IM.st.patches.length}개`]
 };
 function nameOf(c){
   let best = "", bd = -2;
@@ -843,6 +1100,7 @@ const fmt = (x, d = 1) => x.toLocaleString("ko-KR", { minimumFractionDigits: d, 
 let effSlow = S.slow;
 function phaseAt(e, t){
   if (S.mode === "phys"){ const w = TAU * S.f; const q = -V[e.vi] / w; return [Math.atan2(q, U[e.vi]), Math.hypot(U[e.vi], q) / physScale]; }
+  if (S.mode === "inter"){ const zr = IM.st.ZR[e.vi5], zi = IM.st.ZI[e.vi5]; return [Math.atan2(zi, zr), Math.hypot(zr, zi) / physScale]; }
   evalAt(e.p[0], e.p[1], e.p[2], t); return [out.ph, out.en];
 }
 function readouts(t){
@@ -864,13 +1122,19 @@ function readouts(t){
     rows.push(["Oz 대비 Fpz 위상차", (deg >= 0 ? "+" : "") + fmt(deg, 0) + "° (" + fmt(ms, 1) + " ms)"]);
   } else rows.push(["Oz 대비 Fpz 위상차", "— (진폭 작음)"]);
   rows.push(["시뮬레이션 시각", fmt(simT * 1000, 0) + " ms"]);
-  if (S.mode === "phys") rows.push(["실효 시간 배율", "×" + effSlow.toPrecision(2)]);
+  if (S.mode === "inter"){
+    const st = IM.st, A = Math.hypot(st.gr, st.gi);
+    rows.unshift(["소용돌이 (위상 특이점)", `${st.nPlus + st.nMinus}개 (흰 ${st.nPlus} · 검정 ${st.nMinus})`]);
+    rows.unshift(["국소-전역 동기화 R", fmt(st.M / Math.max(1e-6, st.zMean), 2)]);
+    rows.unshift(["전역 흐름 세기 |Γ|", fmt(A, 2)]);
+  }
+  if (isField()) rows.push(["실효 시간 배율", "×" + effSlow.toPrecision(2)]);
   document.getElementById("readout").innerHTML = rows.map(r => `<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join("");
   const warn = document.getElementById("warn");
   const lam = S.v / S.f;
   let msg = "";
   if (S.mode !== "rotate" && lam < 5 * hMean) msg = "파장이 표면 메시 간격의 5배보다 짧아 무늬가 깨질 수 있습니다. 속도를 올리거나 주파수를 낮춰 보세요.";
-  else if (S.mode === "phys" && effSlow < S.slow * 0.8) msg = "계산량 때문에 설정한 시간 배율보다 느리게 진행 중입니다.";
+  else if (isField() && effSlow < S.slow * 0.8) msg = "계산량 때문에 설정한 시간 배율보다 느리게 진행 중입니다.";
   warn.textContent = msg; warn.hidden = !msg;
 }
 
@@ -894,12 +1158,20 @@ function syncUI(){
   press("arms", "arms", S.arms); press("cmaps", "cmap", S.cmap);
   const m = S.mode;
   $("rowV").hidden = m === "rotate";
-  $("rowD").hidden = m === "rotate";
-  $("rowDir").hidden = m !== "plane";
+  $("rowD").hidden = m === "rotate" || m === "inter";
+  $("rowDir").hidden = !(m === "plane" || m === "inter");
+  $("rowInter").hidden = m !== "inter";
+  $("gWrap").hidden = m !== "inter";
+  press("hyps", "hyp", IM.st.hyp);
+  $("hypDesc").textContent = HYP_TXT[IM.st.hyp].desc;
+  $("kdR").value = IM.st.kd; $("kuR").value = IM.st.ku; $("dfR").value = IM.st.df;
+  $("kdV").textContent = fmt(IM.st.kd, 1) + " /s"; $("kuV").textContent = fmt(IM.st.ku, 0) + " /s";
+  $("dfV").textContent = "± " + fmt(IM.st.df, 2) + " Hz";
+  if (m === "inter") IM.setPattern(S.f, S.v, PLANE[S.dir]);
   $("rowArms").hidden = !(m === "rotate" || m === "spiral");
   $("rowRev").hidden = !(m === "point" || m === "rotate" || m === "spiral");
   $("rowPhys").hidden = m !== "phys";
-  $("hint").innerHTML = "드래그: 회전 · 휠/핀치: 확대<br>" + "전극 클릭: 채널 관찰<br>" + (m === "plane" ? "방향은 오른쪽 패널에서 선택" : m === "phys" ? "표면 클릭: 그 위치에 자극" : "표면 클릭: 중심 위치 이동");
+  $("hint").innerHTML = "드래그: 회전 · 휠/핀치: 확대<br>" + "전극 클릭: 채널 관찰<br>" + (m === "plane" ? "방향은 오른쪽 패널에서 선택" : m === "phys" ? "표면 클릭: 그 위치에 자극" : m === "inter" ? "표면 클릭: 국소 패치 추가<br>흰·검은 점: 소용돌이 중심" : "표면 클릭: 중심 위치 이동");
   $("modeTag").textContent = MODE_TXT[m][0]; $("modeSub").textContent = MODE_TXT[m][1]();
   $("playB").textContent = S.playing ? "일시정지" : "재생";
   $("traceInfo").textContent = `최근 4주기 (${fmt(4000 / S.f, 0)} ms) · 오른쪽 끝이 현재 · 행을 누르면 아래에서 자세히`;
@@ -907,10 +1179,15 @@ function syncUI(){
   drawCbar(); placeMarker(); updateQ();
   syncScope();
 }
+let interSeen = false;
 function setMode(m){
   if (m === S.mode) return;
   S.mode = m; clearTraces();
-  if (m === "phys"){ simT = physT; setPhysSource(); }
+  if (m === "phys"){ simT = physT; setPhysSource(); physScale = 1e-6; }
+  if (m === "inter"){
+    if (!interSeen){ interSeen = true; S.cmap = "phase"; interRestart(IM.st.hyp, false); }
+    simT = IM.st.t; physScale = 1e-6;
+  }
   syncUI();
 }
 $("modes").addEventListener("click", e => { const b = e.target.closest("[data-mode]"); if (b) setMode(b.dataset.mode); });
@@ -927,6 +1204,61 @@ $("oscC").addEventListener("change", e => { S.osc = e.target.checked; syncUI(); 
 $("pulseB").addEventListener("click", () => pulse());
 $("resetB").addEventListener("click", () => { physReset(); simT = 0; });
 $("playB").addEventListener("click", () => { S.playing = !S.playing; syncUI(); });
+
+/* local ↔ global controls */
+const HYP_TXT = {
+  global: { name: "전역 먼저", desc: "전역 진행파가 먼저 자리 잡고, 1.2초 뒤 국소 패치 3곳이 켜집니다. 리듬이 다른 패치가 전역 파와 부딪히는 경계에서 소용돌이가 생기고, 동기화 R이 떨어지는지 보세요." },
+  local:  { name: "국소 먼저", desc: "국소 패치가 0.6초 간격으로 하나씩 켜집니다. 전역 파는 스스로 켜지지 못하고 국소 활동의 도움이 있어야 켜집니다. 어느 순간 전역 세기 |Γ|가 갑자기 커지며 소용돌이가 정리되는 전환점을 찾아보세요." },
+  both:   { name: "동시 · 양방향", desc: "국소 패치와 전역 파가 함께 시작해 서로 끌어당깁니다. 처음에 생긴 소용돌이가 전역 파에 흡수되는지, 일부가 남아 계속 도는지 보세요." }
+};
+const GH = 900, gT = new Float64Array(GH), gA = new Float32Array(GH), gR = new Float32Array(GH), gN = new Float32Array(GH);
+let gHead = 0, gCount = 0;
+function gClear(){ gHead = 0; gCount = 0; }
+function gPush(){
+  const st = IM.st;
+  if (gCount && st.t <= gT[(gHead - 1 + GH) % GH]) return;
+  gT[gHead] = st.t; gA[gHead] = Math.hypot(st.gr, st.gi); gR[gHead] = st.M / Math.max(1e-6, st.zMean); gN[gHead] = st.nPlus + st.nMinus;
+  gHead = (gHead + 1) % GH; if (gCount < GH) gCount++;
+}
+const gc = document.getElementById("gchart"), gx = gc.getContext("2d");
+function drawGChart(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2), W = gc.clientWidth, H = gc.clientHeight;
+  if (!W || !H) return;
+  if (gc.width !== Math.round(W * dpr)){ gc.width = Math.round(W * dpr); gc.height = Math.round(H * dpr); }
+  gx.setTransform(dpr, 0, 0, dpr, 0, 0); gx.clearRect(0, 0, W, H);
+  const tNow = IM.st.t, span = 5, t0 = tNow - span, pl = 6, pr = 26, pt = 8, pb = 16, w = W - pl - pr, h = H - pt - pb;
+  gx.font = "500 10px " + tok("--f-mono"); gx.textBaseline = "middle";
+  gx.strokeStyle = COL.line; gx.lineWidth = 1;
+  for (let k = 0; k <= 5; k++){ const x = Math.round(pl + w - k / 5 * w) + .5; gx.beginPath(); gx.moveTo(x, pt); gx.lineTo(x, pt + h); gx.stroke(); }
+  gx.fillStyle = COL.muted; gx.textAlign = "left"; gx.fillText(fmt(Math.max(0, t0), 1) + " s", pl, pt + h + 9);
+  gx.textAlign = "right"; gx.fillText(fmt(tNow, 1) + " s", pl + w, pt + h + 9);
+  gx.textAlign = "left"; gx.fillText("10", pl + w + 4, pt + 4); gx.fillText("0", pl + w + 4, pt + h - 2);
+  const line = (arr, max, color, dash) => {
+    gx.strokeStyle = color; gx.lineWidth = 1.6; gx.setLineDash(dash); gx.beginPath(); let on = false;
+    for (let n = gCount - 1; n >= 0; n--){
+      const i = (gHead - 1 - n + GH) % GH; if (gT[i] < t0) continue;
+      const x = pl + (gT[i] - t0) / span * w, y = pt + h - Math.min(1, arr[i] / max) * h;
+      if (!on){ gx.moveTo(x, y); on = true; } else gx.lineTo(x, y);
+    }
+    gx.stroke(); gx.setLineDash([]);
+  };
+  line(gN, 10, COL.fg, [3, 3]);
+  line(gR, 1, COL.cmp, []);
+  line(gA, 1.3, COL.accent, []);
+}
+function interRestart(hyp, defaults){
+  IM.reset(hyp, defaults);
+  IM.setPattern(S.f, S.v, PLANE[S.dir]);
+  physScale = 1e-6; clearTraces(); gClear(); simT = IM.st.t;
+  if (S.slow < 0.2) S.slow = 0.25;
+  S.playing = true;
+}
+$("hyps").addEventListener("click", e => { const b = e.target.closest("[data-hyp]"); if (b){ interRestart(b.dataset.hyp, true); syncUI(); } });
+$("kdR").addEventListener("input", e => { IM.st.kd = +e.target.value; syncUI(); });
+$("kuR").addEventListener("input", e => { IM.st.ku = +e.target.value; syncUI(); });
+$("dfR").addEventListener("input", e => { IM.st.df = +e.target.value; IM.st.muDirty = true; syncUI(); });
+$("restartB").addEventListener("click", () => { interRestart(IM.st.hyp, false); syncUI(); });
+$("clearPB").addEventListener("click", () => { IM.st.patches.length = 0; IM.st.muDirty = true; syncUI(); });
 
 /* channel observation controls */
 $("chans").innerHTML = ORDER.map(n => `<button class="chip" data-ch="${n}" aria-pressed="false">${n}</button>`).join("");
@@ -970,7 +1302,8 @@ const SCENES = {
   fwd:     { mode:"point", f:10, v:3, damp:0.25, sign:1, center:["point",[0,0,-1]], cmap:"amp" },
   bwd:     { mode:"plane", f:10, v:3, damp:0.1, dir:"ap", cmap:"amp" },
   spindle: { mode:"rotate", f:13, arms:1, sign:1, center:["rotate",[0,1,0]], cmap:"phase" },
-  pulse:   { mode:"phys", f:10, v:2, damp:0.15, osc:false, center:["phys", elPos(45,90)], cmap:"amp", pulse:true }
+  pulse:   { mode:"phys", f:10, v:2, damp:0.15, osc:false, center:["phys", elPos(45,90)], cmap:"amp", pulse:true },
+  vortex:  { mode:"inter", f:10, v:1, dir:"pa", cmap:"phase", hyp:"global" }
 };
 $("scenes").addEventListener("click", e => {
   const b = e.target.closest("[data-scene]"); if (!b) return;
@@ -979,7 +1312,11 @@ $("scenes").addEventListener("click", e => {
   if (sc.center) S.centers[sc.center[0]] = sc.center[1];
   const prev = S.mode; S.mode = sc.mode; clearTraces();
   if (sc.mode === "phys"){ setPhysSource(); if (sc.pulse){ physReset(); pulse(); } simT = physT; }
-  else if (prev === "phys") simT = 0;
+  else if (sc.mode === "inter"){
+    interSeen = true; IM.st.patches.length = 0; PATCH0.forEach(p => IM.addPatch(p, 0)); IM.st.df = 3;
+    interRestart(sc.hyp, true);
+  }
+  else if (prev === "phys" || prev === "inter") simT = 0;
   S.playing = true;
   syncUI();
   b.setAttribute("aria-pressed", "true");
@@ -1004,6 +1341,7 @@ canvas.addEventListener("pointerup", e => {
   const hit = ray.intersectObject(sphere)[0];
   if (!hit) return;
   const p = hit.point.clone().normalize();
+  if (S.mode === "inter"){ IM.addPatch([p.x, p.y, p.z], IM.st.t); syncUI(); return; }
   S.centers[S.mode] = [p.x, p.y, p.z];
   if (S.mode === "phys"){ setPhysSource(); pulse(); }
   else clearTraces();
@@ -1011,7 +1349,7 @@ canvas.addEventListener("pointerup", e => {
 });
 
 /* ---------- main loop ---------- */
-let simT = 0, last = performance.now();
+let simT = 0, last = performance.now(), msPerStepI = 0.5, interCarry0 = 0;
 function tick(now){
   const dtReal = Math.min((now - last) / 1000, 0.05); last = now;
   if (S.playing){
@@ -1031,6 +1369,18 @@ function tick(now){
       if (steps > 0) msPerStep = msPerStep * 0.9 + 0.1 * (performance.now() - t0) / steps;
       simT = physT;
       effSlow = dtReal > 0 ? (steps * dt) / dtReal : S.slow;
+    } else if (S.mode === "inter"){
+      const dt = IM.dtMax();
+      let steps = Math.max(0, Math.round(want / dt + interCarry0));
+      interCarry0 += want / dt - steps;
+      const maxSteps = Math.max(1, Math.floor(14 / msPerStepI));
+      if (steps > maxSteps){ steps = maxSteps; interCarry0 = 0; }
+      const t0 = performance.now();
+      for (let s = 0; s < steps; s++){ IM.step(dt); pushSample(IM.st.t); }
+      if (steps > 0) msPerStepI = msPerStepI * 0.9 + 0.1 * (performance.now() - t0) / steps;
+      simT = IM.st.t;
+      effSlow = dtReal > 0 ? (steps * dt) / dtReal : S.slow;
+      IM.findVortices(); gPush();
     } else {
       let n = Math.min(2000, Math.max(1, Math.ceil(want / dts)));
       const step = want / n;
@@ -1041,6 +1391,8 @@ function tick(now){
   controls.update();
   paint(simT);
   placeLabels();
+  placeInterMarkers();
+  if (S.mode === "inter") drawGChart();
   drawTraces(simT);
   drawScope(simT);
   scopeReadouts(simT);
