@@ -944,7 +944,8 @@ button[aria-pressed="true"]{background:var(--lime)}
     });
   }
   function updateCctvBtn() {
-    const t = `CCTV 돌려보기 (${cctvLeft}번)`;
+    // say why it's greyed out instead of just going dead
+    const t = cctvLeft <= 0 ? 'CCTV 이미 봤음' : gameT < 2 ? 'CCTV 녹화 중…' : mode !== 'play' ? 'CCTV 돌려보기' : `CCTV 돌려보기 (${cctvLeft}번)`;
     if (t !== cctvLabel) { cctvBtn.textContent = t; cctvLabel = t; }
     cctvBtn.hidden = myRole !== 'cctv'; // only the CCTV helper can rewind
     cctvBtn.disabled = mode !== 'play' || cctvLeft <= 0 || gameT < 2;
@@ -1265,8 +1266,8 @@ button[aria-pressed="true"]{background:var(--lime)}
   const kh = k => isTouch() ? '' : ` (${k})`;
   function placeActions() {
     const into = isTouch() ? $('mact') : document.querySelector('.controls');
-    ['fartBtn', 'sqBtn', 'tapBtn', 'sniffBtn', 'eraseBtn', 'decoyBtn', 'coverBtn', 'lens', 'myRoleBtn'].forEach(id => { const b = $(id); if (b.parentElement !== into) into.prepend(b); });
-    if (isTouch()) ['myRoleBtn', 'lens', 'coverBtn', 'decoyBtn', 'eraseBtn', 'sniffBtn', 'tapBtn', 'sqBtn', 'fartBtn'].forEach(id => $('mact').prepend($(id)));
+    ['fartBtn', 'sqBtn', 'tapBtn', 'sniffBtn', 'eraseBtn', 'decoyBtn', 'coverBtn', 'lens', 'cctv', 'myRoleBtn'].forEach(id => { const b = $(id); if (b.parentElement !== into) into.prepend(b); });
+    if (isTouch()) ['myRoleBtn', 'cctv', 'lens', 'coverBtn', 'decoyBtn', 'eraseBtn', 'sniffBtn', 'tapBtn', 'sqBtn', 'fartBtn'].forEach(id => $('mact').prepend($(id)));
     xLabel = '';
     coverLabel = '';
     $('myRoleBtn').textContent = (isTouch() ? '내 역할' : '내 역할·위치') + kh('R'); lensLabel = ''; sqBtn.textContent = '찡그리기' + kh('G'); tapBtn.textContent = '엉덩이 툭' + kh('T');
