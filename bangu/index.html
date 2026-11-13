@@ -1714,40 +1714,15 @@ button[aria-pressed="true"]{background:var(--lime)}
     if (coverT > 0) { coverT -= dt; if (coverT <= 0 && mode === 'play') statusEl.textContent = '가리기 끝.'; }
     if (mode === 'play' && npcCoverAt > 0 && gameT >= npcCoverAt) { npcCoverAt = -1; npcCoverUsed = true; startCover(helperIdx); }
   }
-  // a plain butt seen from behind, squashed against the lens: same for everyone, so it can't tell you who
+  // a plain, faceless stand-in squashed against the lens: same for everyone, so it can't tell you who
+  const ANON = { name: '', color: '#c9c4bc', hat: 'none', trait: 'none', bw: 17, bh: 22, seed: 7, face: 1, pause: 1, sq: 0, walk: 0, react: 0 };
   function drawCoverButt() {
-    const r = Math.min(W * .28, H * .34), cx = W / 2, cy = H * .62, lw = Math.max(3, r * .045);
-    const PANTS = '#a59e95', COAT = '#d6d0c7';
+    const saved = S;
     ctx.save();
-    ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.fillRect(0, 0, W, H);
-    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    // legs
-    [-1, 1].forEach(sd => {
-      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + sd * r * 1.18, cy);
-      ctx.lineTo(cx + sd * r * 1.08, H + lw * 2); ctx.lineTo(cx, H + lw * 2); ctx.closePath();
-      ctx.fillStyle = PANTS; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = lw; ctx.stroke();
-    });
-    // two cheeks outlined as one shape
-    const cheek = sd => { ctx.beginPath(); ctx.ellipse(cx + sd * r * .58, cy, r * .66, r * .74, 0, 0, Math.PI * 2); };
-    [-1, 1].forEach(sd => { cheek(sd); ctx.strokeStyle = INK; ctx.lineWidth = lw * 2; ctx.stroke(); });
-    [-1, 1].forEach(sd => { cheek(sd); ctx.fillStyle = PANTS; ctx.fill(); });
-    [-1, 1].forEach(sd => {
-      // shine + the little smile under each cheek
-      ctx.beginPath(); ctx.ellipse(cx + sd * r * .78, cy - r * .2, r * .17, r * .1, sd * .5, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fill();
-      ctx.beginPath(); ctx.moveTo(cx + sd * r * .12, cy + r * .66); ctx.quadraticCurveTo(cx + sd * r * .6, cy + r * .86, cx + sd * r * 1.02, cy + r * .5);
-      ctx.strokeStyle = INK; ctx.lineWidth = lw; ctx.stroke();
-    });
-    // the crack
-    ctx.beginPath(); ctx.moveTo(cx, cy - r * .5); ctx.quadraticCurveTo(cx + r * .04, cy + r * .2, cx, cy + r * .66);
-    ctx.strokeStyle = INK; ctx.lineWidth = lw; ctx.stroke();
-    // puffy coat hem over the top
-    const top = -lw * 2, hem = cy - r * .42, x0 = cx - r * 1.5, x1 = cx + r * 1.5, rr = r * .35;
-    ctx.beginPath(); ctx.moveTo(x0, top); ctx.lineTo(x0, hem - rr); ctx.quadraticCurveTo(x0, hem, x0 + rr, hem);
-    ctx.lineTo(x1 - rr, hem); ctx.quadraticCurveTo(x1, hem, x1, hem - rr); ctx.lineTo(x1, top); ctx.closePath();
-    ctx.fillStyle = COAT; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = lw; ctx.stroke();
-    ctx.strokeStyle = 'rgba(29,26,36,.25)'; ctx.lineWidth = lw * 1.4;
-    for (let yy = hem - r * .38; yy > 0; yy -= r * .42) { ctx.beginPath(); ctx.moveTo(x0 + r * .18, yy); ctx.quadraticCurveTo(cx, yy + r * .1, x1 - r * .18, yy); ctx.stroke(); }
+    ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fillRect(0, 0, W, H);
+    S = Math.min(H * .028, W * .025); // close-up: head out of frame, butt big in the middle
+    try { drawChar(ANON, W * .45 + 12 * S, Math.min(H * .58 - 11 * S, 14 * S), 1); }
+    finally { S = saved; }
     ctx.restore();
   }
   function drawCoverLabel() {
