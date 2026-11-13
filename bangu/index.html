@@ -1153,7 +1153,7 @@ button[aria-pressed="true"]{background:var(--lime)}
   function openMyRole() {
     if (myIdx < 0 || reviewing || !reveal.hidden || ['intro', 'narrate', 'execute', 'smirk'].includes(mode)) return;
     reviewing = true; rvLock = 0;
-    $('rvTop').textContent = '내 역할';
+    $('rvTop').textContent = myRole === 'helper' && accomplice ? `내 역할 · 지금은 공범! 진범은 ${chars[culprit].name}` : '내 역할';
     drawCardChar(myIdx);
     card.classList.add('flipped');
     const b = $('rvGo'); b.disabled = false; b.textContent = '닫기';
@@ -1285,7 +1285,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     if (isTouch()) ['myRoleBtn', 'cctv', 'lens', 'coverBtn', 'decoyBtn', 'eraseBtn', 'sniffBtn', 'tapBtn', 'sqBtn', 'fartBtn'].forEach(id => $('mact').prepend($(id)));
     xLabel = '';
     coverLabel = '';
-    $('myRoleBtn').textContent = (isTouch() ? '내 역할' : '내 역할·위치') + kh('R'); lensLabel = ''; sqBtn.textContent = '찡그리기' + kh('G'); tapBtn.textContent = '엉덩이 툭' + kh('T');
+    $('myRoleBtn').textContent = (isTouch() ? '내 역할' : '내 역할·위치') + kh('R'); lensLabel = ''; sqBtn.textContent = '찡그리기' + kh('G'); tapLabel = '';
     fartLabel = '';
   }
   try { touchMQ.addEventListener('change', placeActions); } catch (e) {}
@@ -1336,7 +1336,10 @@ button[aria-pressed="true"]{background:var(--lime)}
     tapTarget = best; doTap();
     statusEl.textContent = accomplice ? '포섭 성공! 공범이 생겼다.' : '포섭 실패…';
   }
+  let tapLabel = '';
   function updateTapBtn() {
+    const tl = tapState === 'done' && tapTarget >= 0 ? (isTouch() ? (accomplice ? '툭 성공!' : '툭 실패…') : (accomplice ? `툭 성공 · ${chars[tapTarget].name} 공범` : `툭 실패 · ${chars[tapTarget].name}`)) : '엉덩이 툭' + kh('T');
+    if (tl !== tapLabel) { tapLabel = tl; tapBtn.textContent = tl; }
     tapBtn.hidden = myRole !== 'culprit';
     tapBtn.disabled = tapState === 'done' || mode !== 'play';
     fartBtn.hidden = myRole !== 'culprit'; sqBtn.hidden = myRole !== 'culprit'; sqBtn.disabled = mode !== 'play';
@@ -2803,11 +2806,11 @@ button[aria-pressed="true"]{background:var(--lime)}
     const tn = chars[tapTarget].name, cn = chars[culprit].name;
     if (tapTarget === helperIdx) {
       accomplice = true;
-      if (myRole === 'culprit') toast('포섭 성공!', `${ga(tn)} 공범이 됐다. 녹화를 지우고 방구 쿠션으로 의심을 대신 받아 줄 거야.`, 'good');
-      else if (tapTarget === myIdx) toast('엉덩이 신호를 받았다!', `방금 툭 친 ${ga(cn)} 진범이다. 이제 너는 공범! 녹화 지우기·방구 쿠션이 생겼어.`, 'good', 5);
+      if (myRole === 'culprit') toast('포섭 성공!', `${ga(tn)} 공범이 됐다. 녹화를 지우고 방구 쿠션으로 의심을 대신 받아 줄 거야.`, 'good', 6);
+      else if (tapTarget === myIdx) toast('엉덩이 신호를 받았다!', `방금 툭 친 ${ga(cn)} 진범이다. 이제 너는 공범! 녹화 지우기·방구 쿠션이 생겼어.`, 'good', 7);
     } else {
       tapFailed = tapTarget; tg.react = 1.8;
-      if (myRole === 'culprit') toast('포섭 실패…', `${eun(tn)} 조력자가 아니었다. 그냥 깜짝 놀랐을 뿐… 아무도 못 봤기를.`, 'bad');
+      if (myRole === 'culprit') toast('포섭 실패…', `${eun(tn)} 조력자가 아니었다. 그냥 깜짝 놀랐을 뿐… 아무도 못 봤기를.`, 'bad', 6);
       else if (tapTarget === myIdx && mode === 'play') { statusEl.textContent = '방금 누가 엉덩이로 툭 쳤다…?!'; toast('?!', '방금 누가 엉덩이로 툭 쳤다… 뭐지, 수상한데?', 'huh'); }
     }
   }
