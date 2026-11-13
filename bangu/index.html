@@ -413,7 +413,7 @@ button[aria-pressed="true"]{background:var(--lime)}
           <dt>냄새 감별사</dt><dd><b>돋보기</b>(한 판에 1번): 5초 동안 동그란 범위 안의 방구김이 노랗게 보여요.</dd>
           <dt>경비 아저씨</dt><dd><b>CCTV</b>(한 판에 1번): 돌아다닐 때든 회의 때든 원할 때 라운드 하나를 골라 돌려봐요. 방구김이 노랗게 찍혀요. 아래 막대를 끌면 빨리감기.</dd>
           <dt>진범</dt><dd><b>방구</b>(F, 라운드마다 1번, 마감까지 안 뀌면 저절로 터짐) · <b>찡그리기</b>(G) · <b>엉덩이 툭</b>(T, 한 판에 1번): 조력자를 공범으로 포섭해요.</dd>
-          <dt>진범의 조력자</dt><dd><b>CCTV 가리기</b>(C, 라운드마다 1번): 3초 동안 녹화에 엉덩이만 찍혀요. 공범이 되면 <b>녹화 지우기</b>(E, 직전 5초)와 <b>방구 쿠션</b>(B, 가짜 방구)도 써요.</dd>
+          <dt>진범의 조력자</dt><dd><b>CCTV 가리기</b>(C, 라운드마다 1번): 누르기 1.5초 전부터 누른 뒤 3초까지 녹화에 엉덩이만 찍혀요. 공범이 되면 <b>녹화 지우기</b>(E, 직전 5초)와 <b>방구 쿠션</b>(B, 가짜 방구)도 써요.</dd>
         </dl>
         <h3>맵</h3>
         <p><b>심해</b>: 숨 거품은 머리 위 스노클에서, 방구 거품은 엉덩이에서 올라와요. <b>우주</b>: 무중력이라 둥실 떠다니고, 방구를 뀌면 반동으로 살짝 밀려요.</p>
@@ -1117,7 +1117,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     { key: 'culprit', team: '방구 팀', t: 'fart', name: '진범', mission: '들키지 말고 라운드마다 한 번씩 몰래 뀌세요.', win: '마지막 라운드까지 버티면 승리',
       ability: [['방구 뀌기', '라운드마다 1번', '마감까지 안 뀌면 저절로 터져요', 'F'], ['찡그리기', '언제든', '냄새 맡은 척해요', 'G'], ['엉덩이 툭', '한 판에 1번', '조력자를 치면 공범이 돼요', 'T']] },
     { key: 'helper', team: '방구 팀', t: 'fart', name: '진범의 조력자', mission: '진범이 누군지 몰라요. 추리해서 몰래 도와주세요.', win: '진범이 안 잡히면 승리',
-      ability: [['CCTV 가리기', '라운드마다 1번', '3초 동안 녹화에 엉덩이만 찍혀요', 'C'], ['공범 승격', '진범한테 툭 맞으면', '녹화 지우기(라운드마다 1번) + 방구 쿠션(한 판에 1번)', '']] },
+      ability: [['CCTV 가리기', '라운드마다 1번', '누르기 1.5초 전부터 3초 뒤까지 녹화에 엉덩이만 찍혀요', 'C'], ['공범 승격', '진범한테 툭 맞으면', '녹화 지우기(라운드마다 1번) + 방구 쿠션(한 판에 1번)', '']] },
   ];
   const LORE = [
     ['전국방구인연대 설산지부장', '동지여, 그대의 가스는 헛되지 않았다.'],
@@ -1241,7 +1241,7 @@ button[aria-pressed="true"]{background:var(--lime)}
       b.push([accused === culprit ? '결국 잡힘' : '완전범죄', accused === culprit ? 'p' : 'g']);
     }
     if (k === 'helper' || k === 'accomplice') {
-      const mine = covers.filter(x => x[2] === i), cvHit = mine.filter(x => caught(x[0], x[1], 1.2)).length;
+      const mine = covers.filter(x => x[2] === i), cvHit = mine.filter(x => caught(x[0], x[1], .5)).length;
       if (mine.length) b.push([`CCTV 가림 ${mine.length}번 · 적중 ${cvHit}`, cvHit ? 'g' : '']);
       if (k === 'accomplice') {
         b.push(['공범 됨', 'p']);
@@ -1266,7 +1266,7 @@ button[aria-pressed="true"]{background:var(--lime)}
   // MVP of the winning side, with the reason
   function pickMvp() {
     if (accused !== culprit) { // the fart side got away
-      const accHits = accomplice ? covers.filter(x => x[2] === helperIdx && caught(x[0], x[1], 1.2)).length + erased.filter(x => caught(x[0], x[1])).length : 0;
+      const accHits = accomplice ? covers.filter(x => x[2] === helperIdx && caught(x[0], x[1], .5)).length + erased.filter(x => caught(x[0], x[1])).length : 0;
       if (accomplice && decoys && cleared.has(helperIdx)) return [helperIdx, '방구 쿠션으로 표를 대신 받아냄'];
       if (accomplice && accHits >= 2) return [helperIdx, `증거 인멸 ${accHits}번 적중`];
       return [culprit, farts ? `방구 ${farts}번 뀌고 끝까지 안 들킴` : '끝까지 안 들킴'];
@@ -1904,7 +1904,7 @@ button[aria-pressed="true"]{background:var(--lime)}
   let stats = [];
   let covers = [], coverLeft = 1, coverT = 0, npcCoverAt = -1, npcCoverUsed = false, coverLabel = '';
   function startCover(i) {
-    covers.push([gameT, gameT + 3, i]);
+    covers.push([Math.max(0, gameT - 1.5), gameT + 3, i]); // also wipes the 1.5s just before the press
     if (i === myIdx) { coverLeft--; coverT = 3; statusEl.textContent = 'CCTV 렌즈를 엉덩이로 가리는 중…'; }
   }
   function tryCover() {
@@ -1922,9 +1922,9 @@ button[aria-pressed="true"]{background:var(--lime)}
       coverT -= dt;
       if (coverT <= 0 && helperIdx === myIdx) {
         const cv = covers.filter(x => x[2] === myIdx).pop();
-        const hit = cv && caught(cv[0], cv[1], 1.2); // a fart a moment before still shows as a puff
+        const hit = cv && caught(cv[0], cv[1], .5); // a fart just before the window still shows as a puff
         statusEl.textContent = hit ? '가리기 적중!' : '가리기 끝… 헛방.';
-        toast(hit ? '가리기 적중!' : '헛방…', hit ? '가린 3초 사이에 진짜 방구가 있었다. 녹화엔 엉덩이만 찍혔어.' : '가린 동안 아무도 안 뀌었다. 다음엔 타이밍을 노려 봐.', hit ? 'good' : 'bad');
+        toast(hit ? '가리기 적중!' : '헛방…', hit ? '가린 사이에 진짜 방구가 있었다. 녹화엔 엉덩이만 찍혔어.' : '가린 동안 아무도 안 뀌었다. 다음엔 타이밍을 노려 봐.', hit ? 'good' : 'bad');
       }
     }
     if (mode === 'play' && npcCoverAt > 0 && gameT >= npcCoverAt) { npcCoverAt = -1; npcCoverUsed = true; startCover(helperIdx); }
