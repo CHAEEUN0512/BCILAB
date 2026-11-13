@@ -340,6 +340,10 @@ button[aria-pressed="true"]{background:var(--lime)}
 .wh-res.win{background:var(--lime);color:var(--ink)}
 .wh-res.lose{background:#ffd0e6;color:var(--ink)}
 .wh-btns{display:flex;gap:10px}
+.wh-mvp{display:flex;flex-direction:column;align-items:center;gap:1px;color:#ffe27a;text-align:center;font-size:13px;animation:toastIn .45s cubic-bezier(.3,1.6,.5,1)}
+.wh-mvp b{font-family:var(--font-loud);font-weight:400;font-size:clamp(18px,3vw,24px);color:#ffe27a;text-shadow:2px 2px 0 #000}
+.wh-mvp span{color:#e9eef5}
+.wc.mvp{border-color:#e3b400;box-shadow:0 0 0 3px #ffe27a,3px 3px 0 #000}
 @media (prefers-reduced-motion:reduce){.dot{transition:none}}
 </style>
 </head>
@@ -380,6 +384,7 @@ button[aria-pressed="true"]{background:var(--lime)}
       <div class="wh-title" id="whTitle">누가 누구였을까?</div>
       <div class="wh-grid" id="whGrid"></div>
       <div class="wh-res" id="whRes" hidden></div>
+      <div class="wh-mvp" id="whMvp" hidden></div>
       <div class="wh-btns" id="whBtns" hidden><button id="whAgain" type="button">한 판 더</button><button id="whHome" type="button">메인 화면</button></div>
     </div>
     <div class="title" id="titleScr" hidden>
@@ -1254,15 +1259,27 @@ button[aria-pressed="true"]{background:var(--lime)}
     if (cleared.has(i) && k !== 'culprit') b.push(['억울하게 신고됨', 'p']);
     if (i === tapFailed) b.push(['엉덩이 맞음', '']);
     if (claims[i]) b.push([`자칭 ${ROLE_NAME[claims[i]]}${claims[i] === k ? '' : ' (거짓말!)'}`, claims[i] === k ? '' : 'p']);
-    if (i === mvp) b.push(['MVP', 'mvp']);
     return b;
   }
-  let mvp = -1;
+  let mvp = -1, mvpWhy = '';
+  // MVP of the winning side, with the reason
+  function pickMvp() {
+    if (accused !== culprit) { // the fart side got away
+      const accHits = accomplice ? covers.filter(x => x[2] === helperIdx && caught(x[0], x[1], 1.2)).length + erased.filter(x => caught(x[0], x[1])).length : 0;
+      if (accomplice && decoys && cleared.has(helperIdx)) return [helperIdx, '방구 쿠션으로 표를 대신 받아냄'];
+      if (accomplice && accHits >= 2) return [helperIdx, `증거 인멸 ${accHits}번 적중`];
+      return [culprit, farts ? `방구 ${farts}번 뀌고 끝까지 안 들킴` : '끝까지 안 들킴'];
+    }
+    const sc = chars.map((c, i) => (i === culprit || (i === helperIdx && accomplice)) ? -1 : stats[i].right * 3 + stats[i].sniffHit * 2);
+    const top = Math.max(...sc);
+    if (top <= 0) return [-1, ''];
+    const tied = sc.map((x, i) => (x === top ? i : -1)).filter(i => i >= 0).sort((a, b) => stats[a].got - stats[b].got); // tie: the less suspected one
+    const i = tied[0], st = stats[i];
+    return [i, [st.right ? `진범에게 투표 ${st.right}번` : '', st.sniffHit ? `킁킁으로 진범 냄새 ${st.sniffHit}번` : ''].filter(Boolean).join(' · ')];
+  }
   function openWhois() {
     whTimers.forEach(clearTimeout); whTimers = [];
-    // MVP: the citizen-side person who voted for the culprit most (ties: nobody)
-    const rv = chars.map((c, i) => (i === culprit || (i === helperIdx && accomplice) ? -1 : (stats[i] || {}).right || 0));
-    const top = Math.max(...rv); mvp = top > 0 && rv.filter(x => x === top).length === 1 ? rv.indexOf(top) : -1;
+    [mvp, mvpWhy] = pickMvp();
     whGrid.textContent = '';
     const cards = chars.map((c, i) => {
       const k = roleOf(i);
@@ -1299,7 +1316,7 @@ button[aria-pressed="true"]{background:var(--lime)}
       t += 550;
     });
     whTimers.push(setTimeout(() => { showResult(); $('whBtns').hidden = false; }, t));
-    $('whBtns').hidden = true; $('whRes').hidden = true;
+    $('whBtns').hidden = true; $('whRes').hidden = true; $('whMvp').hidden = true;
     $('whTitle').textContent = '누가 누구였을까?';
     again.hidden = true; setCaps(''); setBig('');
     whois.hidden = false;
@@ -1314,6 +1331,16 @@ button[aria-pressed="true"]{background:var(--lime)}
     const win = caught !== fartTeam, el = $('whRes');
     el.textContent = win ? (fartTeam ? '승리! 끝까지 안 들켰다' : '승리! 진범을 잡았다') : (fartTeam ? '패배… 결국 들켰다' : '패배… 진범이 빠져나갔다');
     el.className = 'wh-res ' + (win ? 'win' : 'lose'); el.hidden = false;
+    // announce the MVP last
+    const mv = $('whMvp'); mv.hidden = false; mv.textContent = '';
+    if (mvp >= 0) {
+      const t = document.createElement('b'); t.textContent = `MVP · ${chars[mvp].name}${mvp === myIdx ? ' (바로 나!)' : ''}`;
+      const w = document.createElement('span'); w.textContent = mvpWhy;
+      mv.append(t, w);
+      const card = whGrid.children[mvp];
+      if (card && !card.classList.contains('mvp')) { card.classList.add('mvp'); const bd = document.createElement('span'); bd.className = 'bdg mvp'; bd.textContent = 'MVP'; const q = card.querySelector('.bdgs'); if (q) q.prepend(bd); }
+      sfx(.4);
+    } else mv.textContent = '이번 판 MVP 없음… 다들 코가 막혔나 봐요';
     if (resultSaved) return;
     resultSaved = true;
     const r = loadRec(); if (win) r.w++; else r.l++;
