@@ -205,6 +205,10 @@ h1{
 .wc.k-seeker .rl.on,.wc.k-sniffer .rl.on{color:#2f8a4a}
 .wc.k-culprit.revealed{background:#fff0f7;border-color:var(--hot)}
 .wc p{margin:0;font-size:11.5px;line-height:1.4;color:#3b3646;min-height:2.8em}
+.wc p.bdgs{display:flex;flex-wrap:wrap;justify-content:center;gap:3px;min-height:0;margin:2px 0}
+.bdg{font-size:10.5px;line-height:1.3;padding:1px 7px;border-radius:999px;background:#eef1f6;border:1.5px solid #c9d1dc;white-space:nowrap}
+.bdg.g{background:#eaffc9;border-color:#9fd36a}.bdg.p{background:#ffe0ef;border-color:#f39cc4}.bdg.y{background:#fff1b8;border-color:#e3c04d}
+.bdg.mvp{background:var(--ink);color:#ffe27a;border-color:var(--ink);font-weight:700}
 .wc .wl{display:block;font-size:11px;line-height:1.35;color:#a03a74;font-style:normal;word-break:keep-all}
 .wc .me{position:absolute;top:-9px;left:-9px;background:var(--lime);border:2px solid var(--ink);border-radius:999px;font-size:11px;font-weight:700;padding:1px 8px}
 .wc .stamp{position:absolute;top:10px;right:-8px;transform:rotate(12deg);background:#ff3b3b;color:#ffffff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;box-shadow:2px 2px 0 #000}
@@ -296,6 +300,11 @@ h1{
 .cap-sub{font-family:var(--font-serious);font-weight:800;font-size:clamp(13px,2.2vw,18px);color:#f1e9cf;text-shadow:0 1px 6px #000}
 .again{position:absolute;right:max(12px,env(safe-area-inset-right,0px));bottom:12px}
 .controls{display:flex;flex-wrap:wrap;gap:10px}
+.sys{display:contents}
+@media (hover:none),(max-width:620px){
+  .sys{display:flex;flex-wrap:wrap;gap:8px;width:100%;margin-top:22px;padding-top:12px;border-top:2px dashed rgba(29,26,36,.2)}
+  .sys button{font-size:13px;padding:6px 10px;box-shadow:2px 2px 0 var(--ink);border-width:2px}
+}
 button{
   font-family:var(--font-doodle);font-size:16px;font-weight:600;line-height:1.2;color:var(--ink);
   padding:9px 18px;background:var(--paper);border:2.5px solid var(--ink);
@@ -516,11 +525,13 @@ button[aria-pressed="true"]{background:var(--lime)}
     <button id="tapBtn" type="button" hidden>엉덩이 툭 (T)</button>
     <button id="lens" type="button">돋보기 (2번 남음)</button>
     <button id="cctv" type="button">CCTV 돌려보기 (1번)</button>
-    <button id="restart" type="button">다시 하기</button>
-    <button id="home" type="button">메인 화면</button>
-    <button id="howBtn" type="button">게임 방법</button>
-    <button id="sound" type="button" aria-pressed="false">소리 켜기</button>
-    <button id="bgm" type="button" aria-pressed="true" disabled>BGM 끄기</button>
+    <span class="sys">
+      <button id="howBtn" type="button">게임 방법</button>
+      <button id="sound" type="button" aria-pressed="false">소리 켜기</button>
+      <button id="bgm" type="button" aria-pressed="true" disabled>BGM 끄기</button>
+      <button id="home" type="button">메인 화면</button>
+      <button id="restart" type="button">다시 하기</button>
+    </span>
   </div>
 
 </div>
@@ -704,6 +715,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     updateMeter(); setBig(''); setCaps(''); again.hidden = true;
     lensLeft = 1; lensT = 0; updateLensBtn();
     cleared = new Set(); roundSmelled = new Set(); narrEl.hidden = true; voteEl.hidden = true; reviewing = false; myIdx = -1; myRole = '';
+    stats = chars.map(() => ({ got: 0, right: 0, sniff: 0, sniffHit: 0 }));
     resultSaved = false; $('toast').hidden = true; $('confirm').hidden = true; reveal.hidden = true; $('howto').hidden = true; $('talk').hidden = true; talkTimers.forEach(clearTimeout); talkTimers = []; sway = []; claims = {};
     if (toTitle) { mode = 'intro'; showTitle(); return; }
     $('titleScr').hidden = true;
@@ -1214,21 +1226,43 @@ button[aria-pressed="true"]{background:var(--lime)}
     }
     return npcLine[i];
   }
-  function quip(i, k) {
-    if (k === 'culprit') return `몰래 뀐 방구 ${farts}번 · ${accused === culprit ? '결국 들켰다' : '완전범죄 성공'}`;
-    if (k === 'helper') return '진범이 누군지 끝까지 몰랐음';
-    if (k === 'accomplice') return `엉덩이 툭으로 포섭됨 · 녹화 ${erased.length}번 지움${decoys ? ' · 방구 쿠션 발사' : ''}`;
-    if (k === 'sniffer') return `돋보기 ${myRole === 'sniffer' ? 1 - lensLeft : Math.floor(Math.random() * 2)}번 씀 · ${pick(['렌즈에 손자국 가득', '대부분 하늘을 비춤', '노란 건 다 귤이었음'])}`;
-    if (k === 'cctv') {
-      const n = myRole === 'cctv' ? cctvUsed : Math.floor(Math.random() * 2);
-      return `CCTV ${n}번 돌려봄 · ${pick(['렌즈에 김이 서려서 하나도 안 보였음', '돌려본 장면 대부분이 자기 얼굴', '알고 보니 화질 144p'])}`;
+  // what each person actually did this game, as little chips: [text, tone]
+  function badges(i, k) {
+    const b = [], c = chars[i], st = stats[i] || { got: 0, right: 0, sniff: 0, sniffHit: 0 };
+    if (k === 'culprit') {
+      b.push([`방구 ${farts}번`, 'y']);
+      if (tapState === 'done' && tapTarget >= 0) b.push([accomplice ? '툭 포섭 성공' : '툭 포섭 실패', accomplice ? 'g' : 'p']);
+      b.push([accused === culprit ? '결국 잡힘' : '완전범죄', accused === culprit ? 'p' : 'g']);
     }
-    const n = chars[i].smelled, top = Math.max(...chars.map(c => c.smelled));
-    if (n === 0) return '방구 맡은 횟수 0번 · 알고 보니 비염';
-    return n === top ? `방구 맡은 횟수 ${n}번 · 인간 공기청정기 등극` : `방구 맡은 횟수 ${n}번`;
+    if (k === 'helper' || k === 'accomplice') {
+      const cv = covers.filter(x => x[2] === i).length;
+      if (cv) b.push([`CCTV 가림 ${cv}번`, '']);
+      if (k === 'accomplice') {
+        b.push(['공범 됨', 'p']);
+        if (erased.length) b.push([`녹화 지움 ${erased.length}번`, '']);
+        if (decoys) b.push(['방구 쿠션 발사', 'y']);
+      }
+    }
+    if (i === myIdx && k === 'sniffer' && lensLeft === 0) b.push(['돋보기 씀', '']);
+    if (i === myIdx && k === 'cctv' && cctvUsed) b.push(['CCTV 봄', '']);
+    if (i === myIdx && st.sniff) b.push([`킁킁 ${st.sniff}번${st.sniffHit ? ` · 구림 ${st.sniffHit}` : ''}`, st.sniffHit ? 'g' : '']);
+    if (k !== 'culprit') {
+      if (st.right) b.push([`진범에게 투표 ${st.right}번`, 'g']);
+      b.push(c.smelled ? [`냄새 맡음 ${c.smelled}번`, ''] : ['냄새 0번 · 비염?', '']);
+    }
+    if (st.got) b.push([`받은 표 ${st.got}표`, '']);
+    if (cleared.has(i) && k !== 'culprit') b.push(['억울하게 신고됨', 'p']);
+    if (i === tapFailed) b.push(['엉덩이 맞음', '']);
+    if (claims[i]) b.push([`자칭 ${ROLE_NAME[claims[i]]}${claims[i] === k ? '' : ' (거짓말!)'}`, claims[i] === k ? '' : 'p']);
+    if (i === mvp) b.push(['MVP', 'mvp']);
+    return b;
   }
+  let mvp = -1;
   function openWhois() {
     whTimers.forEach(clearTimeout); whTimers = [];
+    // MVP: the citizen-side person who voted for the culprit most (ties: nobody)
+    const rv = chars.map((c, i) => (i === culprit || (i === helperIdx && accomplice) ? -1 : (stats[i] || {}).right || 0));
+    const top = Math.max(...rv); mvp = top > 0 && rv.filter(x => x === top).length === 1 ? rv.indexOf(top) : -1;
     whGrid.textContent = '';
     const cards = chars.map((c, i) => {
       const k = roleOf(i);
@@ -1253,8 +1287,9 @@ button[aria-pressed="true"]{background:var(--lime)}
       }
       whTimers.push(setTimeout(() => {
         o.el.classList.remove('drum');
-        o.rl.textContent = ROLE_NAME[o.k]; o.rl.classList.add('on'); o.q.textContent = quip(o.i, o.k); o.el.classList.add('revealed');
-        if (claims[o.i]) o.q.textContent += ` · 주장: ${ROLE_NAME[claims[o.i]]}${claims[o.i] === o.k ? ' (진짜)' : ' (거짓말!)'}`;
+        o.rl.textContent = ROLE_NAME[o.k]; o.rl.classList.add('on'); o.el.classList.add('revealed');
+        o.q.textContent = ''; o.q.className = 'bdgs';
+        badges(o.i, o.k).forEach(([t, tone]) => { const sp = document.createElement('span'); sp.className = 'bdg' + (tone ? ' ' + tone : ''); sp.textContent = t; o.q.append(sp); });
         o.el.querySelector('.wl').textContent = `"${lineOf(o.i, o.k)}"`;
         if ((o.i === accused || cleared.has(o.i)) && o.k !== 'culprit') { const st = document.createElement('span'); st.className = 'stamp'; st.textContent = '억울함 100%'; o.el.append(st); }
         else if (o.i === tapFailed) { const st = document.createElement('span'); st.className = 'stamp'; st.textContent = '엉덩이 맞음'; o.el.append(st); }
@@ -1825,6 +1860,7 @@ button[aria-pressed="true"]{background:var(--lime)}
 
   // ---------- helper: cover the CCTV lens with your butt ----------
   const coverBtn = $('coverBtn');
+  let stats = [];
   let covers = [], coverLeft = 1, coverT = 0, npcCoverAt = -1, npcCoverUsed = false, coverLabel = '';
   function startCover(i) {
     covers.push([gameT, gameT + 3, i]);
@@ -1837,7 +1873,7 @@ button[aria-pressed="true"]{background:var(--lime)}
   function updateCoverBtn() {
     coverBtn.hidden = myRole !== 'helper';
     coverBtn.disabled = mode !== 'play' || coverLeft <= 0 || coverT > 0;
-    const t = coverT > 0 ? `가리는 중 ${Math.ceil(coverT)}초` : 'CCTV 가리기' + kh('C') + (coverLeft > 0 ? '' : ' · 다음 날');
+    const t = coverT > 0 ? `가리는 중 ${Math.ceil(coverT)}초` : coverLeft > 0 ? 'CCTV 가리기' + kh('C') : '가리기 · 내일';
     if (t !== coverLabel) { coverBtn.textContent = t; coverLabel = t; }
   }
   function tickCover(dt) {
@@ -1883,9 +1919,9 @@ button[aria-pressed="true"]{background:var(--lime)}
     if (myRole !== 'seeker' || mode !== 'play' || sniffLeft <= 0) return;
     const t = sniffPick();
     if (t < 0) { statusEl.textContent = '너무 멀어요. 바짝 붙어서 킁킁!'; return; }
-    sniffLeft--;
+    sniffLeft--; stats[myIdx].sniff++;
     const stinky = (t === culprit && gameT - lastFartT <= 6) || (t === helperIdx && gameT - decoyT <= 6);
-    sniffPop = { i: t, t: 0, bad: stinky };
+    sniffPop = { i: t, t: 0, bad: stinky }; if (stinky) stats[myIdx].sniffHit++;
     chars[myIdx].sq = stinky ? 1.6 : 0;
     statusEl.textContent = stinky ? `킁킁… ${chars[t].name} 엉덩이가 구리다!!` : `킁킁… ${chars[t].name} 엉덩이는 무취.`;
   }
@@ -2288,7 +2324,7 @@ button[aria-pressed="true"]{background:var(--lime)}
       return wpick(pool, w);
     });
     const count = chars.map(() => 0);
-    ballots.forEach(b => { if (b >= 0) count[b]++; });
+    ballots.forEach((b, v) => { if (b >= 0) { count[b]++; stats[b].got++; if (b === culprit) stats[v].right++; } });
     Array.from(voteGrid.children).forEach(btn => {
       const i = +btn.dataset.i;
       btn.disabled = true;
