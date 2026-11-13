@@ -148,6 +148,23 @@ h1{
 .stage .narr canvas{position:static;inset:auto;display:block;width:96px;height:96px;cursor:inherit}
 .narr-hint{position:absolute;right:16px;bottom:12px;color:#8e97a8;font-size:12px}
 .vote{position:absolute;inset:0;background:rgba(14,16,26,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:14px;overflow:auto}
+.talk{position:absolute;inset:0;z-index:5;background:rgba(14,16,26,.95);display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px}
+.tk-title{font-family:var(--font-loud);color:#ffffff;font-size:clamp(20px,3.4vw,30px);text-align:center}
+.tk-log{flex:1;min-height:0;width:min(640px,100%);overflow:auto;display:flex;flex-direction:column;gap:8px;padding:4px 2px}
+.tk-msg{display:flex;align-items:flex-end;gap:8px;animation:tkIn .25s ease-out}
+.stage .tk-msg canvas{position:static;inset:auto;width:44px;height:44px;flex:none;cursor:default}
+.tk-msg.me{flex-direction:row-reverse}
+.tk-box{display:flex;flex-direction:column;gap:2px;max-width:78%}
+.tk-msg.me .tk-box{align-items:flex-end}
+.tk-nm{font-size:11px;color:#c9d3dc;font-weight:700}
+.tk-bub{background:var(--paper);color:var(--ink);border:2px solid #000;border-radius:14px 14px 14px 4px;padding:6px 11px;font-size:14px;line-height:1.4}
+.tk-msg.me .tk-bub{background:var(--lime);border-radius:14px 14px 4px 14px}
+.tk-act{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;width:min(640px,100%)}
+.tk-act button{font-size:14px;padding:7px 12px}
+.tk-act .tk-go{background:var(--lime)}
+.tk-hint{width:100%;text-align:center;color:#ffe27a;font-size:13px;font-weight:600}
+@keyframes tkIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.tk-msg{animation:none}}
 .vt-title{font-family:var(--font-loud);color:#ffffff;font-size:clamp(20px,3.4vw,30px);text-align:center}
 .vt-sub{color:#ffe27a;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
 .vt-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;width:min(760px,100%)}
@@ -349,7 +366,7 @@ button[aria-pressed="true"]{background:var(--lime)}
         <h3>기본</h3>
         <p>입김은 <b>얼굴 앞</b>에서, 방구는 <b>엉덩이 뒤</b>에서 나와요. 겉보기엔 똑같아요.</p>
         <p>진범은 라운드마다 한 번 몰래 뀌어요. 냄새 구름에 얼굴이 닿은 사람은 찡그리고, 밤에 <b>기절자</b>로 발표돼요.</p>
-        <p>회의 시간에 의심 가는 사람에게 투표해요. 3표 이상 받은 단독 1등이 신고되고, 동점이면 결선을 해요. 마지막 밤까지 못 잡으면 진범이 이겨요.</p>
+        <p>밤이 지나면 회의 시간이에요. 한마디씩 하는데, 나는 <b>지목·증거 대기·변호·해명</b> 중 하나를 골라 사람들을 설득해요. 증거는 능력을 써 본 사람이 대야 더 잘 먹혀요. 그다음 투표해요. 3표 이상 받은 단독 1등이 신고되고, 동점이면 결선을 해요. 마지막 밤까지 못 잡으면 진범이 이겨요.</p>
         <h3>이동</h3>
         <p>방향키나 WASD, 폰은 아래 조이스틱. 방구 팀은 자유롭게 다니고, 시민 팀은 떠밀려 다니면서 조금만 조종돼요. 내 캐릭터 머리 위에는 초록 화살표가 있어요.</p>
         <h3>역할</h3>
@@ -429,6 +446,11 @@ button[aria-pressed="true"]{background:var(--lime)}
       <canvas id="narrChar" width="160" height="160" aria-hidden="true" hidden></canvas>
       <p id="narrText" aria-live="polite"></p>
       <span class="narr-hint">화면을 누르면 넘어가요</span>
+    </div>
+    <div class="talk" id="talk" hidden>
+      <div class="tk-title">회의 시간 · 발언하기</div>
+      <div class="tk-log" id="tkLog" aria-live="polite"></div>
+      <div class="tk-act" id="tkAct"></div>
     </div>
     <div class="vote" id="vote" hidden>
       <div class="vt-title" id="voteTitle">회의 시간 · 누구를 신고할까요?</div>
@@ -658,7 +680,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     updateMeter(); setBig(''); setCaps(''); again.hidden = true;
     lensLeft = 1; lensT = 0; updateLensBtn();
     cleared = new Set(); roundSmelled = new Set(); narrEl.hidden = true; voteEl.hidden = true; reviewing = false; myIdx = -1; myRole = '';
-    resultSaved = false; reveal.hidden = true; $('howto').hidden = true;
+    resultSaved = false; reveal.hidden = true; $('howto').hidden = true; $('talk').hidden = true; talkTimers.forEach(clearTimeout); talkTimers = []; sway = [];
     if (toTitle) { mode = 'intro'; showTitle(); return; }
     $('titleScr').hidden = true;
     narrate(TX().intro, () => { mode = 'intro'; showReveal(); });
@@ -1990,7 +2012,7 @@ button[aria-pressed="true"]{background:var(--lime)}
       lines.push({ t: `밤사이 ${list} 냄새를 맡고 기절했습니다.`, who: who[0] });
     } else lines.push('다행히 아무도 기절하지 않았습니다. …정말일까요?');
     lines.push('무취 단속반이 오기 전에, 위반자를 신고해야 합니다.');
-    narrate(lines, openVote);
+    narrate(lines, openTalk);
   }
   const LAST_WORDS = ['저 진짜 아니에요… 오늘 고구마도 안 먹었어요.', '제 엉덩이를 걸고 맹세합니다!', '저도 냄새 맡고 기절했다고요!',
     '억울해서 방구도 안 나와요.', '저 찍으면 진짜 범인이 웃습니다.', '저는 숨만 쉬었을 뿐입니다.', '솔직히 저쪽이 더 수상하지 않아요?',
@@ -2024,6 +2046,99 @@ button[aria-pressed="true"]{background:var(--lime)}
       }
     }
   }
+  // ---------- meeting: everyone says one thing before the vote ----------
+  const talkEl = $('talk'), tkLog = $('tkLog'), tkAct = $('tkAct');
+  let sway = [], talkTimers = [];
+  const reul = w => w + (hasBatchim(w) ? '을' : '를');
+  const wpick = (a, w) => { let tot = 0; const ws = a.map(i => (tot += w(i))); const x = Math.random() * tot; return a[ws.findIndex(c => c >= x)]; };
+  const TALK = {
+    accuse: [n => `${n} 아까 엉덩이 쪽에서 김 나는 거 봤어요.`, n => `솔직히 ${ga(n)} 제일 수상해요.`, n => `${eun(n)} 왜 자꾸 바람 반대편에 서 있죠?`,
+      n => `${eun(n)} 기절한 척하는 거 아니에요?`, n => `${eun(n)} 아까부터 엉덩이를 벽에 붙이고 있었어요.`, n => `${ga(n)} 지나가고 나서 공기가 달라졌어요.`],
+    shrug: ['저는 코가 막혀서 아무것도 몰라요.', '다들 숨 한번 크게 쉬어 봐요.', '오늘 고구마 먹은 사람 손!', '저는… 그냥 무서워요.', '냄새는 났는데 방향을 모르겠어요.'],
+    deny: ['저 아니라고요!! 제 엉덩이는 결백해요!', '말도 안 돼! 저 오늘 숨만 쉬었어요.', '증거 있어요? 증거?', '제가 뀌었으면 여기 다 기절했죠!', '억울해서 방구도 안 나와요.'],
+    agree: [n => `맞아요, 저도 ${reul(n)} 의심했어요.`, n => `${n} 쪽에서 뭔가 났던 것 같긴 해요.`, () => '듣고 보니 그럴듯한데요?', () => '오… 확실하네요.'],
+    doubt: ['에이, 그건 좀 억지 같은데요.', '흠… 잘 모르겠어요.', '그 말 믿어도 되나요?', '말하는 사람이 더 수상한데요?'],
+    okay: ['그래요, 믿어 볼게요.', '하긴, 그 사람은 아닌 것 같아요.', '음… 일단 넘어가죠.'],
+    myAccuse: [n => `제가 볼 땐 ${ga(n)} 범인이에요!`, n => `${n}, 아까 엉덩이 들썩이는 거 다 봤어요.`, n => `${eun(n)} 냄새 날 때마다 근처에 있었어요.`],
+    defend: [n => `${eun(n)} 아니에요. 계속 제 옆에 있었어요.`, n => `${n} 엉덩이는 제가 보증해요.`],
+    alibi: ['저는 아니에요! 오늘 내내 숨만 쉬었어요.', '저 찍으면 진짜 범인이 웃어요.', '제 엉덩이를 걸고 맹세합니다!']
+  };
+  function later(ms, fn) { talkTimers.push(setTimeout(fn, ms)); }
+  const alive = () => chars.map((c, i) => i).filter(i => !cleared.has(i));
+  function tkSay(i, text) {
+    const row = document.createElement('div'); row.className = 'tk-msg' + (i === myIdx ? ' me' : '');
+    const cc = document.createElement('canvas'); cc.width = 160; cc.height = 160; cc.setAttribute('aria-hidden', 'true'); paintChar(cc, i);
+    const box = document.createElement('div'); box.className = 'tk-box';
+    const nm = document.createElement('div'); nm.className = 'tk-nm'; nm.textContent = chars[i].name + (i === myIdx ? ' (나)' : '');
+    const bub = document.createElement('div'); bub.className = 'tk-bub'; bub.textContent = text;
+    box.append(nm, bub); row.append(cc, box); tkLog.append(row); tkLog.scrollTop = tkLog.scrollHeight;
+    sfx(.05);
+  }
+  function tkButton(label, fn, cls) { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; if (cls) b.className = cls; b.addEventListener('click', fn); tkAct.append(b); return b; }
+  function tkHint(t) { const h = document.createElement('div'); h.className = 'tk-hint'; h.textContent = t; tkAct.append(h); }
+  function openTalk() {
+    mode = 'talk'; talkEl.hidden = false; tkLog.textContent = ''; tkAct.textContent = '';
+    sway = chars.map(() => 0); talkTimers.forEach(clearTimeout); talkTimers = [];
+    statusEl.textContent = '회의 시간: 한마디 해서 사람들을 설득하세요.';
+    tkHint('다른 사람들 말을 들어 보세요…');
+    const speakers = alive().filter(i => i !== myIdx).sort(() => Math.random() - .5).slice(0, 2);
+    speakers.forEach((i, k) => later(500 + k * 1200, () => botOpen(i)));
+    later(700 + speakers.length * 1200, myTurn);
+  }
+  function botOpen(i) {
+    const fartSide = i === culprit || (i === helperIdx && accomplice);
+    const pool = alive().filter(j => j !== i && !(fartSide && j === culprit)); // the fart side never names the culprit
+    if (!pool.length || Math.random() < .25) { tkSay(i, pick(TALK.shrug)); return; }
+    const faint = lastFaint.filter(j => pool.includes(j));
+    const t = faint.length && Math.random() < .6 ? pick(faint) : pick(pool);
+    sway[t] += 1; tkSay(i, pick(TALK.accuse)(chars[t].name));
+  }
+  function usedTool() { return (myRole === 'seeker' && sniffLeft === 0) || (myRole === 'sniffer' && lensLeft === 0) || (myRole === 'cctv' && cctvLeft === 0); }
+  function proofLine(n) {
+    if (myRole === 'seeker') return `킁킁 해 봤는데 ${n} 엉덩이 진짜 구렸어요!!`;
+    if (myRole === 'sniffer') return `돋보기로 봤어요. ${n} 엉덩이에서 노란 김이 나왔어요!`;
+    if (myRole === 'cctv') return `CCTV 돌려봤는데 ${ga(n)} 뀌는 장면이 찍혔어요.`;
+    return `제가 똑똑히 봤어요. ${ga(n)} 엉덩이를 살짝 들썩이는 거.`;
+  }
+  function myTurn() {
+    tkAct.textContent = '';
+    if (cleared.has(myIdx)) { tkHint('억울함 인증을 받아서 발언권이 없어요.'); later(900, () => tkButton('투표하러 가기', toVote, 'tk-go')); return; }
+    tkHint('내 차례! 한마디 해서 표를 움직여 보세요.');
+    tkButton('지목하기', () => pickWho('accuse'));
+    tkButton('증거 대기', () => pickWho('proof'));
+    tkButton('변호하기', () => pickWho('defend'));
+    tkButton('해명하기', () => doTalk('alibi', myIdx));
+    tkButton('조용히 있기', () => doTalk('quiet', -1));
+  }
+  function pickWho(kind) {
+    tkAct.textContent = '';
+    tkHint(kind === 'defend' ? '누구 편을 들까요?' : '누구를 찍을까요?');
+    alive().filter(i => i !== myIdx).forEach(i => tkButton(chars[i].name, () => doTalk(kind, i)));
+    tkButton('뒤로', myTurn);
+  }
+  function doTalk(kind, t) {
+    tkAct.textContent = '';
+    const n = t >= 0 ? chars[t].name : '';
+    if (kind === 'accuse') { tkSay(myIdx, pick(TALK.myAccuse)(n)); sway[t] += 2.5; }
+    else if (kind === 'proof') { tkSay(myIdx, proofLine(n)); sway[t] += usedTool() ? 4 : 2; }
+    else if (kind === 'defend') { tkSay(myIdx, pick(TALK.defend)(n)); sway[t] -= 2.5; }
+    else if (kind === 'alibi') { tkSay(myIdx, pick(TALK.alibi)); sway[myIdx] -= 2.5; }
+    else tkSay(myIdx, '…… (조용히 숨만 쉰다)');
+    let d = 1000;
+    if ((kind === 'accuse' || kind === 'proof') && t >= 0) { later(d, () => tkSay(t, pick(TALK.deny))); d += 1200; }
+    const by = alive().filter(i => i !== myIdx && i !== t).sort(() => Math.random() - .5)[0];
+    if (by !== undefined) { later(d, () => react(by, kind, t)); d += 1200; }
+    later(d, () => tkButton('투표하러 가기', toVote, 'tk-go'));
+  }
+  function react(i, kind, t) {
+    if (kind === 'quiet') { tkSay(i, pick(TALK.shrug)); return; }
+    const yes = Math.random() < (kind === 'proof' ? .7 : .5);
+    if (kind === 'alibi' || kind === 'defend') { tkSay(i, yes ? pick(TALK.okay) : pick(TALK.doubt)); if (!yes) sway[t] += 1; return; }
+    tkSay(i, yes ? pick(TALK.agree)(chars[t].name) : pick(TALK.doubt));
+    sway[t] += yes ? 1 : -.5;
+  }
+  function toVote() { talkTimers.forEach(clearTimeout); talkTimers = []; talkEl.hidden = true; openVote(); }
+
   function openVote(cands) {
     runoff = cands || null;
     const duel = !!runoff && runoff.length === 2;
@@ -2031,7 +2146,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     voteEl.classList.toggle('lw', duel);
     lwLines = {}; lwHold = 0; lwT = 12; lwDue = {};
     if (duel) runoff.forEach(i => { lwDue[i] = R(7, 10.5); });
-    $('voteTitle').textContent = duel ? '동점! 최후의 한마디' : runoff ? '동점! 결선 투표' : '회의 시간 · 누구를 신고할까요?';
+    $('voteTitle').textContent = duel ? '동점! 최후의 한마디' : runoff ? '동점! 결선 투표' : '투표 시간 · 누구를 신고할까요?';
     voteGrid.style.gridTemplateColumns = runoff ? `repeat(${runoff.length},minmax(0,140px))` : '';
     voteGrid.style.justifyContent = runoff ? 'center' : '';
     chars.forEach((c, i) => {
@@ -2056,7 +2171,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     $('lwIn').hidden = !(duel && runoff.includes(myIdx));
     if (duel && runoff.includes(myIdx)) { $('lwInput').value = ''; setTimeout(() => { try { $('lwInput').focus(); } catch (e) {} }, 50); }
     voteEl.hidden = false;
-    statusEl.textContent = duel ? '1대1 동점! 각자 최후의 한마디를 해요.' : runoff ? '동점이라 결선 투표를 해요.' : '회의 시간: 무취법 위반자를 신고하세요.';
+    statusEl.textContent = duel ? '1대1 동점! 각자 최후의 한마디를 해요.' : runoff ? '동점이라 결선 투표를 해요.' : '투표 시간: 무취법 위반자를 신고하세요.';
   }
   // everyone votes; a report needs a clear majority (3+ of 6, no tie)
   let lastFaint = [];
@@ -2069,10 +2184,10 @@ button[aria-pressed="true"]{background:var(--lime)}
       if (!pool.length) return -1;
       const r = Math.random();
       if (r < .2) return -1; // pass
-      if (v === culprit || (v === helperIdx && accomplice)) { const f = pool.filter(i => i !== culprit); return f.length ? pick(f) : -1; } // frame someone
-      if (r < .35 && pool.includes(culprit)) return culprit; // a hunch that happens to be right
-      const sus = lastFaint.filter(i => pool.includes(i));
-      return pick(sus.length ? sus : pool);
+      const w = i => Math.max(.15, 1 + (lastFaint.includes(i) ? 1.2 : 0) + (sway[i] || 0) * 1.3); // what the meeting said moves votes
+      if (v === culprit || (v === helperIdx && accomplice)) { const f = pool.filter(i => i !== culprit); return f.length ? wpick(f, w) : -1; } // frame someone
+      if (r < .32 && pool.includes(culprit)) return culprit; // a hunch that happens to be right
+      return wpick(pool, w);
     });
     const count = chars.map(() => 0);
     ballots.forEach(b => { if (b >= 0) count[b]++; });
@@ -2449,7 +2564,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     }
     if (sq) {
       // squeezed-shut "> <" eyes, bold, a touch lower so caps and glasses don't hide them
-      ctx.lineWidth = 2.6 * u; ctx.strokeStyle = t === 'clerk' ? '#ffffff' : INK; // white on 박대리's dark glasses
+      ctx.lineWidth = 2.6 * u; ctx.strokeStyle = INK;
       const ew = hr * .14, eh = hr * .15, sy = ey + hr * .06;
       [[e1, f], [e2, -f]].forEach(([x, d]) => { // both point inward: > <
         ctx.beginPath(); ctx.moveTo(x - d * ew, sy - eh); ctx.lineTo(x + d * ew, sy); ctx.lineTo(x - d * ew, sy + eh); ctx.stroke();
