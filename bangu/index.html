@@ -2409,10 +2409,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     dot(hx + f * hr * .02, hy + hr * .45, hr * .22, hr * .13, t === 'granny' ? 'rgba(255,80,110,.55)' : 'rgba(255,110,130,.38)');
     ctx.strokeStyle = INK; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     if (sq) {
-      ctx.lineWidth = 2 * u;
-      [[e1, 1], [e2, -1]].forEach(([x, d]) => {
-        ctx.beginPath(); ctx.moveTo(x - d * 3 * u, ey - 3 * u); ctx.lineTo(x + d * 1.5 * u, ey); ctx.lineTo(x - d * 3 * u, ey + 3 * u); ctx.stroke();
-      });
+      // squeezed eyes are drawn after the glasses (below) so they always show
     } else if (t === 'sleepy') {
       [e1, e2].forEach(x => {
         dot(x, ey + hr * .03, hr * .1, hr * .06, INK);
@@ -2428,7 +2425,7 @@ button[aria-pressed="true"]{background:var(--lime)}
         [e1, e2].forEach(x => { ctx.beginPath(); ctx.moveTo(x + f * hr * .08, ey - hr * .12); ctx.lineTo(x + f * hr * .17, ey - hr * .2); ctx.stroke(); });
       }
     }
-    if (t === 'boss') {
+    if (t === 'boss' && !sq) {
       ctx.lineWidth = 3 * u;
       [e1, e2].forEach(x => { ctx.beginPath(); ctx.moveTo(x - hr * .13, ey - hr * .25); ctx.lineTo(x + hr * .13, ey - hr * .19 + f * 0); ctx.stroke(); });
     }
@@ -2443,6 +2440,15 @@ button[aria-pressed="true"]{background:var(--lime)}
       ctx.beginPath(); ctx.moveTo(e1 + f * hr * .2, ey - hr * .03); ctx.lineTo(e2 - f * hr * .2, ey - hr * .03); ctx.stroke();
       ctx.strokeStyle = INK;
     }
+    if (sq) {
+      // squeezed-shut "> <" eyes, bold, a touch lower so caps and glasses don't hide them
+      ctx.lineWidth = 2.6 * u; ctx.strokeStyle = t === 'clerk' ? '#ffffff' : INK; // white on 박대리's dark glasses
+      const ew = hr * .14, eh = hr * .15, sy = ey + hr * .06;
+      [[e1, 1], [e2, -1]].forEach(([x, d]) => {
+        ctx.beginPath(); ctx.moveTo(x - d * ew, sy - eh); ctx.lineTo(x + d * ew, sy); ctx.lineTo(x - d * ew, sy + eh); ctx.stroke();
+      });
+      ctx.strokeStyle = INK;
+    }
     // cold red nose
     blob(hx + f * hr * .93, hy + hr * .3, hr * .16, hr * .14, c.seed + 13, '#ff8f8f', INK, 1.6 * u, .08);
     if (t === 'sleepy') {
@@ -2454,8 +2460,9 @@ button[aria-pressed="true"]{background:var(--lime)}
     // mouth
     ctx.lineWidth = 2 * u;
     if (sq) {
+      // small wobbly grimace
       ctx.beginPath();
-      for (let i = 0; i <= 4; i++) { const x = hx + f * hr * .2 + i * f * hr * .12, yy = my + (i % 2 ? 1.5 : -1.5) * u; i ? ctx.lineTo(x, yy) : ctx.moveTo(x, yy); }
+      for (let i = 0; i <= 3; i++) { const x = mx - hr * .18 + i * hr * .12, yy = my + (i % 2 ? 1 : -1) * u; i ? ctx.lineTo(x, yy) : ctx.moveTo(x, yy); }
       ctx.stroke();
     } else if (t === 'granny') {
       ctx.beginPath(); ctx.arc(mx, my - hr * .1, hr * .15, Math.PI * .15, Math.PI * .85); ctx.stroke();
