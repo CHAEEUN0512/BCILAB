@@ -2261,7 +2261,8 @@ button[aria-pressed="true"]{background:var(--lime)}
     return typeof x === 'function' ? x(n) : x;
   }
   function later(ms, fn) { talkTimers.push(setTimeout(fn, ms)); }
-  const alive = () => chars.map((c, i) => i).filter(i => !cleared.has(i));
+  const alive = () => chars.map((c, i) => i).filter(i => !cleared.has(i)); // can still be voted for
+  const everyone = () => chars.map((c, i) => i); // anyone may talk, cleared or not
   function tkSay(i, text) {
     const row = document.createElement('div'); row.className = 'tk-msg' + (i === myIdx ? ' me' : '');
     const cc = document.createElement('canvas'); cc.width = 160; cc.height = 160; cc.setAttribute('aria-hidden', 'true'); paintChar(cc, i);
@@ -2285,13 +2286,13 @@ button[aria-pressed="true"]{background:var(--lime)}
       const [i, role] = claimer, t = botTarget(i);
       if (t >= 0) { const rv = claimConflict(i, role); later(d, () => claimRole(i, role, t)); d += 1200 + (rv >= 0 && rv !== myIdx ? 1200 : 0); }
     }
-    const speakers = alive().filter(i => i !== myIdx && !(claimer !== -1 && i === claimer[0])).sort(() => Math.random() - .5).slice(0, 2);
+    const speakers = everyone().filter(i => i !== myIdx && !(claimer !== -1 && i === claimer[0])).sort(() => Math.random() - .5).slice(0, 2);
     speakers.forEach((i, k) => later(d + k * 1200, () => botOpen(i)));
     later(d + 200 + speakers.length * 1200, myTurn);
   }
   // ---- role claims: "I'm the CCTV guy" (true or not). two claims for one job = someone is lying
   function botClaimer() {
-    const c = alive().filter(i => i !== myIdx && !claims[i]).sort(() => Math.random() - .5);
+    const c = everyone().filter(i => i !== myIdx && !claims[i]).sort(() => Math.random() - .5);
     for (const i of c) {
       if ((i === snifferIdx || i === cctvIdx) && Math.random() < .35) return [i, roleOf(i)];
       if ((i === culprit || (i === helperIdx && accomplice)) && Math.random() < .2) return [i, pick(['sniffer', 'cctv'])];
@@ -2307,8 +2308,8 @@ button[aria-pressed="true"]{background:var(--lime)}
   function claimConflict(i, role) {
     if (role === 'seeker') return -1;
     const holder = role === 'sniffer' ? snifferIdx : cctvIdx;
-    if (holder !== i && !cleared.has(holder)) return holder;
-    const other = alive().find(j => j !== i && claims[j] === role);
+    if (holder !== i) return holder;
+    const other = everyone().find(j => j !== i && claims[j] === role);
     return other === undefined ? -1 : other;
   }
   // "나 ○○인데, ○○가 범인인 거 봤어!" — one sentence: who I am (true or not) + who I saw
@@ -2329,7 +2330,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     tkSay(i, i === myIdx ? `나 ${job}인데, ${E.say(n, true)}` : `저 ${job}인데요, ${E.say(n, false)}`);
     let d = 1100, trusted = role !== 'seeker';
     if (before && before !== role) { // changed story
-      const by = alive().find(j => j !== i && j !== t);
+      const by = everyone().find(j => j !== i && j !== t);
       if (by !== undefined) { later(d, () => tkSay(by, `아까는 ${raMyeonseo(ROLE_NAME[before])}`)); d += 1200; }
       sway[i] += 2; trusted = false;
     }
@@ -2374,7 +2375,6 @@ button[aria-pressed="true"]{background:var(--lime)}
   function usedTool() { return (myRole === 'seeker' && sniffLeft === 0) || (myRole === 'sniffer' && lensLeft === 0) || (myRole === 'cctv' && cctvLeft === 0); }
   function myTurn() {
     tkAct.textContent = '';
-    if (cleared.has(myIdx)) { tkHint('억울함 인증을 받아서 발언권이 없어요.'); later(900, () => tkButton('투표하러 가기', toVote, 'tk-go')); return; }
     if (myRole === 'cctv' && cctvLeft > 0) tkButton('CCTV 보기 (한 판에 1번)', openCctv, 'tk-cctv');
     tkHint('내 차례!  "나 ___인데,"');
     CLAIMABLE.forEach(r => tkButton(ROLE_NAME[r], () => pickWho(r)));
@@ -2395,7 +2395,7 @@ button[aria-pressed="true"]{background:var(--lime)}
   function afterMine(t, d0, end) {
     let d = d0 || 1000;
     if (t >= 0) { later(d, () => tkSay(t, voice(t, end === 'clean' ? 'thanks' : 'deny'))); d += 1200; }
-    const by = alive().filter(i => i !== myIdx && i !== t).sort(() => Math.random() - .5)[0];
+    const by = everyone().filter(i => i !== myIdx && i !== t).sort(() => Math.random() - .5)[0];
     if (by !== undefined) {
       later(d, () => {
         if (t < 0) { tkSay(by, voice(by, 'shrug')); return; }
