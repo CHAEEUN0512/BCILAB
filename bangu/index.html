@@ -186,6 +186,8 @@ h1{
 .lw-in input{flex:1;min-width:0;font:inherit;font-size:15px;padding:8px 12px;border:2.5px solid #1d1a24;border-radius:12px;background:#ffffff;color:#1d1a24}
 .lw-in input:focus-visible{outline:3px solid var(--hot);outline-offset:2px}
 .vb small{font-size:10.5px;color:#c2185b;font-weight:700}
+.vb small.clm{color:#1f78b4}
+.tk-nm em{font-style:normal;color:#9fd3ff}
 .vb:hover:not(:disabled){background:#fff0f7}
 @media (max-width:620px){.vt-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.stage .vb canvas{width:44px;height:44px}.narr p{font-size:19px}}
 .whois{position:absolute;inset:0;background:rgba(14,16,26,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:14px;overflow:auto}
@@ -366,7 +368,7 @@ button[aria-pressed="true"]{background:var(--lime)}
         <h3>기본</h3>
         <p>입김은 <b>얼굴 앞</b>에서, 방구는 <b>엉덩이 뒤</b>에서 나와요. 겉보기엔 똑같아요.</p>
         <p>진범은 라운드마다 한 번 몰래 뀌어요. 냄새 구름에 얼굴이 닿은 사람은 찡그리고, 밤에 <b>기절자</b>로 발표돼요.</p>
-        <p>밤이 지나면 회의 시간이에요. 한마디씩 하는데, 나는 <b>지목·증거 대기·변호·해명</b> 중 하나를 골라 사람들을 설득해요. 증거는 능력을 써 본 사람이 대야 더 잘 먹혀요. 그다음 투표해요. 3표 이상 받은 단독 1등이 신고되고, 동점이면 결선을 해요. 마지막 밤까지 못 잡으면 진범이 이겨요.</p>
+        <p>밤이 지나면 회의 시간이에요. 한마디씩 하는데, 나는 <b>지목·증거 대기·변호·해명</b> 중 하나를 골라 사람들을 설득해요. 증거는 능력을 써 본 사람이 대야 더 잘 먹혀요. <b>역할 주장</b>("저 경비 아저씨예요")도 한 번 할 수 있는데, 거짓말도 돼요. 같은 역할을 두 명이 주장하면 둘 중 하나는 거짓말쟁이예요. 그다음 투표해요. 3표 이상 받은 단독 1등이 신고되고, 동점이면 결선을 해요. 마지막 밤까지 못 잡으면 진범이 이겨요.</p>
         <h3>이동</h3>
         <p>방향키나 WASD, 폰은 아래 조이스틱. 방구 팀은 자유롭게 다니고, 시민 팀은 떠밀려 다니면서 조금만 조종돼요. 내 캐릭터 머리 위에는 초록 화살표가 있어요.</p>
         <h3>역할</h3>
@@ -680,7 +682,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     updateMeter(); setBig(''); setCaps(''); again.hidden = true;
     lensLeft = 1; lensT = 0; updateLensBtn();
     cleared = new Set(); roundSmelled = new Set(); narrEl.hidden = true; voteEl.hidden = true; reviewing = false; myIdx = -1; myRole = '';
-    resultSaved = false; reveal.hidden = true; $('howto').hidden = true; $('talk').hidden = true; talkTimers.forEach(clearTimeout); talkTimers = []; sway = [];
+    resultSaved = false; reveal.hidden = true; $('howto').hidden = true; $('talk').hidden = true; talkTimers.forEach(clearTimeout); talkTimers = []; sway = []; claims = {};
     if (toTitle) { mode = 'intro'; showTitle(); return; }
     $('titleScr').hidden = true;
     narrate(TX().intro, () => { mode = 'intro'; showReveal(); });
@@ -1222,6 +1224,7 @@ button[aria-pressed="true"]{background:var(--lime)}
       whTimers.push(setTimeout(() => {
         o.el.classList.remove('drum');
         o.rl.textContent = ROLE_NAME[o.k]; o.rl.classList.add('on'); o.q.textContent = quip(o.i, o.k); o.el.classList.add('revealed');
+        if (claims[o.i]) o.q.textContent += ` · 주장: ${ROLE_NAME[claims[o.i]]}${claims[o.i] === o.k ? ' (진짜)' : ' (거짓말!)'}`;
         o.el.querySelector('.wl').textContent = `"${lineOf(o.i, o.k)}"`;
         if ((o.i === accused || cleared.has(o.i)) && o.k !== 'culprit') { const st = document.createElement('span'); st.className = 'stamp'; st.textContent = '억울함 100%'; o.el.append(st); }
         else if (o.i === tapFailed) { const st = document.createElement('span'); st.className = 'stamp'; st.textContent = '엉덩이 맞음'; o.el.append(st); }
@@ -2048,7 +2051,8 @@ button[aria-pressed="true"]{background:var(--lime)}
   }
   // ---------- meeting: everyone says one thing before the vote ----------
   const talkEl = $('talk'), tkLog = $('tkLog'), tkAct = $('tkAct');
-  let sway = [], talkTimers = [];
+  let sway = [], talkTimers = [], claims = {};
+  const CLAIMABLE = ['sniffer', 'cctv', 'seeker'];
   const reul = w => w + (hasBatchim(w) ? '을' : '를');
   const wpick = (a, w) => { let tot = 0; const ws = a.map(i => (tot += w(i))); const x = Math.random() * tot; return a[ws.findIndex(c => c >= x)]; };
   const TALK = {
@@ -2070,6 +2074,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     const cc = document.createElement('canvas'); cc.width = 160; cc.height = 160; cc.setAttribute('aria-hidden', 'true'); paintChar(cc, i);
     const box = document.createElement('div'); box.className = 'tk-box';
     const nm = document.createElement('div'); nm.className = 'tk-nm'; nm.textContent = chars[i].name + (i === myIdx ? ' (나)' : '');
+    if (claims[i]) { const em = document.createElement('em'); em.textContent = ` · 자칭 ${ROLE_NAME[claims[i]]}`; nm.append(em); }
     const bub = document.createElement('div'); bub.className = 'tk-bub'; bub.textContent = text;
     box.append(nm, bub); row.append(cc, box); tkLog.append(row); tkLog.scrollTop = tkLog.scrollHeight;
     sfx(.05);
@@ -2081,9 +2086,47 @@ button[aria-pressed="true"]{background:var(--lime)}
     sway = chars.map(() => 0); talkTimers.forEach(clearTimeout); talkTimers = [];
     statusEl.textContent = '회의 시간: 한마디 해서 사람들을 설득하세요.';
     tkHint('다른 사람들 말을 들어 보세요…');
+    let d = 500;
+    const claimer = botClaimer();
+    if (claimer >= 0) { const [i, role] = claimer; later(d, () => claimRole(i, role)); d += 1200; const rv = claimConflict(i, role); if (rv >= 0 && rv !== myIdx) d += 1200; }
     const speakers = alive().filter(i => i !== myIdx).sort(() => Math.random() - .5).slice(0, 2);
-    speakers.forEach((i, k) => later(500 + k * 1200, () => botOpen(i)));
-    later(700 + speakers.length * 1200, myTurn);
+    speakers.forEach((i, k) => later(d + k * 1200, () => botOpen(i)));
+    later(d + 200 + speakers.length * 1200, myTurn);
+  }
+  // ---- role claims: "I'm the CCTV guy" (true or not). two claims for one job = someone is lying
+  function botClaimer() {
+    const c = alive().filter(i => i !== myIdx && !claims[i]).sort(() => Math.random() - .5);
+    for (const i of c) {
+      if ((i === snifferIdx || i === cctvIdx) && Math.random() < .35) return [i, roleOf(i)];
+      if ((i === culprit || (i === helperIdx && accomplice)) && Math.random() < .2) return [i, pick(['sniffer', 'cctv'])];
+    }
+    return -1;
+  }
+  const CLAIM_LINE = {
+    sniffer: ['사실 저 냄새 감별사예요. 돋보기 갖고 있어요.', '밝힐게요. 저 냄새 감별사예요.'],
+    cctv: ['저 경비 아저씨예요. CCTV 다 보고 있어요.', '말 안 하려 했는데, 저 경비 아저씨예요.'],
+    seeker: ['저는 그냥 무취 시민이에요. 코만 믿어요.', '저 평범한 무취 시민이에요. 진짜로요.']
+  };
+  // another living person claiming the same special job (the real one always objects)
+  function claimConflict(i, role) {
+    if (role === 'seeker') return -1;
+    const holder = role === 'sniffer' ? snifferIdx : cctvIdx;
+    if (holder !== i && !cleared.has(holder)) return holder;
+    const other = alive().find(j => j !== i && claims[j] === role);
+    return other === undefined ? -1 : other;
+  }
+  function claimRole(i, role) {
+    let rival = claimConflict(i, role);
+    if (rival === myIdx && !claims[myIdx]) rival = -1; // a bot took MY real job; I can call it out on my turn
+    claims[i] = role;
+    tkSay(i, pick(CLAIM_LINE[role]));
+    if (rival >= 0) {
+      later(1100, () => {
+        if (rival === myIdx) tkSay(i, `${ga(chars[myIdx].name)} 거짓말하는 거예요!`);
+        else { claims[rival] = claims[rival] || role; tkSay(rival, `뭐라고요?! 제가 진짜 ${ROLE_NAME[role]}인데요!`); }
+      });
+      sway[i] += 1.5; sway[rival] += 1.5; // one of them is lying
+    } else sway[i] -= role === 'seeker' ? .3 : 1.2;
   }
   function botOpen(i) {
     const fartSide = i === culprit || (i === helperIdx && accomplice);
@@ -2091,10 +2134,13 @@ button[aria-pressed="true"]{background:var(--lime)}
     if (!pool.length || Math.random() < .25) { tkSay(i, pick(TALK.shrug)); return; }
     const faint = lastFaint.filter(j => pool.includes(j));
     const t = faint.length && Math.random() < .6 ? pick(faint) : pick(pool);
-    sway[t] += 1; tkSay(i, pick(TALK.accuse)(chars[t].name));
+    sway[t] += claims[i] && claims[i] !== 'seeker' ? 2 : 1; tkSay(i, pick(TALK.accuse)(chars[t].name));
   }
   function usedTool() { return (myRole === 'seeker' && sniffLeft === 0) || (myRole === 'sniffer' && lensLeft === 0) || (myRole === 'cctv' && cctvLeft === 0); }
   function proofLine(n) {
+    const r = claims[myIdx] && claims[myIdx] !== 'seeker' ? claims[myIdx] : myRole; // a claimed job talks like that job
+    if (r === 'sniffer') return `돋보기로 봤어요. ${n} 엉덩이에서 노란 김이 나왔어요!`;
+    if (r === 'cctv') return `CCTV 돌려봤는데 ${ga(n)} 뀌는 장면이 찍혔어요.`;
     if (myRole === 'seeker') return `킁킁 해 봤는데 ${n} 엉덩이 진짜 구렸어요!!`;
     if (myRole === 'sniffer') return `돋보기로 봤어요. ${n} 엉덩이에서 노란 김이 나왔어요!`;
     if (myRole === 'cctv') return `CCTV 돌려봤는데 ${ga(n)} 뀌는 장면이 찍혔어요.`;
@@ -2104,11 +2150,24 @@ button[aria-pressed="true"]{background:var(--lime)}
     tkAct.textContent = '';
     if (cleared.has(myIdx)) { tkHint('억울함 인증을 받아서 발언권이 없어요.'); later(900, () => tkButton('투표하러 가기', toVote, 'tk-go')); return; }
     tkHint('내 차례! 한마디 해서 표를 움직여 보세요.');
+    if (!claims[myIdx]) tkButton('역할 주장하기', pickClaim);
     tkButton('지목하기', () => pickWho('accuse'));
     tkButton('증거 대기', () => pickWho('proof'));
     tkButton('변호하기', () => pickWho('defend'));
     tkButton('해명하기', () => doTalk('alibi', myIdx));
     tkButton('조용히 있기', () => doTalk('quiet', -1));
+  }
+  function pickClaim() {
+    tkAct.textContent = '';
+    tkHint('나는 ○○다! 거짓말이어도 돼요. (주장은 한 판에 1번, 발언 기회는 그대로)');
+    CLAIMABLE.forEach(r => tkButton(ROLE_NAME[r], () => {
+      tkAct.textContent = '';
+      const rival = claimConflict(myIdx, r);
+      claimRole(myIdx, r);
+      if (rival < 0) later(1000, () => { const by = alive().filter(i => i !== myIdx)[0]; if (by !== undefined && r !== 'seeker') tkSay(pick(alive().filter(i => i !== myIdx)), pick(['오, 그럼 믿을 만하겠네요.', '그래요? 그럼 누가 범인이에요?', '흠… 일단 믿어 볼게요.'])); });
+      later(rival >= 0 ? 2400 : 2100, myTurn);
+    }));
+    tkButton('뒤로', myTurn);
   }
   function pickWho(kind) {
     tkAct.textContent = '';
@@ -2120,7 +2179,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     tkAct.textContent = '';
     const n = t >= 0 ? chars[t].name : '';
     if (kind === 'accuse') { tkSay(myIdx, pick(TALK.myAccuse)(n)); sway[t] += 2.5; }
-    else if (kind === 'proof') { tkSay(myIdx, proofLine(n)); sway[t] += usedTool() ? 4 : 2; }
+    else if (kind === 'proof') { tkSay(myIdx, proofLine(n)); sway[t] += (usedTool() ? 4 : 2) + (claims[myIdx] && claims[myIdx] !== 'seeker' ? 1 : 0); }
     else if (kind === 'defend') { tkSay(myIdx, pick(TALK.defend)(n)); sway[t] -= 2.5; }
     else if (kind === 'alibi') { tkSay(myIdx, pick(TALK.alibi)); sway[myIdx] -= 2.5; }
     else tkSay(myIdx, '…… (조용히 숨만 쉰다)');
@@ -2157,6 +2216,7 @@ button[aria-pressed="true"]{background:var(--lime)}
       const nm = document.createElement('span'); nm.textContent = c.name + (i === myIdx ? ' (나)' : '');
       b.append(cc, nm);
       if (cleared.has(i)) { b.disabled = true; const t = document.createElement('small'); t.textContent = '억울함 인증'; b.append(t); }
+      else if (claims[i]) { const t = document.createElement('small'); t.className = 'clm'; t.textContent = `자칭 ${ROLE_NAME[claims[i]]}`; b.append(t); }
       b.dataset.i = i;
       b.addEventListener('click', () => castVote(i));
       if (duel) {
