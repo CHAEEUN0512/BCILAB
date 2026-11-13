@@ -274,6 +274,13 @@ h1{
   color:var(--hot);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;
   text-shadow:4px 4px 0 var(--ink);transform:rotate(-4deg);padding:0 16px;
 }
+.confirm{position:absolute;inset:0;z-index:9;background:rgba(14,16,26,.7);display:flex;align-items:center;justify-content:center;padding:16px}
+.cf-in{background:var(--paper);border:2.5px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 #000;padding:16px 18px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;width:min(320px,100%)}
+.cf-in b{font-family:var(--font-loud);font-weight:400;font-size:22px}
+.cf-in span{font-size:14px;color:#3b3646}
+.cf-btns{display:flex;gap:10px;margin-top:8px}
+.cf-btns #cfNo{background:var(--lime)}
+.cf-btns button{font-size:15px;padding:8px 14px}
 .toast{position:absolute;left:50%;top:12px;translate:-50% 0;z-index:4;width:min(440px,calc(100% - 24px));box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 14px;border:2.5px solid var(--ink);border-radius:14px;box-shadow:3px 3px 0 var(--ink);background:var(--paper);text-align:center;pointer-events:none;animation:toastIn .35s cubic-bezier(.3,1.6,.5,1)}
 .toast b{font-family:var(--font-loud);font-weight:400;font-size:22px;line-height:1.15}
 .toast span{font-size:13px;line-height:1.4;color:#3b3646}
@@ -347,6 +354,13 @@ button[aria-pressed="true"]{background:var(--lime)}
   <div class="stage">
     <canvas id="cv" role="img" aria-label="눈밭에서 롱패딩 입은 사람 여섯 명이 돌아다니며 입김을 뿜는 게임 화면. 그중 한 명은 몰래 방구를 뀝니다."></canvas>
     <div class="big" id="big" hidden></div>
+    <div class="confirm" id="confirm" hidden>
+      <div class="cf-in">
+        <b id="cfTitle">처음부터 다시 할까요?</b>
+        <span>지금 하던 판은 사라져요.</span>
+        <div class="cf-btns"><button type="button" id="cfNo">계속하기</button><button type="button" id="cfYes">그만하고 나가기</button></div>
+      </div>
+    </div>
     <div class="toast" id="toast" hidden><b id="toastT"></b><span id="toastS"></span></div>
     <div class="caps">
       <div class="cap-main" id="capMain" hidden></div>
@@ -690,7 +704,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     updateMeter(); setBig(''); setCaps(''); again.hidden = true;
     lensLeft = 1; lensT = 0; updateLensBtn();
     cleared = new Set(); roundSmelled = new Set(); narrEl.hidden = true; voteEl.hidden = true; reviewing = false; myIdx = -1; myRole = '';
-    resultSaved = false; $('toast').hidden = true; reveal.hidden = true; $('howto').hidden = true; $('talk').hidden = true; talkTimers.forEach(clearTimeout); talkTimers = []; sway = []; claims = {};
+    resultSaved = false; $('toast').hidden = true; $('confirm').hidden = true; reveal.hidden = true; $('howto').hidden = true; $('talk').hidden = true; talkTimers.forEach(clearTimeout); talkTimers = []; sway = []; claims = {};
     if (toTitle) { mode = 'intro'; showTitle(); return; }
     $('titleScr').hidden = true;
     narrate(TX().intro, () => { mode = 'intro'; showReveal(); });
@@ -2318,7 +2332,16 @@ button[aria-pressed="true"]{background:var(--lime)}
     const r = cv.getBoundingClientRect();
     lensTX = e.clientX - r.left; lensTY = e.clientY - r.top;
   });
-  $('restart').addEventListener('click', reset);
+  // leaving a game in progress needs a second tap (too easy to hit by accident)
+  let cfAction = null;
+  const midGame = () => myIdx >= 0 && whois.hidden;
+  function askLeave(title, action) {
+    if (!midGame()) { action(); return; }
+    cfAction = action; $('cfTitle').textContent = title; $('confirm').hidden = false;
+  }
+  $('cfNo').addEventListener('click', () => { $('confirm').hidden = true; cfAction = null; });
+  $('cfYes').addEventListener('click', () => { $('confirm').hidden = true; const a = cfAction; cfAction = null; if (a) a(); });
+  $('restart').addEventListener('click', () => askLeave('처음부터 다시 할까요?', () => reset()));
   document.querySelectorAll('.rd:not(.mp)').forEach(b => b.addEventListener('click', () => {
     rounds = +b.dataset.r;
     document.querySelectorAll('.rd:not(.mp)').forEach(o => o.setAttribute('aria-pressed', String(o === b)));
@@ -2332,7 +2355,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     statusEl.textContent = '맵과 길이를 고르고 시작하세요.';
   }
   $('ttGo').addEventListener('click', () => reset());
-  $('home').addEventListener('click', () => reset(true));
+  $('home').addEventListener('click', () => askLeave('메인 화면으로 갈까요?', () => reset(true)));
   const openHow = () => { $('howto').hidden = false; };
   $('ttHow').addEventListener('click', openHow); $('howBtn').addEventListener('click', openHow);
   $('htClose').addEventListener('click', () => { $('howto').hidden = true; });
@@ -2340,7 +2363,9 @@ button[aria-pressed="true"]{background:var(--lime)}
 
   // ---------- update ----------
   let exec = { cx: 0, cy: 0, k: 1 };
+  const confirmEl = $('confirm');
   function update(dt) {
+    if (!confirmEl.hidden) return; // paused while asking "really leave?"
     T += dt; mt += dt;
     if (rvLock > 0) {
       rvLock -= dt; const b = $('rvGo');
