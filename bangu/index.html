@@ -1,0 +1,2911 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="방구 찾기">
+<meta name="theme-color" content="#eaf1f6">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<title>방구 뀐 놈을 찾아라</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Nanum+Myeongjo:wght@800&family=Noto+Sans+KR:wght@400;600;700&display=swap">
+<style>
+/* Layout: one scribbled "stage" canvas framed like a sticker, doodle HUD above, chunky buttons below.
+   Single deliberate look (snowfield + neon potatoes), so colors are set explicitly for both host themes. */
+:root{
+  --snow:#eaf1f6;
+  --ink:#1d1a24;
+  --paper:#fffef6;
+  --hot:#ff3ea5;
+  --lime:#b6ff3b;
+  --fart:#ffe27a;
+  --font-doodle:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --font-serious:"Nanum Myeongjo","AppleMyungjo","Batang",serif;
+  --font-loud:"Jua","Noto Sans KR","Apple SD Gothic Neo",sans-serif;
+  color-scheme:light;
+}
+[hidden]{display:none!important}
+html,body{background:var(--snow);color:var(--ink)}
+body{word-break:keep-all;overflow-wrap:break-word}
+body{
+  font-family:var(--font-doodle);
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:16px 28px;
+}
+.wrap{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 16px}
+h1{
+  margin:0;font-family:var(--font-loud);font-weight:400;
+  font-size:clamp(30px,6.4vw,56px);line-height:1;
+  text-shadow:3px 3px 0 var(--hot);
+  text-wrap:balance;
+}
+.tag{
+  font-size:14px;font-weight:600;background:var(--lime);border:2px solid var(--ink);
+  padding:4px 12px;border-radius:999px;
+}
+.hud{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;font-size:16px;font-weight:600}
+.meter{display:flex;gap:6px;align-items:center}
+.dot{width:22px;height:22px;border:2.5px solid var(--ink);border-radius:50%;background:var(--paper);transition:background .2s,transform .2s}
+.dot.on{background:var(--fart);transform:scale(1.1)}
+.status{color:#5b5566}
+.mpad{display:none;align-items:center;justify-content:space-between;gap:16px}
+.mact{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;flex:1;min-width:0}
+.mact button{padding:12px 6px;font-size:14px;border-radius:14px;white-space:nowrap}
+.mact #fartBtn{grid-column:1 / -1;padding:14px 6px;font-size:16px;background:#fff1c2}
+.mact button[hidden]{display:none}
+.joy{box-sizing:border-box;flex:none;position:relative;width:132px;height:132px;margin:0;border-radius:50%;background:radial-gradient(circle,#ffffff 0 40%,#e3ebf2 41%);border:3px solid var(--ink);touch-action:none;user-select:none;-webkit-user-select:none}
+.joy::before{content:"";position:absolute;inset:14px;border-radius:50%;border:2px dashed rgba(29,26,36,.25)}
+.joy-knob{box-sizing:border-box;position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:var(--lime);border:3px solid var(--ink);pointer-events:none}
+.joy.on .joy-knob{background:#d6ff8a}
+@media (hover:none),(max-width:620px){.mpad{display:flex}}
+.dots{display:flex;gap:6px}
+.round{font-weight:700;font-size:14px;background:var(--paper);border:2px solid var(--ink);border-radius:999px;padding:2px 10px;font-variant-numeric:tabular-nums}
+.seg{display:inline-flex;border:2.5px solid var(--ink);border-radius:12px;box-shadow:3px 3px 0 var(--ink);overflow:hidden;background:var(--paper)}
+.seg .rd,.seg .rd:hover{border:0;border-radius:0;box-shadow:none;margin:0}
+.seg .rd + .rd{border-left:2.5px solid var(--ink)}
+.seg .rd:active{transform:none;box-shadow:none}
+.seg .rd[aria-pressed="true"]{background:var(--lime)}
+.cctv-pick{position:absolute;left:12px;right:12px;bottom:12px;background:rgba(16,20,28,.94);color:#e9f1ea;border:2px solid #000;border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.cctv-pick .ttl{font-weight:700}
+.punish{position:absolute;inset:0;background:rgba(20,16,36,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;text-align:center}
+.pn-title{font-family:var(--font-loud);color:#ff3ea5;font-size:clamp(28px,5vw,44px);text-shadow:3px 3px 0 #000000}
+.pn-sub{color:#ffffff;font-size:15px;font-weight:600}
+.pn-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:min(400px,100%)}
+.pn-grid[hidden]{display:none}
+.pn-grid button{font-size:15px;padding:12px 8px}
+.pn-grid button.picked{background:var(--lime);opacity:1}
+.pn-picks{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:560px}
+.pn-chip{background:#ffffff;color:#1d1a24;border:2px solid #000000;border-radius:999px;font-size:12.5px;font-weight:700;padding:3px 10px}
+.pn-chip.me{background:var(--lime)}
+@media (max-width:620px){.pn-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.news{position:absolute;inset:0;background:#0d0f16;display:flex;align-items:center;justify-content:center;padding:16px;cursor:pointer;overflow:hidden}
+.nw-slide{display:none;width:min(620px,100%)}
+.nw-slide.on{display:block;animation:pop .35s cubic-bezier(.3,1.4,.5,1)}
+.city{position:relative;height:clamp(300px,46vw,400px);border:4px solid #000000;border-radius:14px;overflow:hidden;box-shadow:6px 6px 0 #000000;background:linear-gradient(#141833,#33295a 65%,#23222f 65%,#2c2b3a)}
+.city-in{position:absolute;inset:0;transform-origin:50% 32%;animation:pushin 4.2s ease-in-out both}
+@keyframes pushin{from{transform:scale(.94)}to{transform:scale(1.06)}}
+.moon{position:absolute;right:8%;top:6%;width:34px;height:34px;border-radius:50%;background:#fff5c2;box-shadow:0 0 24px rgba(255,245,194,.6)}
+.bldg{position:absolute;bottom:35%;background-color:#252a47;border:3px solid #000000;background-image:repeating-linear-gradient(90deg,transparent 0 16px,rgba(255,220,120,.18) 16px 24px,transparent 24px 32px),repeating-linear-gradient(0deg,transparent 0 14px,rgba(0,0,0,.35) 14px 18px)}
+.b1{left:2%;width:14%;height:44%;--d:18px;filter:brightness(.8)}.b3{right:5%;width:14%;height:38%;--d:16px;filter:brightness(.8)}
+.b2{left:20%;right:21%;height:56%;background-color:#2b3154;--d:30px}
+/* pseudo-3D: a receding side wall and a rooftop on every building */
+.bldg::after{content:"";position:absolute;top:-3px;left:100%;width:var(--d);height:calc(100% + 3px);border:3px solid #000000;border-left:0;transform:skewY(-40deg);transform-origin:0 0;background-color:#171b33;background-image:repeating-linear-gradient(0deg,transparent 0 14px,rgba(0,0,0,.4) 14px 18px),repeating-linear-gradient(90deg,transparent 0 5px,rgba(255,220,120,.12) 5px 9px)}
+.bldg::before{content:"";position:absolute;bottom:100%;left:-3px;width:calc(100% + 6px);height:calc(var(--d) * .84);border:3px solid #000000;border-bottom:0;transform:skewX(-50deg);transform-origin:0 100%;background:linear-gradient(90deg,#3d4470,#2f355a)}
+.b2::before{background:linear-gradient(90deg,#4a5288,#363d68)}
+.street-glow{position:absolute;left:12%;right:12%;bottom:0;height:36%;background:radial-gradient(ellipse at 50% 0%,rgba(120,180,255,.35),rgba(120,180,255,0) 70%);pointer-events:none}
+.curb{position:absolute;left:0;right:0;bottom:35%;height:6px;background:#444560;border-top:2px solid #000000}
+.jumbo{position:absolute;left:7%;right:7%;top:8%;bottom:12%;background:#0f1220;border:4px solid #000000;border-radius:6px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 0 34px rgba(120,180,255,.55);animation:flick .7s steps(4) 1}
+.jumbo::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.06) 0 1px,transparent 1px 3px)}
+@keyframes flick{0%{filter:brightness(3)}40%{filter:brightness(.3)}70%{filter:brightness(1.6)}100%{filter:none}}
+.jb-top{display:flex;justify-content:space-between;align-items:center;padding:3px 6px;background:#11151f;color:#cfd6e6;font-size:10px;font-weight:700}
+.jb-body{position:relative;flex:1;min-height:0;background:linear-gradient(#3b4a63,#232b3b);display:flex;align-items:center;justify-content:center}
+.stage .city canvas{position:static;inset:auto;display:block;cursor:inherit}
+.stage .jb-body canvas{width:64px;height:64px}
+.jb-body .mug{font-size:10px;padding:1px 6px;left:6px;top:5px}
+.jb-cap{display:flex;align-items:center;gap:6px;background:#ffffff;color:#111111;padding:4px 6px;font-size:clamp(10px,1.6vw,13px);word-break:keep-all}
+.jb-cap .breaking{font-size:11px;padding:1px 5px}
+.jumbo .ticker{font-size:10px;padding:3px 0}
+.crowd{position:absolute;left:0;right:0;bottom:6%;display:flex;justify-content:center;gap:3%}
+.cw:nth-child(even) .cwb{margin-bottom:20px}
+.cw{position:relative;display:flex;flex-direction:column;align-items:center}
+.stage .cw canvas{width:58px;height:58px}
+.cwb{position:absolute;bottom:100%;white-space:nowrap;background:#ffffff;border:2px solid #000000;border-radius:10px;padding:1px 7px;font-size:12px;font-weight:700;animation:pop .4s both}
+@media (max-width:620px){.crowd{gap:1%;bottom:8%}.stage .cw canvas{width:40px;height:40px}.cwb{font-size:10px;padding:1px 5px}.stage .jb-body canvas{width:44px;height:44px}}
+.tv{background:#1b2030;border:4px solid #000000;border-radius:14px;overflow:hidden;box-shadow:6px 6px 0 #000000}
+.tv-top{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#11151f;color:#cfd6e6;font-size:12px;font-weight:700}
+.live{background:#e53935;color:#ffffff;padding:1px 6px;border-radius:3px}
+.tv-body{position:relative;height:clamp(140px,28vw,220px);background:linear-gradient(#3b4a63,#232b3b);display:flex;align-items:center;justify-content:center}
+.stage .tv-body canvas,.stage .street canvas{position:static;inset:auto;display:block;width:120px;height:120px;cursor:inherit}
+.mug{position:absolute;left:12px;top:10px;background:#ffeb3b;color:#000000;font-weight:800;font-size:12px;padding:2px 8px}
+.tv-cap{display:flex;align-items:center;gap:8px;background:#ffffff;color:#111111;padding:8px 10px;font-size:clamp(14px,2.4vw,19px);word-break:keep-all}
+.breaking{background:#e53935;color:#ffffff;font-weight:800;padding:2px 8px;border-radius:3px;flex:none}
+.ticker{background:#0b57d0;color:#ffffff;font-size:13px;white-space:nowrap;overflow:hidden;padding:5px 0}
+.ticker span{display:inline-block;padding-left:100%;animation:tick 10s linear infinite}
+@keyframes tick{to{transform:translateX(-100%)}}
+.rank{background:#ffffff;border:4px solid #000000;border-radius:14px;padding:14px 18px;box-shadow:6px 6px 0 #000000}
+.rk-title{font-weight:800;font-size:16px;margin-bottom:4px}
+.rank ol{margin:0;padding-left:1.6em;font-size:16px;line-height:1.9}
+.rank li b{color:#e53935;font-size:12px;margin-left:8px}
+.feed{display:flex;flex-direction:column;gap:8px}
+.post{background:#ffffff;border:3px solid #000000;border-radius:12px;padding:8px 12px;font-size:14px;box-shadow:3px 3px 0 #000000;animation:slidein .4s both}
+.post b{display:block;font-size:12px;color:#6b7280}
+@keyframes slidein{from{transform:translateX(-30px);opacity:0}to{transform:none;opacity:1}}
+.street{position:relative;height:clamp(240px,40vw,320px);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.wsp{position:absolute;background:#ffffff;border:2px solid #000000;border-radius:12px;padding:3px 9px;font-size:13px;font-weight:700;white-space:nowrap;animation:pop .4s both}
+.st-cap{color:#ffffff;font-family:var(--font-serious);font-weight:800;font-size:clamp(16px,2.8vw,24px);margin:10px 0 0;text-align:center}
+@media (prefers-reduced-motion:reduce){.ticker span,.post,.wsp,.nw-slide.on,.city-in,.jumbo,.cwb{animation:none}}
+.narr{position:absolute;inset:0;background:rgba(8,10,16,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;cursor:pointer;text-align:center}
+.narr p{margin:0;font-family:var(--font-serious);font-weight:800;color:#ffffff;font-size:clamp(18px,3.2vw,30px);line-height:1.55;max-width:26ch;min-height:3.1em;text-wrap:balance;word-break:keep-all}
+.stage .narr canvas{position:static;inset:auto;display:block;width:96px;height:96px;cursor:inherit}
+.narr-hint{position:absolute;right:16px;bottom:12px;color:#8e97a8;font-size:12px}
+.vote{position:absolute;inset:0;background:rgba(14,16,26,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:14px;overflow:auto}
+.vt-title{font-family:var(--font-loud);color:#ffffff;font-size:clamp(20px,3.4vw,30px);text-align:center}
+.vt-sub{color:#ffe27a;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.vt-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;width:min(760px,100%)}
+.vb{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px 10px;min-width:0;font-size:13px}
+.stage .vb canvas{position:static;inset:auto;display:block;width:64px;height:64px;cursor:inherit}
+.vb{position:relative}
+.vcount{position:absolute;top:-9px;right:-9px;background:var(--hot);color:#ffffff;border:2px solid var(--ink);border-radius:999px;font-weight:800;font-size:12px;padding:1px 8px;animation:pop .35s both}
+.vb.mine{outline:3px solid var(--lime);outline-offset:2px}
+.vb:disabled{opacity:1}
+.vt-rule{color:#cfd6e6;font-size:12px}
+.vote.lw .vt-grid{--g:clamp(40px,12vw,120px);margin-top:100px;gap:var(--g)}
+.lwb{box-sizing:border-box;position:absolute;bottom:calc(100% + 14px);width:max-content;min-width:120px;max-width:min(260px,calc(100% + var(--g,40px) - 28px));padding:8px 12px;background:#ffffff;color:#1d1a24;border:2.5px solid #1d1a24;border-radius:16px;box-shadow:3px 3px 0 #000000;font-size:14px;font-weight:700;line-height:1.4;text-align:center;word-break:keep-all;text-wrap:balance;animation:pop .35s both}
+.lwb::after{content:"";position:absolute;top:100%;width:0;height:0;border:9px solid transparent;border-top-color:#1d1a24}
+.lwb.l,.lwb.r{left:50%;translate:-50% 0}
+.lwb.l::after,.lwb.r::after{left:50%;margin-left:-9px}
+.lwb.wait{color:#8a8f9c}
+.lw-in{display:flex;gap:8px;width:min(420px,100%)}
+@media (max-width:620px){.vote.lw .vt-grid{gap:12px;margin-top:0}.vote.lw .vb{justify-content:flex-start;padding:8px 8px 10px}.lwb,.lwb.l,.lwb.r{position:relative;left:auto;right:auto;bottom:auto;translate:none;order:-1;width:auto;min-width:0;max-width:none;margin-bottom:10px;font-size:12.5px;padding:6px 9px;text-align:center;box-shadow:none}.lwb.l::after,.lwb.r::after{left:50%;right:auto;margin-left:-9px}}
+.lw-in input{flex:1;min-width:0;font:inherit;font-size:15px;padding:8px 12px;border:2.5px solid #1d1a24;border-radius:12px;background:#ffffff;color:#1d1a24}
+.lw-in input:focus-visible{outline:3px solid var(--hot);outline-offset:2px}
+.vb small{font-size:10.5px;color:#c2185b;font-weight:700}
+.vb:hover:not(:disabled){background:#fff0f7}
+@media (max-width:620px){.vt-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.stage .vb canvas{width:44px;height:44px}.narr p{font-size:19px}}
+.whois{position:absolute;inset:0;background:rgba(14,16,26,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:14px;overflow:auto}
+.wh-title{font-family:var(--font-loud);color:#ffffff;font-size:clamp(20px,3.4vw,30px);text-align:center}
+.wh-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;width:min(720px,100%)}
+.wc{position:relative;min-width:0;background:var(--paper);border:2.5px solid var(--ink);border-radius:14px;box-shadow:3px 3px 0 #000;padding:8px 8px 10px;display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center}
+.whois .wc canvas{position:static;inset:auto;display:block;width:64px;height:64px;cursor:default}
+.wc b{font-size:14px}
+.wc .rl{font-family:var(--font-loud);font-size:18px;line-height:1.25;color:#9aa0aa}
+.wc .rl.on{animation:pop .45s cubic-bezier(.3,1.6,.5,1)}
+.wc.k-culprit .rl.on{color:var(--hot)}
+.wc.k-helper .rl.on,.wc.k-accomplice .rl.on{color:#c2185b}
+.wc.k-cctv .rl.on{color:#1f78b4}
+.wc.k-seeker .rl.on,.wc.k-sniffer .rl.on{color:#2f8a4a}
+.wc.k-culprit.revealed{background:#fff0f7;border-color:var(--hot)}
+.wc p{margin:0;font-size:11.5px;line-height:1.4;color:#3b3646;min-height:2.8em}
+.wc .wl{display:block;font-size:11px;line-height:1.35;color:#a03a74;font-style:normal;word-break:keep-all}
+.wc .me{position:absolute;top:-9px;left:-9px;background:var(--lime);border:2px solid var(--ink);border-radius:999px;font-size:11px;font-weight:700;padding:1px 8px}
+.wc .stamp{position:absolute;top:10px;right:-8px;transform:rotate(12deg);background:#ff3b3b;color:#ffffff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;box-shadow:2px 2px 0 #000}
+.wc.drum{animation:shake .1s linear infinite}
+@keyframes pop{0%{transform:scale(.3);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes shake{0%{transform:translate(-2px,0) rotate(-1deg)}50%{transform:translate(2px,0) rotate(1deg)}100%{transform:translate(-2px,0) rotate(-1deg)}}
+@media (max-width:620px){.whois{justify-content:flex-start;gap:8px;padding:10px}.wh-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.wc{padding:5px 6px 7px}.whois .wc canvas{width:40px;height:40px}.wc b{font-size:12.5px}.wc .rl{font-size:15px}.wc p{font-size:10.5px;min-height:0}}
+@media (prefers-reduced-motion:reduce){.wc.drum,.wc .rl.on{animation:none}}
+.reveal{position:absolute;inset:0;background:rgba(14,16,26,.72);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:14px}
+.rv-top{font-family:var(--font-loud);color:#ffffff;font-size:clamp(20px,3.4vw,28px)}
+.card{flex:none;height:min(520px,calc(100% - 130px));aspect-ratio:.68;max-width:88%;perspective:1100px;cursor:pointer;outline:none}
+.card:focus-visible .face{outline:3px solid var(--hot);outline-offset:3px}
+.card-in{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .7s cubic-bezier(.3,1.35,.5,1)}
+.card.flipped .card-in{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;border:3px solid var(--ink);border-radius:18px;box-shadow:5px 5px 0 #000;-webkit-backface-visibility:hidden;backface-visibility:hidden;overflow:hidden}
+.back{background:repeating-linear-gradient(45deg,#ff3ea5 0 14px,#ff6cbc 14px 28px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#ffffff}
+.back span{font-family:var(--font-loud);font-size:96px;line-height:1;text-shadow:4px 4px 0 var(--ink)}
+.back small{font-weight:700;font-size:13px}
+.front{background:var(--paper);transform:rotateY(180deg);display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 14px;text-align:center;overflow-y:auto}
+.front .team{font-size:12px;font-weight:700;padding:2px 10px;border-radius:999px;border:2px solid var(--ink)}
+.front.t-seek .team{background:#7ee0ff}
+.front.t-fart .team{background:#ff7ab8}
+.front .role{font-family:var(--font-loud);font-size:24px;line-height:1.15}
+.reveal .front canvas{position:static;inset:auto;display:block;width:68px;height:68px;flex:none;cursor:inherit}
+.front dl{margin:4px 0 0;display:grid;grid-template-columns:auto 1fr;gap:0 10px;text-align:left;font-size:12.5px;line-height:1.4;width:100%}
+.front dt,.front dd{padding:8px 0;border-top:1.5px dashed #e3d6e8}
+.front dt:first-of-type,.front dd:first-of-type{border-top:0;padding-top:2px}
+.front dt{font-weight:700;color:#a03a74}
+.front dd{margin:0;word-break:keep-all;overflow-wrap:break-word;text-wrap:pretty}
+.front dd .ab + .ab{margin-top:5px}
+.ab-top{display:flex;align-items:center;flex-wrap:wrap;gap:2px 6px}
+.ab-top b{font-weight:700}
+.ab-often{font-size:11px;font-weight:700;color:#a03a74;background:#fbeaf3;border-radius:999px;padding:0 7px}
+.ab-top kbd{font-family:inherit;font-size:10.5px;font-weight:700;border:1.5px solid var(--ink);border-radius:4px;padding:0 4px;line-height:1.35;background:#ffffff}
+.ab-what{color:#5b5566;font-size:11.5px}
+.front .lore{margin:auto -14px -12px;width:calc(100% + 28px);text-align:center;font-size:12.5px;line-height:1.45;background:#fff1f8;border-top:1.5px dashed #ff7ab8;border-radius:0 0 15px 15px;padding:9px 12px 11px}
+.rv-note{color:#ffe27a;font-size:13px;font-weight:600;text-align:center;max-width:36ch}
+@media (max-width:620px){.reveal{gap:6px;padding:8px}.rv-top{font-size:18px}.card{height:calc(100% - 104px);max-width:94%}.front{padding:10px 12px;gap:3px}.front .lore{margin:auto -12px -10px;width:calc(100% + 24px)}.stage .reveal .front canvas{width:36px;height:36px}.card{aspect-ratio:.64}.front .role{font-size:19px}.front dl{font-size:11.5px;gap:0 8px;line-height:1.35}.front dt,.front dd{padding:4px 0}.ab-what{font-size:10.5px;line-height:1.3}.front dd .ab + .ab{margin-top:3px}.front .role{margin-bottom:-2px}.front .lore{font-size:11px;padding:4px 7px}.rv-note{font-size:11.5px}}
+@media (prefers-reduced-motion:reduce){.card-in{transition:none}}
+.tl{position:relative;height:36px;background:#2a3340;border-radius:8px;cursor:pointer;touch-action:none;overflow:hidden}
+.tl-tick{position:absolute;top:0;bottom:0;width:2px;background:rgba(255,255,255,.28)}
+.tl-tick span{position:absolute;top:3px;left:5px;font-size:11px;color:#a9bbb0;white-space:nowrap}
+.tl-cut{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(45deg,#9aa3ad 0 4px,#5c6570 4px 8px);opacity:.9}
+.tl-cov{background:repeating-linear-gradient(45deg,#ff7ab8 0 4px,#b84a80 4px 8px)}
+.tl-win{z-index:2;position:absolute;top:0;bottom:0;min-width:6px;background:rgba(120,255,160,.32);border:2px solid #7dff9d;border-radius:6px}
+.tl-row{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.tl-btns{display:flex;gap:8px}
+.cctv-ctl{position:absolute;left:12px;right:12px;bottom:10px;z-index:6;display:flex;align-items:center;gap:10px;background:rgba(16,20,28,.88);color:#e8ffe9;border:2px solid #000;border-radius:12px;padding:6px 10px}
+.cctv-ctl[hidden]{display:none}
+.cb-track{flex:1;position:relative;height:30px;cursor:pointer;touch-action:none}
+.cb-rail{position:absolute;left:0;right:0;top:50%;height:8px;translate:0 -50%;background:rgba(232,255,233,.22);border-radius:4px;overflow:hidden}
+.cb-fill{height:100%;width:0;background:#7dff9d}
+.cb-knob{position:absolute;top:50%;left:0;width:20px;height:20px;box-sizing:border-box;border-radius:50%;background:#e8ffe9;border:2px solid #000;translate:-50% -50%}
+.cb-time{font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cctv-ctl button{font-size:13px;padding:5px 12px;box-shadow:2px 2px 0 #000;white-space:nowrap}
+.cctv-pick button{font-size:14px;padding:6px 14px;box-shadow:2px 2px 0 #000}
+.stage{
+  position:relative;aspect-ratio:16/10;max-width:100%;overflow:hidden;
+  border:3px solid var(--ink);border-radius:18px;
+  background:#dfeaf3;box-shadow:6px 6px 0 var(--ink);
+}
+@media (max-width:620px){.stage{aspect-ratio:3/4}}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair;touch-action:manipulation}
+.big{
+  position:absolute;left:0;right:0;top:7%;text-align:center;pointer-events:none;
+  font-family:var(--font-loud);font-size:clamp(38px,9vw,92px);line-height:1.05;
+  color:var(--hot);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;
+  text-shadow:4px 4px 0 var(--ink);transform:rotate(-4deg);padding:0 16px;
+}
+.caps{position:absolute;left:0;right:0;bottom:15%;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 16px;pointer-events:none;text-align:center}
+.cap-main{
+  display:inline-block;font-family:var(--font-serious);font-weight:800;
+  font-size:clamp(17px,3.4vw,30px);color:#ffffff;background:rgba(12,10,20,.74);
+  padding:4px 14px;border-radius:3px;letter-spacing:.02em;
+}
+.cap-sub{font-family:var(--font-serious);font-weight:800;font-size:clamp(13px,2.2vw,18px);color:#f1e9cf;text-shadow:0 1px 6px #000}
+.again{position:absolute;right:max(12px,env(safe-area-inset-right,0px));bottom:12px}
+.controls{display:flex;flex-wrap:wrap;gap:10px}
+button{
+  font-family:var(--font-doodle);font-size:16px;font-weight:600;line-height:1.2;color:var(--ink);
+  padding:9px 18px;background:var(--paper);border:2.5px solid var(--ink);
+  border-radius:12px;box-shadow:3px 3px 0 var(--ink);cursor:pointer;
+}
+button:hover{background:#fff3fa}
+button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+button:disabled{opacity:.55;cursor:default;transform:none;box-shadow:3px 3px 0 var(--ink)}
+button#lens[aria-pressed="true"]{background:var(--fart);opacity:1}
+button:focus-visible{outline:3px solid var(--hot);outline-offset:3px}
+button[aria-pressed="true"]{background:var(--lime)}
+.hint{margin:0;font-size:15px;line-height:1.65;max-width:68ch;color:#3b3646}
+.hint b{background:linear-gradient(transparent 55%,var(--fart) 55%);font-weight:700}
+@media (prefers-reduced-motion:reduce){.dot{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>방구 뀐 놈을 찾아라</h1>
+    <span class="tag" id="mapTag">설산 맵 · 화면 시안</span>
+  </header>
+
+  <div class="hud">
+    <div class="meter" aria-label="진범이 몰래 뀐 방구 횟수">
+      <span>진범의 방구</span>
+      <span class="dots" id="dots"></span>
+    </div>
+    <span class="round" id="roundInfo">1/3 라운드</span>
+    <span class="status" id="status">누가 뀌었을까…</span>
+  </div>
+
+  <div class="stage">
+    <canvas id="cv" role="img" aria-label="눈밭에서 롱패딩 입은 사람 여섯 명이 돌아다니며 입김을 뿜는 게임 화면. 그중 한 명은 몰래 방구를 뀝니다."></canvas>
+    <div class="big" id="big" hidden></div>
+    <div class="caps">
+      <div class="cap-main" id="capMain" hidden></div>
+      <div class="cap-sub" id="capSub" hidden></div>
+    </div>
+    <button class="again" id="again" type="button" hidden>정체 공개 →</button>
+    <div class="whois" id="whois" hidden>
+      <div class="wh-title" id="whTitle">누가 누구였을까?</div>
+      <div class="wh-grid" id="whGrid"></div>
+      <button id="whAgain" type="button" hidden>한 판 더</button>
+    </div>
+    <div class="reveal" id="reveal" hidden>
+      <div class="rv-top" id="rvTop">당신의 역할은…</div>
+      <div class="card" id="card" role="button" tabindex="0" aria-label="역할 카드 뒤집기">
+        <div class="card-in">
+          <div class="face back"><span>?</span><small>카드를 눌러 확인</small></div>
+          <div class="face front" id="cardFront">
+            <div class="team" id="cTeam">시민 팀</div>
+            <div class="role" id="cRole">무취 시민</div>
+            <canvas id="cChar" width="240" height="240" aria-hidden="true"></canvas>
+            <dl>
+              <dt>임무</dt><dd id="cMission"></dd>
+              <dt>능력</dt><dd id="cAbility"></dd>
+              <dt>이동</dt><dd id="cMove"></dd>
+              <dt>승리</dt><dd id="cWin"></dd>
+            </dl>
+            <div class="lore" id="cLore" hidden></div>
+          </div>
+        </div>
+      </div>
+      <div class="rv-note" id="rvNote" hidden>혼자 하는 시안이라 정답이 보일 수 있어요. 모른 척!</div>
+      <button id="rvGo" type="button" disabled>역할 확인 중…</button>
+    </div>
+    <div class="punish" id="punish" hidden>
+      <div class="pn-title">벌칙 시간!</div>
+      <div class="pn-sub" id="pnSub"></div>
+      <div class="pn-grid" id="pnGrid"></div>
+      <div class="pn-picks" id="pnPicks"></div>
+    </div>
+    <div class="news" id="news" hidden>
+      <div class="nw-slide">
+        <div class="city"><div class="city-in">
+          <div class="moon"></div>
+          <div class="bldg b1"></div><div class="bldg b3"></div>
+          <div class="bldg b2">
+            <div class="jumbo">
+              <div class="jb-top"><span class="live">LIVE</span><span>무취뉴스 24</span></div>
+              <div class="jb-body"><canvas id="jbChar" width="160" height="160" aria-hidden="true"></canvas><span class="mug">용의자</span></div>
+              <div class="jb-cap"><span class="breaking">속보</span><b id="jbHead"></b></div>
+              <div class="ticker"><span id="jbTicker"></span></div>
+            </div>
+          </div>
+          <div class="curb"></div>
+          <div class="street-glow"></div>
+          <div class="crowd" id="crowd"></div>
+        </div></div>
+      </div>
+      <div class="nw-slide">
+        <div class="tv">
+          <div class="tv-top"><span class="live">LIVE</span><span>무취뉴스 24</span></div>
+          <div class="tv-body"><canvas id="newsChar" width="160" height="160" aria-hidden="true"></canvas><span class="mug">용의자</span></div>
+          <div class="tv-cap"><span class="breaking">속보</span><b id="newsHead"></b></div>
+          <div class="ticker"><span id="newsTicker"></span></div>
+        </div>
+      </div>
+      <div class="nw-slide"><div class="rank"><div class="rk-title">실시간 검색어</div><ol id="newsRank"></ol></div></div>
+      <div class="nw-slide"><div class="feed" id="newsFeed"></div></div>
+      <div class="nw-slide"><div class="street"><div id="whispers"></div><canvas id="streetChar" width="160" height="160" aria-hidden="true"></canvas><p class="st-cap" id="stCap">그는 다시는 산에 오르지 못했다.</p></div></div>
+      <span class="narr-hint">화면을 누르면 넘어가요</span>
+    </div>
+    <div class="narr" id="narr" hidden>
+      <canvas id="narrChar" width="160" height="160" aria-hidden="true" hidden></canvas>
+      <p id="narrText" aria-live="polite"></p>
+      <span class="narr-hint">화면을 누르면 넘어가요</span>
+    </div>
+    <div class="vote" id="vote" hidden>
+      <div class="vt-title" id="voteTitle">회의 시간 · 누구를 신고할까요?</div>
+      <div class="vt-sub" id="voteSub">15</div>
+      <div class="vt-grid" id="voteGrid"></div>
+      <div class="lw-in" id="lwIn" hidden>
+        <input id="lwInput" type="text" maxlength="30" placeholder="최후의 한마디 (30자)" autocomplete="off">
+        <button type="button" id="lwSay">말하기</button>
+      </div>
+      <button type="button" id="votePass">패스</button>
+    </div>
+    <div class="cctv-pick" id="cctvPick" hidden>
+      <div class="ttl">CCTV 돌려보기 · 한 판에 1번 · 볼 라운드를 고르세요</div>
+      <div class="tl" id="tl" aria-label="녹화 타임라인"><div class="tl-win" id="tlWin"></div></div>
+      <div class="tl-row"><span id="tlLabel">1R</span><span class="tl-btns"><button type="button" id="cctvGo">이 라운드 보기</button><button type="button" id="cctvCancel">취소</button></span></div>
+    </div>
+    <div class="cctv-ctl" id="cctvStop" hidden>
+      <div class="cb-track" id="cbTrack" aria-label="CCTV 재생 위치"><div class="cb-rail"><div class="cb-fill" id="cbFill"></div></div><div class="cb-knob" id="cbKnob"></div></div>
+      <span class="cb-time" id="cbTime">0.0 / 0.0초</span>
+      <button type="button" id="cctvStopBtn">그만 보기</button>
+    </div>
+  </div>
+
+  <div class="mpad" id="mpad">
+  <div class="joy" id="joy" role="application" aria-label="내 캐릭터 이동 조이스틱. 원 안에서 끌면 그 방향으로 움직여요">
+    <div class="joy-knob" id="joyKnob"></div>
+  </div>
+    <div class="mact" id="mact"></div>
+  </div>
+
+  <div class="controls">
+    <button id="myRoleBtn" type="button" disabled>내 역할·위치 (R)</button>
+    <button id="sqBtn" type="button" hidden>찡그리기 (G)</button>
+    <button id="fartBtn" type="button" hidden>방구 뀌기 (F)</button>
+    <button id="coverBtn" type="button" hidden>CCTV 가리기 (C)</button>
+    <button id="sniffBtn" type="button" hidden>킁킁 (Q)</button>
+    <button id="eraseBtn" type="button" hidden>녹화 지우기 (E)</button>
+    <button id="decoyBtn" type="button" hidden>방구 쿠션 (B)</button>
+    <button id="tapBtn" type="button" hidden>엉덩이 툭 (T)</button>
+    <button id="lens" type="button">돋보기 (2번 남음)</button>
+    <button id="cctv" type="button">CCTV 돌려보기 (1번)</button>
+    <span class="seg" role="group" aria-label="맵"><button type="button" class="rd mp" data-m="snow" aria-pressed="true">설산</button><button type="button" class="rd mp" data-m="sea" aria-pressed="false">심해</button><button type="button" class="rd mp" data-m="space" aria-pressed="false">우주</button></span>
+    <span class="seg" role="group" aria-label="라운드 수"><button type="button" class="rd" data-r="3" aria-pressed="true">3라운드</button><button type="button" class="rd" data-r="5" aria-pressed="false">5라운드</button></span>
+    <button id="restart" type="button">다시 하기</button>
+    <button id="sound" type="button" aria-pressed="false">소리 켜기</button>
+    <button id="bgm" type="button" aria-pressed="true" disabled>BGM 끄기</button>
+  </div>
+
+  <p class="hint">입김은 <b>얼굴 앞</b>에서, 방구는 <b>엉덩이 뒤</b>에서 나와요. 겉보기엔 방구김도 입김이랑 똑같아요. 돋보기로 비춰야만 방구김이 노랗게, 그리고 남아 있는 냄새 구름과 바닥 자국까지 보여요. 옆 사람이 찡그리는 것도 단서예요. 진범은 라운드마다 한 번씩 몰래 뀌어요. 하루(라운드)가 끝나면 내레이션과 함께 밤사이 기절한 사람이 발표되고, 회의 시간에 의심 가는 사람에게 투표해요(패스 가능). 찡그린 사람이 밤에 기절자로 발표돼요. 냄새는 얼굴이 구름에 닿아야 맡아요. 진범만은 찡그릴지 말지 직접 정해요(G). 마지막 밤까지 못 잡으면 진범이 이겨요.<br><b>킁킁 (무취 시민)</b>: 라운드마다 1번 바로 옆 사람 엉덩이를 맡아요(Q). 그 사람이 6초 안에 뀐 진범이면 "구리다!!", 아니면 "무취"예요.<br><b>돋보기 (냄새 감별사)</b>: 5초 동안 동그란 범위 안에서만 방구김이 노랗게 보여요. 마우스나 손가락을 천천히 따라와서, 한 번에 다 훑어볼 수는 없어요. 한 판에 1번.<br><b>심해 맵</b>: 숨 거품은 머리 위 스노클에서, 방구 거품은 엉덩이에서 올라와요. 생긴 건 똑같아요.<br><b>우주 맵</b>: 무중력이라 다들 둥실 떠 있고 가끔 아무 이유 없이 밀려나요. 방구를 뀌면 반동으로 앞으로 밀리는데, 그것만으론 티가 안 나요.<br><b>내 역할·위치</b>: 게임 중 언제든 R(또는 버튼)을 누르면 내 역할 카드를 다시 보고, 닫으면 내 캐릭터에 "나는 여기!"가 떠요.<br><b>소리</b>: 화면을 처음 누르면 효과음과 BGM이 켜져요. 아이폰은 무음 모드여도 나오게 했어요. BGM만 따로 끌 수도 있어요.<br><b>CCTV 가리기</b>: 조력자는 라운드마다 1번 CCTV 렌즈를 엉덩이로 가려요(C). 그 3초 동안 녹화에는 엉덩이만 찍히고, CCTV 타임라인에 분홍 빗금으로 표시돼요. 누가 가렸는지는 안 나오지만, 가려진 시간 자체가 단서가 돼요.<br><b>이동</b>: 방향키(또는 WASD, 폰은 아래 동그란 조이스틱)로 내 캐릭터(머리 위 초록 화살표)를 움직여요. 범인 쪽은 자유롭게 다니고, 시민 팀은 자동으로 떠밀려 다니면서 방향키로 조금만 조종돼요.<br><b>엉덩이 툭</b>: 진범은 한 판에 한 번 누군가를 엉덩이로 툭 쳐서 포섭해요. 조력자가 맞으면 공범이 되어 라운드마다 1번 방금 5초 녹화를 지우고(E), 한 판에 1번 방구 쿠션(B)으로 가짜 방구를 뀌어 의심을 대신 받아요. 생김새·냄새·킁킁까지 진짜랑 똑같아요. 공범이 신고되면 방구 쿠션이 나오고 풀려나요. 다른 사람이 맞으면 "?!" 하고 놀라요. 내가 진범이면 F로 직접 방구를 뀌고(라운드마다 1번. 라운드 끝 3초 전 마감까지 안 뀌면 참다가 자동으로 터져요. 마감 5초 전부터는 모두에게 방구 마감 카운트다운이 보여요), 바짝 붙어서 T로 엉덩이 툭을 해요.<br><b>CCTV (경비 아저씨)</b>: 한 판에 1번, 라운드 하나를 골라 처음부터 끝까지 돌려봐요. 언제 쓸지가 관건이에요. 녹화에는 방구김이 노랗게 찍혀요. 아래 막대를 좌우로 끌면 빨리감기·되감기를 할 수 있어요.</p>
+</div>
+
+<script>
+(() => {
+  const INK = '#1d1a24';
+  const cv = document.getElementById('cv');
+  let ctx = cv.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = id => document.getElementById(id);
+  const big = $('big'), capMain = $('capMain'), capSub = $('capSub'), again = $('again'), statusEl = $('status');
+
+  let W = 600, H = 400, S = 1;
+  function resize() {
+    const r = cv.getBoundingClientRect();
+    const d = Math.min(2, window.devicePixelRatio || 1);
+    W = Math.max(1, r.width); H = Math.max(1, r.height);
+    cv.width = Math.round(W * d); cv.height = Math.round(H * d);
+    ctx.setTransform(d, 0, 0, d, 0, 0);
+    S = Math.max(0.62, Math.min(W, H * 1.4) / 700);
+  }
+  resize();
+  new ResizeObserver(resize).observe(cv);
+
+  const R = (a, b) => a + Math.random() * (b - a);
+  const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+  const hash = n => { const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); };
+  function shade(hex, amt) {
+    const n = parseInt(hex.slice(1), 16);
+    let r = n >> 16, g = n >> 8 & 255, b = n & 255;
+    const t = amt < 0 ? 0 : 255, p = Math.abs(amt);
+    r = Math.round(r + (t - r) * p); g = Math.round(g + (t - g) * p); b = Math.round(b + (t - b) * p);
+    return `rgb(${r},${g},${b})`;
+  }
+
+  // seed offset for the accusation ring wobble
+  let boil = 0, boilAcc = 0;
+  function blob(cx, cy, rx, ry, seed, fill, stroke, lw, amt = .07) {
+    // smooth closed curve through gently varied points: hand-made, but clean
+    const n = 16, pts = [];
+    for (let i = 0; i < n; i++) {
+      const a = i / n * Math.PI * 2;
+      const j = 1 + (hash(seed * 31 + i * 7.13) - .5) * amt * .5;
+      pts.push([cx + Math.cos(a) * rx * j, cy + Math.sin(a) * ry * j]);
+    }
+    const mid = (p, q) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+    ctx.beginPath();
+    const m0 = mid(pts[n - 1], pts[0]); ctx.moveTo(m0[0], m0[1]);
+    for (let i = 0; i < n; i++) { const p = pts[i], m = mid(p, pts[(i + 1) % n]); ctx.quadraticCurveTo(p[0], p[1], m[0], m[1]); }
+    ctx.closePath();
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw * .8; ctx.lineJoin = 'round'; ctx.stroke(); }
+  }
+  function cloud(x, y, r, fill, stroke, lw, seed) {
+    const rot = seed * 2.1;
+    const parts = [[-.38, .12, .6], [.34, .14, .58], [0, -.2, .7], [.06, .24, .55]].map(([dx, dy, s]) => {
+      const c = Math.cos(rot), sn = Math.sin(rot) * .35;
+      return [x + (dx * c - dy * sn) * r, y + (dx * sn + dy * c) * r * .85, s * r];
+    });
+    ctx.beginPath(); parts.forEach(([px, py, pr]) => { ctx.moveTo(px + pr, py); ctx.arc(px, py, pr, 0, Math.PI * 2); });
+    ctx.strokeStyle = stroke; ctx.lineWidth = lw * 2; ctx.stroke();
+    ctx.fillStyle = fill; ctx.fill();
+  }
+  function wpoly(pts, seed, fill, stroke, lw) {
+    ctx.beginPath();
+    pts.forEach((p, i) => {
+      const jx = 0;
+      const jy = 0;
+      i ? ctx.lineTo(p[0] + jx, p[1] + jy) : ctx.moveTo(p[0] + jx, p[1] + jy);
+    });
+    ctx.closePath();
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.stroke(); }
+  }
+  function line(x1, y1, x2, y2, col, lw) {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+    ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.stroke();
+  }
+
+  // name, long-padding color, headwear
+  // name, padding color, headwear, face type, body half-width, body half-height
+  const CAST = [
+    ['김부장', '#ff9f5a', 'cap', 'boss', 19.5, 21],
+    ['할매', '#c59bff', 'perm', 'granny', 16, 19],
+    ['민수', '#7ee0ff', 'beanie', 'sleepy', 16.5, 22],
+    ['영희', '#ffd23f', 'earmuff', 'lady', 15.5, 21.5],
+    ['덕배', '#b6ff3b', 'hood', 'derp', 18.5, 23],
+    ['박대리', '#ff7ab8', 'bald', 'clerk', 15, 24.5]
+  ];
+  const SKIN = '#f4c9a3';
+  const SHAME = ['산장의 수치', '설산 단톡방 박제', '눈사태 유발자', '얼어붙은 엉덩이'];
+  const GLORY = ['무취의 사나이', '바람의 지배자', '완전범죄', '설산의 그림자'];
+  const FIRE = { x: .5, y: .64 };
+
+  const flakes = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random(), r: R(1, 2.6), v: R(.02, .06), d: R(0, 6) }));
+  const MT_BACK = [[0, .3], [0, .2], [.12, .1], [.22, .19], [.36, .05], [.5, .17], [.63, .08], [.78, .18], [.9, .06], [1, .15], [1, .3]];
+  const MT_FRONT = [[0, .31], [0, .24], [.07, .17], [.17, .25], [.29, .13], [.42, .26], [.55, .16], [.68, .27], [.8, .15], [.92, .24], [1, .19], [1, .31]];
+
+  let chars, puffs, stains, culprit, farts, nextFart, pending, mode, mt, accused, winTimer, T = 0, shameTitle, gloryTitle, bigFired;
+  let rvLock = 0, meSpot = 0, selfSmelled = false, cloudSeq = 0, failedHold = false, bumpCD = 3; const clouds = new Map();
+  let tapState = 'idle', tapAt = 0, tapTarget = -1, tapSince = 0, accomplice = false, tapFailed = -1, erased = [], eraseAt = 0, taps = [];
+  let helperIdx = -1, cctvIdx = -1, snifferIdx = -1, myIdx = -1, myRole = '', helperLine = '', myLine = '', cctvUsed = 0;
+  let rounds = 3, round = 1, roundT = 0, fartAt = 0, fartedRound = false, cctvLeft = 1, snaps = [], recAcc = 0, gameT = 0, cctvStart = 0, cctvT = 0, cctvEnd = 0, cctvRound = 1;
+  const ROUND_LEN = 20;
+  let MAP = 'snow';
+  const TX = () => MAP === 'space' ? {
+    intro: ['2087년. 공기가 너무 귀해져 "무취법"이 시행되었습니다.', '공공장소에서 방구 1회, 징역 3년.', '국가 지정 청정궤도, 우주정거장 "무취 1호".', '귀환선이 고장 나 여섯 명이 우주에 고립되었습니다.', '그런데… 무중력 속에서 누군가의 엉덩이가 수상합니다.'],
+    day: (n, k) => [`${n}일차. 귀환 연료가 ${k}칸 남았습니다.`, '모두 숨을 쉬세요… 둥실… 둥실…'],
+    night: n => `${n}일차 밤. 정거장이 지구 그림자 속으로 들어갔습니다.`, police: '무취 우주경찰이 도킹했지만…',
+    head: (nm, age) => `우주정거장서 무취법 위반… ${nm}(${age}) 지구로 강제 송환`, place: '우주정거장 냄새',
+    never: '그는 다시는 우주에 가지 못했다.', truth: '그날 정거장의 진실은… 아무도 몰랐다.', tag: '우주 맵 · 화면 시안'
+  } : MAP === 'sea' ? {
+    intro: ['2087년. 공기가 너무 귀해져 "무취법"이 시행되었습니다.', '공공장소에서 방구 1회, 징역 3년.', '국가 지정 청정해역, 심해 연구기지.', '산소 공급 장치가 고장 나 여섯 명이 고립되었습니다.', '그런데… 누군가의 엉덩이에서 나오는 거품이 수상합니다.'],
+    day: (n, k) => [`${n}일차. 남은 산소탱크 ${k}개를 열었습니다.`, '모두 숨을 쉬세요… 보글… 보글…'],
+    night: n => `${n}일차 밤. 기지의 불이 꺼졌습니다.`, police: '무취 해양경찰이 도착했지만…',
+    head: (nm, age) => `심해 청정해역서 무취법 위반… ${nm}(${age}) 현장 체포`, place: '심해 기지 거품',
+    never: '그는 다시는 바다에 들어가지 못했다.', truth: '그날 기지의 진실은… 아무도 몰랐다.', tag: '심해 맵 · 화면 시안'
+  } : {
+    intro: ['2087년. 공기가 너무 귀해져 "무취법"이 시행되었습니다.', '공공장소에서 방구 1회, 징역 3년.', '국가 지정 청정구역, 설산 산장.', '폭설로 여섯 명이 이곳에 고립되었습니다.', '그런데… 누군가의 엉덩이가 수상합니다.'],
+    day: (n, k) => [`${n}일차 저녁. 남은 장작 ${k}개에 불을 붙였습니다.`, '모두 숨을 쉬세요… 크게… 깊게…'],
+    night: n => `${n}일차 밤. 장작불이 꺼졌습니다.`, police: '무취 단속반이 도착했지만…',
+    head: (nm, age) => `설산 청정구역서 무취법 위반… ${nm}(${age}) 현장 체포`, place: '설산 산장 냄새',
+    never: '그는 다시는 산에 오르지 못했다.', truth: '그날 산장의 진실은… 아무도 몰랐다.', tag: '설산 맵 · 화면 시안'
+  };
+
+  function depth(c) { return (.8 + c.y * .4) * 1.12; }
+  // everyone hangs around a small trampled patch by the fire, so they bump into each other a lot
+  // a true circle on screen; the rectangular snowfield around it is only scenery
+  const AREA = { x: .5, y: .64, r: .26 };
+  const areaR = () => AREA.r * Math.min(W, H);
+  function inArea(f) {
+    const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * f * areaR();
+    return [AREA.x + Math.cos(a) * r / W, AREA.y + Math.sin(a) * r / H];
+  }
+  function keepIn(c) {
+    const dx = (c.x - AREA.x) * W, dy = (c.y - AREA.y) * H, d = Math.hypot(dx, dy), R0 = areaR();
+    if (d > R0) { c.x = AREA.x + dx / d * R0 / W; c.y = AREA.y + dy / d * R0 / H; }
+  }
+  function pickTarget(c) {
+    [c.tx, c.ty] = inArea(Math.random() < .6 ? .55 : 1);
+    c.pause = Math.random() < .4 ? R(.6, 2.2) : 0;
+  }
+  function setCaps(main, sub) {
+    capMain.hidden = !main; capMain.textContent = main || '';
+    capSub.hidden = !sub; capSub.textContent = sub || '';
+  }
+  function setBig(t) { big.hidden = !t; big.textContent = t || ''; }
+  function updateMeter() {
+    const box = $('dots');
+    const n = Math.max(rounds, farts + decoys);
+    if (box.childElementCount !== n) { box.textContent = ''; for (let i = 0; i < n; i++) { const d = document.createElement('span'); d.className = 'dot'; box.append(d); } }
+    Array.from(box.children).forEach((d, i) => d.classList.toggle('on', i < farts + decoys));
+  }
+
+  function reset() {
+    chars = CAST.map((c, i) => ({
+      name: c[0], color: c[1], hat: c[2], trait: c[3], bw: c[4], bh: c[5], seed: i * 17 + 3,
+      x: R(.12, .88), y: R(.42, .9), tx: .5, ty: .6, spd: R(.05, .08), face: Math.random() < .5 ? 1 : -1,
+      bt: R(0, 1.6), bp: R(1.4, 2), sq: 0, sqDelay: 0, walk: R(0, 6), pause: 0, smelled: 0, react: 0
+    }));
+    chars.forEach(c => { [c.x, c.y] = inArea(1); pickTarget(c); });
+    puffs = []; stains = [];
+    culprit = Math.floor(Math.random() * chars.length);
+    const pool = chars.map((c, i) => i).filter(i => i !== culprit).sort(() => Math.random() - .5);
+    helperIdx = pool[0]; cctvIdx = pool[1]; snifferIdx = pool[2]; cctvUsed = 0;
+    helperLine = LORE[Math.floor(Math.random() * LORE.length)][1];
+    Object.keys(npcLine).forEach(k => delete npcLine[k]);
+    whTimers.forEach(clearTimeout); whois.hidden = true;
+    clouds.clear(); failedHold = false; covers = []; decoyLeft = 1; decoyT = -99; decoys = 0; npcDecoyAt = -1; lastFartT = -99; newsShown = false; newsEl.hidden = true; bumpCD = R(2, 4);
+    punishState = ''; pnEl.hidden = true;
+    tapState = 'idle'; tapAt = R(5, 14); tapTarget = -1; accomplice = false; tapFailed = -1; erased = []; eraseAt = 0; taps = [];
+    farts = 0; nextFart = 0; pending = false;
+    mode = 'play'; mt = 0; accused = -1; winTimer = -1; bigFired = false;
+    round = 1; roundT = 0; fartAt = R(3, ROUND_LEN - 5); fartedRound = false; cctvLeft = 1; snaps = []; recAcc = 0; gameT = 0;
+    cctvPick.hidden = true; $('cctvStop').hidden = true;
+    shameTitle = SHAME[Math.floor(Math.random() * SHAME.length)];
+    gloryTitle = GLORY[Math.floor(Math.random() * GLORY.length)];
+    updateMeter(); setBig(''); setCaps(''); again.hidden = true;
+    lensLeft = 1; lensT = 0; updateLensBtn();
+    cleared = new Set(); roundSmelled = new Set(); narrEl.hidden = true; voteEl.hidden = true; reviewing = false; myIdx = -1;
+    narrate(TX().intro, () => { mode = 'intro'; showReveal(); });
+  }
+
+  function pos(c) { return { X: c.x * W, Y: c.y * H, k: depth(c) }; }
+
+  function breathe(c, i) {
+    const { X, Y, k } = pos(c);
+    const u = S * k;
+    if (MAP === 'space') {
+      const vx0 = X + c.face * 2 * u, vy0 = Y + (2 - c.bh - 8.5 - 20) * u;
+      for (let j = 0; j < 3; j++) puffs.push({ x: vx0, y: vy0, vx: R(-16, 16) * S, vy: R(-16, 8) * S,
+        r0: 2 * S * k, r1: R(8, 12) * S * k, t: 0, life: R(1, 1.4), kind: 'b', seed: Math.random() * 99 });
+      if (i === culprit && pending && mode === 'play') { pending = false; fart(c, X, Y, k); }
+      return;
+    }
+    if (MAP === 'sea') {
+      const sx = X + c.face * 2 * u - c.face * 14 * u * .62, sy = Y + (2 - c.bh - 8.5 - 18.2) * u;
+      for (let j = 0; j < 4; j++) puffs.push({ x: sx + R(-2, 2) * S, y: sy - j * 5 * S, vx: R(-6, 6) * S, vy: -R(45, 70) * S,
+        r0: 2 * S * k, r1: R(5, 8) * S * k, t: 0, life: R(1, 1.5), kind: 'b', seed: Math.random() * 99 });
+      if (i === culprit && pending && mode === 'play') { pending = false; fart(c, X, Y, k); }
+      return;
+    }
+    const fx = X + c.face * 13 * u, fy = Y + (1.9 - c.bh) * u;
+    for (let j = 0; j < 3; j++) {
+      puffs.push({ x: fx + c.face * j * 3 * S, y: fy, vx: c.face * R(18, 30) * S, vy: -R(8, 16) * S,
+        r0: 3 * S * k, r1: R(10, 15) * S * k, t: 0, life: R(.8, 1.1), kind: 'b', seed: Math.random() * 99 });
+    }
+    if (i === culprit && pending && mode === 'play') { pending = false; fart(c, X, Y, k); }
+  }
+
+  function fart(c, X, Y, k, decoy) {
+    const cid = ++cloudSeq;
+    clouds.set(cid, new Set());
+    const u = S * k;
+    const bx = X - c.face * (c.bw + 4) * u, by = Y + (2 + c.bh * .6) * u;
+    for (let j = 0; j < 4; j++) {
+      puffs.push({ x: bx - c.face * j * 4 * S, y: by + R(-3, 3) * S, vx: -c.face * R(4, 12) * S, vy: -R(1, 5) * S,
+        r0: 5 * S * k, r1: R(16, 24) * S * k, t: 0, life: R(2.4, 3), kind: 'f', cid, seed: Math.random() * 99 });
+    }
+    // what everyone sees: a puff that looks exactly like a breath
+    if (MAP === 'space') {
+      for (let j = 0; j < 3; j++) puffs.push({ x: bx, y: by, vx: R(-16, 16) * S, vy: R(-16, 8) * S, r0: 2 * S * k, r1: R(8, 12) * S * k, t: 0, life: R(1, 1.4), kind: 'fb', seed: Math.random() * 99 });
+      c.kick = .7; c.kickDir = c.face; // zero-g recoil
+    }
+    else if (MAP === 'sea') for (let j = 0; j < 4; j++) puffs.push({ x: bx + R(-2, 2) * S, y: by - j * 5 * S, vx: R(-6, 6) * S, vy: -R(45, 70) * S, r0: 2 * S * k, r1: R(5, 8) * S * k, t: 0, life: R(1, 1.5), kind: 'fb', seed: Math.random() * 99 });
+    else for (let j = 0; j < 3; j++) puffs.push({ x: bx - c.face * j * 3 * S, y: by, vx: -c.face * R(18, 30) * S, vy: -R(8, 16) * S, r0: 3 * S * k, r1: R(10, 15) * S * k, t: 0, life: R(.8, 1.1), kind: 'fb', seed: Math.random() * 99 });
+    stains.push({ x: bx / W, y: (Y + 33 * S * k) / H, t: 0, life: 10, k });
+    if (decoy) { decoys++; decoyT = gameT; updateMeter(); sfx(.35); }
+    else {
+      farts++; fartedRound = true; updateMeter(); sfx(.35);
+      if (helperIdx !== myIdx && !npcCoverUsed && npcCoverAt < 0 && Math.random() < .5) npcCoverAt = gameT + R(.2, 1.2);
+      lastFartT = gameT;
+      if (accomplice && helperIdx !== myIdx) eraseAt = gameT + R(.8, 2);
+    }
+    statusEl.textContent = '방금… 뭔가 났다.';
+    chars.forEach((o, oi) => {
+      if (oi === culprit || o === c) return;
+      const d = Math.hypot((o.x - c.x) * W, (o.y - c.y) * H);
+      if (d < 115 * S) { o.smelled++; clouds.get(cid).add(oi); o.sqDelay = R(.4, .9); roundSmelled.add(oi); }
+    });
+  }
+
+  function startSmirk(undetected) {
+    mode = 'smirk'; mt = 0; setBig(''); setCaps(''); again.hidden = true;
+    statusEl.textContent = undetected ? '아무도 눈치채지 못했다.' : '엉뚱한 사람을 지목했다.';
+  }
+
+  // ---------- sound (starts only after the viewer turns it on) ----------
+  let AC = null, soundOn = false;
+  function sfx(dur) {
+    if (!soundOn || !AC) return;
+    const t0 = AC.currentTime, bigOne = dur > 1;
+    const o = AC.createOscillator(), g = AC.createGain(), lp = AC.createBiquadFilter();
+    o.type = 'sawtooth'; lp.type = 'lowpass'; lp.frequency.value = bigOne ? 900 : 520;
+    o.connect(lp); lp.connect(g); g.connect(AC.destination);
+    let f = bigOne ? 95 : 150;
+    for (let tt = 0; tt < dur; tt += .025) { o.frequency.setValueAtTime(Math.max(40, f + R(-25, 25)), t0 + tt); f *= bigOne ? .996 : .985; }
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(bigOne ? .45 : .16, t0 + .03);
+    if (bigOne) for (let tt = .06; tt < dur - .1; tt += .07) { g.gain.setValueAtTime(.45 * R(.5, 1), t0 + tt); g.gain.setValueAtTime(.1, t0 + tt + .035); }
+    g.gain.linearRampToValueAtTime(0, t0 + dur);
+    o.start(t0); o.stop(t0 + dur + .05);
+  }
+  // ---------- audio unlock ----------
+  // Phones only allow sound that starts inside a tap. On iPhone, Web Audio is also muted by the
+  // silent switch unless an <audio> element is playing, so a silent looping clip keeps the session in "playback".
+  let silentEl = null;
+  function silentWavUrl() {
+    const n = 800, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+    const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 8000, true); v.setUint32(28, 8000, true);
+    v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true);
+    for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  }
+  function unlockAudio() {
+    try {
+      if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+      if (AC.state !== 'running') AC.resume();
+      const b = AC.createBuffer(1, 1, 22050), src = AC.createBufferSource();
+      src.buffer = b; src.connect(AC.destination); src.start(0);
+      if (!silentEl) {
+        silentEl = new Audio(silentWavUrl()); silentEl.loop = true; silentEl.setAttribute('playsinline', '');
+        const pr = silentEl.play(); if (pr && pr.catch) pr.catch(() => {});
+      }
+      ensureBgm();
+    } catch (err) {}
+  }
+  function setSound(on) {
+    soundOn = on;
+    const b = $('sound'); b.setAttribute('aria-pressed', String(on)); b.textContent = on ? '소리 끄기' : '소리 켜기';
+    $('bgm').disabled = !on;
+    if (silentEl) { try { on ? silentEl.play().catch(() => {}) : silentEl.pause(); } catch (e) {} }
+  }
+  let audioArmed = true;
+  // the first tap or key anywhere turns sound on
+  const firstGesture = e => {
+    if (!audioArmed || (e.target && e.target.closest && e.target.closest('#sound'))) return;
+    audioArmed = false;
+    unlockAudio(); setSound(true);
+  };
+  ['pointerdown', 'touchend', 'keydown'].forEach(ev => window.addEventListener(ev, firstGesture, { capture: true }));
+  $('sound').addEventListener('click', () => {
+    unlockAudio();
+    if (audioArmed) { audioArmed = false; setSound(true); return; }
+    setSound(!soundOn);
+    if (soundOn) sfx(.35);
+  });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && AC && soundOn && AC.state !== 'running') AC.resume(); });
+  // ---------- BGM: tiny synth loops, one per map, plus night / ending moods ----------
+  let bgmOn = true, bgmGain = null, bgmNext = 0, bgmStep = 0, bgmTrack = '';
+  const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+  function bgmTone(type, m, t, d, v, det) {
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = mtof(m); o.detune.value = det || 0;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + .012); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+    o.connect(g); g.connect(bgmGain); o.start(t); o.stop(t + d + .05);
+  }
+  function bgmBloop(t) {
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(300, t); o.frequency.exponentialRampToValueAtTime(1200, t + .18);
+    g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(.12, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + .2);
+    o.connect(g); g.connect(bgmGain); o.start(t); o.stop(t + .25);
+  }
+  const TRACKS = {
+    // slightly out-of-tune elevator jazz
+    snow: { spb: .31, vol: .55, step(i, t, s) {
+      const bar = Math.floor(i / 8) % 4, k = i % 8, out = () => R(-18, 18);
+      const ch = [[60, 64, 67, 71], [57, 60, 64, 67], [62, 65, 69, 72], [55, 59, 62, 65]][bar];
+      const root = [36, 33, 38, 31][bar];
+      if (k % 2 === 0) bgmTone('sine', root + [0, 7, 12, 10][k / 2], t, s * 1.8, .32);
+      if (k === 0 || k === 3) ch.forEach(n => bgmTone('triangle', n, t, s * 2.6, .07, out()));
+      if (k === 5 && Math.random() < .7) bgmTone('triangle', pick(ch) + 12, t, s * 1.6, .1, out());
+      if (k % 2 === 1) bgmTone('square', 96, t, .03, .015);
+    } },
+    // bubbly marimba
+    sea: { spb: .28, vol: .55, step(i, t, s) {
+      const bar = Math.floor(i / 8) % 4, k = i % 8;
+      const pent = [60, 62, 64, 67, 69, 72, 74, 76];
+      const base = [0, 2, 1, 3][bar];
+      bgmTone('sine', pent[(base + [0, 2, 4, 2, 5, 4, 2, 1][k]) % 8] + 12, t, .32, .16);
+      if (k === 0 || k === 4) bgmTone('sine', [48, 45, 47, 43][bar], t, s * 3, .28);
+      if (k === 7 && bar % 2 === 1) bgmBloop(t);
+    } },
+    // floaty synth arpeggio
+    space: { spb: .25, vol: .5, step(i, t, s) {
+      const bar = Math.floor(i / 8) % 4, k = i % 8;
+      const ch = [[57, 60, 64], [53, 57, 60], [60, 64, 67], [55, 59, 62]][bar];
+      bgmTone('square', ch[[0, 1, 2, 1][k % 4]] + 12 + (k >= 4 ? 12 : 0), t, s * .9, .035);
+      if (k === 0) ch.forEach(n => bgmTone('triangle', n - 12, t, s * 7.5, .06));
+      if (k === 0 || k === 4) bgmTone('sine', ch[0] - 24, t, s * 3.5, .25);
+    } },
+    // night, meetings, votes: low drone and a clock
+    night: { spb: .5, vol: .45, step(i, t, s) {
+      const k = i % 8;
+      if (k === 0) { bgmTone('sine', 33, t, s * 8, .3); bgmTone('triangle', 45, t, s * 8, .05, -8); }
+      if (k % 2 === 0) bgmTone('square', k === 0 ? 88 : 84, t, .025, .02);
+      if (k === 6 && Math.random() < .5) bgmTone('sine', pick([69, 72, 75]), t, s * 3, .04, R(-20, 20));
+    } },
+    // the smug ending: a wonky music box
+    smirk: { spb: .42, vol: .5, step(i, t, s) {
+      const mel = [79, 76, 74, 72, 74, 76, 72, null, 77, 76, 74, 71, 72, null, null, null];
+      const n = mel[i % 16];
+      if (n) bgmTone('triangle', n, t, s * 2.2, .12, R(-25, 25));
+      if (i % 4 === 0) bgmTone('sine', [48, 43, 45, 41][Math.floor(i / 4) % 4], t, s * 4, .15);
+    } },
+  };
+  function bgmWanted() {
+    if (['play', 'cctv', 'cctvpick'].includes(mode)) return MAP;
+    if (mode === 'smirk') return 'smirk';
+    if (mode === 'execute' || (newsEl && !newsEl.hidden) || (whois && !whois.hidden)) return '';
+    return 'night';
+  }
+  function bgmTick() {
+    if (!AC || !bgmGain) return;
+    const want = soundOn && bgmOn ? bgmWanted() : '';
+    const tr = TRACKS[want];
+    bgmGain.gain.setTargetAtTime(tr ? .5 * tr.vol : 0, AC.currentTime, .25);
+    if (!tr) { bgmTrack = ''; return; }
+    if (want !== bgmTrack) { bgmTrack = want; bgmStep = 0; bgmNext = AC.currentTime + .08; }
+    const hurry = mode === 'play' && ROUND_LEN - 3 - roundT < 5 && ROUND_LEN - 3 - roundT > 0;
+    const spb = tr.spb * (hurry ? .72 : 1);
+    if (bgmNext < AC.currentTime - .5) bgmNext = AC.currentTime + .05;
+    while (bgmNext < AC.currentTime + .2) {
+      tr.step(bgmStep, bgmNext, spb);
+      if (hurry && bgmStep % 2 === 0) bgmTone('square', 100, bgmNext, .03, .03);
+      bgmStep++; bgmNext += spb;
+    }
+  }
+  function ensureBgm() {
+    if (!AC || bgmGain) return;
+    bgmGain = AC.createGain(); bgmGain.gain.value = 0;
+    const comp = AC.createDynamicsCompressor();
+    bgmGain.connect(comp); comp.connect(AC.destination);
+  }
+  $('bgm').addEventListener('click', e => {
+    bgmOn = !bgmOn;
+    e.currentTarget.setAttribute('aria-pressed', String(bgmOn));
+    e.currentTarget.textContent = bgmOn ? 'BGM 끄기' : 'BGM 켜기';
+  });
+
+
+  // ---------- input ----------
+  // ---------- magnifier (seeker ability) ----------
+  let lensLeft = 1, lensT = 0, lensX = 0, lensY = 0, lensTX = 0, lensTY = 0, lensLabel = '';
+  const LENS_SPEED = 150; // px per second at S = 1: no lightning-fast sweeps
+  const lensBtn = $('lens');
+  function updateLensBtn() {
+    const t = lensT > 0 ? `돋보기 사용 중 (${Math.ceil(lensT)}초)` : (isTouch() ? `돋보기 ${lensLeft}번` : `돋보기 (${lensLeft}번 남음)`);
+    if (t !== lensLabel) { lensBtn.textContent = t; lensLabel = t; }
+    lensBtn.hidden = myRole !== 'sniffer'; // only the smell expert carries the magnifier
+    lensBtn.disabled = lensT > 0 || lensLeft <= 0 || mode !== 'play';
+    lensBtn.setAttribute('aria-pressed', String(lensT > 0));
+  }
+  lensBtn.addEventListener('click', () => {
+    if (mode !== 'play' || lensLeft <= 0 || lensT > 0 || myRole !== 'sniffer') return;
+    lensLeft--; lensT = 5; lensX = W * .5; lensY = H * .62; lensTX = lensX; lensTY = lensY;
+    statusEl.textContent = '돋보기로 살펴보는 중…';
+    updateLensBtn();
+  });
+  cv.addEventListener('pointermove', e => {
+    if (lensT <= 0) return;
+    const r = cv.getBoundingClientRect();
+    lensTX = e.clientX - r.left; lensTY = e.clientY - r.top;
+  });
+
+  // ---------- CCTV replay (seeker-side helper ability) ----------
+  const cctvBtn = $('cctv'), cctvPick = $('cctvPick'), tl = $('tl'), tlWin = $('tlWin'), tlLabel = $('tlLabel');
+  let cctvLabel = '', roundLabel = '';
+  const fmt = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  function record() {
+    snaps.push({
+      t: gameT, r: round,
+      c: chars.map(c => [c.x, c.y, c.face, c.walk, c.pause > 0 ? 1 : 0, c.sq]),
+      p: puffs.map(p => Object.assign({}, p)), s: stains.map(s => Object.assign({}, s))
+    });
+  }
+  function updateCctvBtn() {
+    const t = `CCTV 돌려보기 (${cctvLeft}번)`;
+    if (t !== cctvLabel) { cctvBtn.textContent = t; cctvLabel = t; }
+    cctvBtn.hidden = myRole !== 'cctv'; // only the CCTV helper can rewind
+    cctvBtn.disabled = mode !== 'play' || cctvLeft <= 0 || gameT < 2;
+  }
+  function updateRoundInfo() {
+    const t = mode === 'play' || mode === 'cctv' || mode === 'cctvpick'
+      ? `${round}/${rounds} 라운드 · 방구 마감 ${Math.max(0, Math.ceil(ROUND_LEN - 3 - roundT))}초` : `${round}/${rounds} 라운드`;
+    if (t !== roundLabel) { $('roundInfo').textContent = t; roundLabel = t; }
+  }
+  // pick a whole round: the window spans that round's recording
+  function roundRange(r) {
+    let a = -1, b = -1;
+    for (const sn of snaps) if (sn.r === r) { if (a < 0) a = sn.t; b = sn.t; }
+    return a < 0 ? null : [a, b];
+  }
+  function setRound(r) {
+    r = clamp(Math.round(r), 1, round);
+    let rg = roundRange(r);
+    if (!rg || rg[1] - rg[0] < 1) { r = Math.max(1, r - 1); rg = roundRange(r) || [0, gameT]; }
+    const total = Math.max(gameT, 2);
+    cctvRound = r; cctvStart = rg[0]; cctvEnd = rg[1];
+    tlWin.style.left = (cctvStart / total * 100) + '%';
+    tlWin.style.width = ((cctvEnd - cctvStart) / total * 100) + '%';
+    tlLabel.textContent = `${r}R 전체 (${Math.round(cctvEnd - cctvStart)}초)${r === round ? ' · 지금까지' : ''}`;
+  }
+  function roundAtT(t) { const sn = snapAt(t); return sn ? sn.r : 1; }
+  cctvBtn.addEventListener('click', () => {
+    if (mode !== 'play' || cctvLeft <= 0 || gameT < 2 || myRole !== 'cctv') return;
+    mode = 'cctvpick';
+    tl.querySelectorAll('.tl-tick,.tl-cut').forEach(n => n.remove());
+    covers.forEach(([a, b]) => {
+      const cut = document.createElement('div'); cut.className = 'tl-cut tl-cov';
+      cut.style.left = (a / Math.max(gameT, 2) * 100) + '%'; cut.style.width = ((Math.min(b, gameT) - a) / Math.max(gameT, 2) * 100) + '%';
+      tl.append(cut);
+    });
+    erased.forEach(([a, b]) => {
+      const cut = document.createElement('div'); cut.className = 'tl-cut';
+      cut.style.left = (a / Math.max(gameT, 2) * 100) + '%'; cut.style.width = ((b - a) / Math.max(gameT, 2) * 100) + '%';
+      tl.append(cut);
+    });
+    for (let r = 1; r <= round; r++) {
+      const tk = document.createElement('div'); tk.className = 'tl-tick';
+      const rg = roundRange(r); if (!rg) continue; tk.style.left = (rg[0] / Math.max(gameT, 2) * 100) + '%';
+      const lb = document.createElement('span'); lb.textContent = `${r}R`; tk.append(lb); tl.append(tk);
+    }
+    setRound(round > 1 && roomGone() ? round - 1 : round);
+    cctvPick.hidden = false;
+    statusEl.textContent = 'CCTV: 돌려볼 라운드를 고르는 중…';
+  });
+  const roomGone = () => roundT < 3; // current round barely recorded → default to the last one
+  const pickAt = e => { const r = tl.getBoundingClientRect(); setRound(roundAtT(clamp((e.clientX - r.left) / r.width) * Math.max(gameT, 2))); };
+  tl.addEventListener('pointerdown', e => { try { tl.setPointerCapture(e.pointerId); } catch (err) {} pickAt(e); });
+  tl.addEventListener('pointermove', e => { if (e.buttons) pickAt(e); });
+  $('cctvGo').addEventListener('click', () => {
+    if (mode !== 'cctvpick') return;
+    cctvLeft--; cctvUsed++; mode = 'cctv'; cctvT = 0; cctvPick.hidden = true; cctvStopBtn.hidden = false;
+    statusEl.textContent = `CCTV 재생 중 (${cctvRound}R 전체)`;
+  });
+  const cctvStopBtn = $('cctvStop'), cbTrack = $('cbTrack');
+  let cctvDrag = false;
+  function endCctv() { mode = 'play'; cctvDrag = false; cctvStopBtn.hidden = true; statusEl.textContent = 'CCTV 끝. 누가 뀌었을까…'; }
+  $('cctvStopBtn').addEventListener('click', () => { if (mode === 'cctv') endCctv(); });
+  // drag the bar to scrub / fast-forward
+  const scrubAt = e => { const r = cbTrack.getBoundingClientRect(); cctvT = clamp((e.clientX - r.left) / r.width) * (cctvEnd - cctvStart); syncCctvBar(); };
+  cbTrack.addEventListener('pointerdown', e => { if (mode !== 'cctv') return; cctvDrag = true; try { cbTrack.setPointerCapture(e.pointerId); } catch (err) {} scrubAt(e); e.preventDefault(); });
+  cbTrack.addEventListener('pointermove', e => { if (cctvDrag) scrubAt(e); });
+  const scrubEnd = () => { cctvDrag = false; };
+  cbTrack.addEventListener('pointerup', scrubEnd); cbTrack.addEventListener('pointercancel', scrubEnd);
+  function syncCctvBar() {
+    const dur = Math.max(cctvEnd - cctvStart, .1), f = clamp(cctvT / dur) * 100;
+    $('cbFill').style.width = f + '%'; $('cbKnob').style.left = f + '%';
+    $('cbTime').textContent = `${Math.min(dur, cctvT).toFixed(1)} / ${dur.toFixed(1)}초`;
+  }
+  $('cctvCancel').addEventListener('click', () => {
+    if (mode !== 'cctvpick') return;
+    mode = 'play'; cctvPick.hidden = true; statusEl.textContent = '누가 뀌었을까…';
+  });
+  function snapAt(t) {
+    let lo = 0, hi = snaps.length - 1;
+    while (lo < hi) { const m = (lo + hi + 1) >> 1; if (snaps[m].t <= t) lo = m; else hi = m - 1; }
+    return snaps[lo];
+  }
+  function drawReplay() {
+    const sn = snapAt(cctvStart + cctvT);
+    if (!sn) { drawScene(); return; }
+    const tNow = cctvStart + cctvT;
+    if (erased.some(([a, b]) => tNow >= a && tNow <= b)) { drawStatic(sn); return; }
+    const live = [chars, puffs, stains];
+    chars = chars.map((c, i) => Object.assign({}, c, { x: sn.c[i][0], y: sn.c[i][1], face: sn.c[i][2], walk: sn.c[i][3], pause: sn.c[i][4], sq: sn.c[i][5] }));
+    puffs = sn.p; stains = sn.s;
+    drawScene();
+    const cov = covers.find(([a, b]) => tNow >= a && tNow <= b);
+    if (cov) drawCoverButt();
+    ctx.save();
+    ctx.globalCompositeOperation = 'color'; ctx.fillStyle = '#5f8a6c'; ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(10,30,20,.22)'; ctx.fillRect(0, 0, W, H);
+    if (!cov) drawYellow(); // the camera sees fart gas in yellow
+    if (cov) drawCoverLabel();
+    [chars, puffs, stains] = live;
+    ctx.fillStyle = 'rgba(0,0,0,.14)'; for (let yy = 0; yy < H; yy += 3) ctx.fillRect(0, yy, W, 1);
+    const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.max(W, H) * .7);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+    const fs = Math.round(Math.max(12, 13 * S));
+    ctx.font = `700 ${fs}px "Noto Sans KR", sans-serif`; ctx.textBaseline = 'top';
+    if (Math.floor(T * 2) % 2 === 0) { ctx.fillStyle = '#ff3b3b'; ctx.beginPath(); ctx.arc(16 + fs * .4, 16 + fs * .6, fs * .35, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = '#e8ffe9'; ctx.textAlign = 'left';
+    ctx.fillText(`REC  CAM-01  ${sn.r}R  ${fmt(sn.t)}.${Math.floor((sn.t % 1) * 10)}`, 16 + fs, 16);
+    if (cctvDrag) { ctx.textAlign = 'right'; ctx.fillText('⏩ 빨리감기', W - 16, 16); }
+    ctx.restore();
+  }
+
+  // ---------- role reveal at the start of a game ----------
+  // every ability follows one pattern: [name, how often, what it does, key]
+  const ROLES = [
+    { key: 'seeker', team: '시민 팀', t: 'seek', name: '무취 시민', mission: '방구 뀐 진범을 찾아 신고하세요.', win: '진범이 신고되면 승리',
+      ability: [['킁킁', '라운드마다 1번', '바로 옆 사람 엉덩이를 맡아요. 방금 뀐 엉덩이면 구려요', 'Q']] },
+    { key: 'sniffer', team: '시민 팀', t: 'seek', name: '냄새 감별사', mission: '돋보기로 방구김을 찾아 시민들에게 알려요.', win: '진범이 신고되면 승리',
+      ability: [['돋보기', '한 판에 1번', '5초 동안 방구김이 노랗게 보여요', '']] },
+    { key: 'cctv', team: '시민 팀', t: 'seek', name: '경비 아저씨', mission: 'CCTV 녹화에서 증거를 찾아 시민들을 도와요.', win: '진범이 신고되면 승리',
+      ability: [['CCTV 돌려보기', '한 판에 1번', '고른 라운드 하나를 처음부터 끝까지 다시 봐요', '']] },
+    { key: 'culprit', team: '방구 팀', t: 'fart', name: '진범', mission: '들키지 말고 라운드마다 한 번씩 몰래 뀌세요.', win: '마지막 라운드까지 버티면 승리',
+      ability: [['방구 뀌기', '라운드마다 1번', '마감까지 안 뀌면 저절로 터져요', 'F'], ['찡그리기', '언제든', '냄새 맡은 척해요', 'G'], ['엉덩이 툭', '한 판에 1번', '조력자를 치면 공범이 돼요', 'T']] },
+    { key: 'helper', team: '방구 팀', t: 'fart', name: '진범의 조력자', mission: '진범이 누군지 몰라요. 추리해서 몰래 도와주세요.', win: '진범이 안 잡히면 승리',
+      ability: [['CCTV 가리기', '라운드마다 1번', '3초 동안 녹화에 엉덩이만 찍혀요', 'C'], ['공범 승격', '진범한테 툭 맞으면', '녹화 지우기(라운드마다 1번) + 방구 쿠션(한 판에 1번)', '']] },
+  ];
+  const LORE = [
+    ['전국방구인연대 설산지부장', '동지여, 그대의 가스는 헛되지 않았다.'],
+    ['1996년 수학여행의 빚', '이번엔 내 차례다.'],
+    ['자칭 진범의 엄마', '우리 애는 그럴 애가 아니에요!'],
+    ['구독자 37명 방구 유튜버', '구독과 좋아요, 그리고 방구.'],
+    ['전생에 방구였던 사람', '바람은 죄가 없다.'],
+    ['진범을 짝사랑하는 사람', '당신의 바람이 내 마음을 흔들었어요.'],
+    ['진범을 짝사랑하는 사람', '그 냄새… 내 첫사랑이었어.'],
+  ];
+  const LINES = {
+    seeker: ['제 코는 국가 공인 1급입니다.', '숨 쉬는 척하는 엉덩이, 다 보여요.', '무취법은 내가 지킨다.', '저는 숨만 쉬었어요. 진짜로요.', '냄새는 거짓말을 안 해요.'],
+    sniffer: ['이 돋보기, 할아버지 유품입니다.', '노란색만 보면 심장이 뛰어요.', '제 눈은 못 속입니다. 코는 좀 속아요.', '감별 경력 20년, 오진율 80%.'],
+    cctv: ['화질은 144p지만 진실은 4K입니다.', '렌즈 닦는 데 30년 걸렸습니다.', '녹화 버튼은… 눌렀던 것 같아요.', '여기 있는 모든 엉덩이를 보고 있다.'],
+    culprit: ['저는 그냥… 숨이 엉덩이로 나오는 체질이에요.', '바람은 원래 어디서든 불어요.', '고구마는 죄가 없다.', '오늘따라 공기가 맛있네요.', '저 아니에요. 아마도요.'],
+  };
+  const reveal = $('reveal'), card = $('card');
+  let flipTimer = 0;
+  function drawCardChar(i) {
+    const cc = $('cChar'), c2 = cc.getContext('2d');
+    c2.setTransform(1, 0, 0, 1, 0, 0); c2.clearRect(0, 0, cc.width, cc.height);
+    const saved = ctx, savedS = S;
+    ctx = c2; S = 2.15;
+    try { drawChar(Object.assign({}, chars[i], { face: 1, pause: 1, sq: 0, walk: 0 }), 120, 152, 1); }
+    finally { ctx = saved; S = savedS; }
+  }
+  function showReveal() {
+    const role = ROLES[Math.floor(Math.random() * ROLES.length)];
+    const seekers = chars.map((c, i) => i).filter(i => i !== culprit && i !== helperIdx && i !== cctvIdx && i !== snifferIdx);
+    const me = role.key === 'culprit' ? culprit : role.key === 'helper' ? helperIdx : role.key === 'cctv' ? cctvIdx : role.key === 'sniffer' ? snifferIdx : pick(seekers);
+    myIdx = me; myRole = role.key;
+    const front = $('cardFront');
+    front.className = 'face front t-' + role.t;
+    $('cTeam').textContent = role.team;
+    $('cRole').textContent = role.name;
+    $('cMission').textContent = role.mission;
+    const ab = $('cAbility'); ab.textContent = '';
+    role.ability.forEach(([nm, often, what, key]) => {
+      const row = document.createElement('div'); row.className = 'ab';
+      const top = document.createElement('div'); top.className = 'ab-top';
+      if (key && !isTouch()) { const k = document.createElement('kbd'); k.textContent = key; top.append(k); }
+      const b = document.createElement('b'); b.textContent = nm;
+      const o = document.createElement('span'); o.className = 'ab-often'; o.textContent = often;
+      top.append(b); if (often) top.append(o);
+      const d = document.createElement('div'); d.className = 'ab-what'; d.textContent = what;
+      row.append(top, d); ab.append(row);
+    });
+    $('cWin').textContent = role.win;
+    $('cMove').textContent = role.t === 'fart' ? '방향키로 자유롭게' : '자동으로 떠밀려 다니고, 방향키로 조금만 조종';
+    const lore = $('cLore');
+    myLine = role.key === 'helper' ? helperLine : pick(LINES[role.key]);
+    lore.textContent = `"${myLine}"`; lore.hidden = false;
+    $('rvNote').hidden = role.t !== 'fart';
+    drawCardChar(me);
+    card.classList.remove('flipped');
+    reveal.hidden = false;
+    clearTimeout(flipTimer);
+    flipTimer = setTimeout(() => card.classList.add('flipped'), 700);
+    rvLock = 3.2; $('rvGo').disabled = true;
+    statusEl.textContent = '내 역할을 확인하세요.';
+  }
+  card.addEventListener('click', () => card.classList.add('flipped'));
+  card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.classList.add('flipped'); } });
+  // peek at my role card again (and where I am) any time during the game
+  let reviewing = false;
+  function openMyRole() {
+    if (myIdx < 0 || reviewing || !reveal.hidden || ['intro', 'narrate', 'execute', 'smirk'].includes(mode)) return;
+    reviewing = true; rvLock = 0;
+    $('rvTop').textContent = '내 역할';
+    drawCardChar(myIdx);
+    card.classList.add('flipped');
+    const b = $('rvGo'); b.disabled = false; b.textContent = '닫기';
+    reveal.hidden = false;
+  }
+  function closeMyRole() {
+    reviewing = false; reveal.hidden = true; meSpot = 2.5;
+    $('rvTop').textContent = '당신의 역할은…';
+  }
+  $('myRoleBtn').addEventListener('click', openMyRole);
+  window.addEventListener('keydown', e => {
+    if (e.target && e.target.tagName === 'INPUT') return;
+    if (e.code !== 'KeyR' || e.repeat) return;
+    if (reviewing) closeMyRole(); else openMyRole();
+  });
+  $('rvGo').addEventListener('click', () => {
+    if (reviewing) { closeMyRole(); return; }
+    if (rvLock > 0) return;
+    if (!card.classList.contains('flipped')) { card.classList.add('flipped'); return; }
+    reveal.hidden = true; meSpot = 3; startRound(1);
+  });
+
+  // ---------- who was who: end-of-game reveal ----------
+  const whois = $('whois'), whGrid = $('whGrid');
+  const ROLE_NAME = { culprit: '진범', helper: '진범의 조력자', accomplice: '공범', cctv: '경비 아저씨', sniffer: '냄새 감별사', seeker: '무취 시민' };
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  let whTimers = [];
+  function roleOf(i) { return i === culprit ? 'culprit' : i === helperIdx ? (accomplice ? 'accomplice' : 'helper') : i === cctvIdx ? 'cctv' : i === snifferIdx ? 'sniffer' : 'seeker'; }
+  function paintChar(cc, i, over) {
+    const c2 = cc.getContext('2d');
+    c2.setTransform(1, 0, 0, 1, 0, 0); c2.clearRect(0, 0, cc.width, cc.height);
+    const saved = ctx, savedS = S;
+    ctx = c2; S = 1.75;
+    try { drawChar(Object.assign({}, chars[i], { face: 1, pause: 1, sq: 0, walk: 0, name: '' }, over || {}), 80, 100, 1); }
+    finally { ctx = saved; S = savedS; }
+  }
+  const npcLine = {};
+  function lineOf(i, k) {
+    if (i === myIdx) return myLine;
+    if (k === 'helper' || k === 'accomplice') return helperLine;
+    if (!npcLine[i]) {
+      const used = Object.values(npcLine).concat(myLine), pool = (LINES[k] || LINES.seeker).filter(l => !used.includes(l));
+      npcLine[i] = pick(pool.length ? pool : (LINES[k] || LINES.seeker));
+    }
+    return npcLine[i];
+  }
+  function quip(i, k) {
+    if (k === 'culprit') return `몰래 뀐 방구 ${farts}번 · ${accused === culprit ? '결국 들켰다' : '완전범죄 성공'}`;
+    if (k === 'helper') return '진범이 누군지 끝까지 몰랐음';
+    if (k === 'accomplice') return `엉덩이 툭으로 포섭됨 · 녹화 ${erased.length}번 지움${decoys ? ' · 방구 쿠션 발사' : ''}`;
+    if (k === 'sniffer') return `돋보기 ${myRole === 'sniffer' ? 1 - lensLeft : Math.floor(Math.random() * 2)}번 씀 · ${pick(['렌즈에 손자국 가득', '대부분 하늘을 비춤', '노란 건 다 귤이었음'])}`;
+    if (k === 'cctv') {
+      const n = myRole === 'cctv' ? cctvUsed : Math.floor(Math.random() * 2);
+      return `CCTV ${n}번 돌려봄 · ${pick(['렌즈에 김이 서려서 하나도 안 보였음', '돌려본 장면 대부분이 자기 얼굴', '알고 보니 화질 144p'])}`;
+    }
+    const n = chars[i].smelled, top = Math.max(...chars.map(c => c.smelled));
+    if (n === 0) return '방구 맡은 횟수 0번 · 알고 보니 비염';
+    return n === top ? `방구 맡은 횟수 ${n}번 · 인간 공기청정기 등극` : `방구 맡은 횟수 ${n}번`;
+  }
+  function openWhois() {
+    whTimers.forEach(clearTimeout); whTimers = [];
+    whGrid.textContent = '';
+    const cards = chars.map((c, i) => {
+      const k = roleOf(i);
+      const el = document.createElement('div'); el.className = 'wc k-' + k;
+      const cc = document.createElement('canvas'); cc.width = 160; cc.height = 160; cc.setAttribute('aria-hidden', 'true');
+      paintChar(cc, i);
+      const nm = document.createElement('b'); nm.textContent = c.name;
+      const rl = document.createElement('div'); rl.className = 'rl'; rl.textContent = '???';
+      const q = document.createElement('p');
+      const ln = document.createElement('i'); ln.className = 'wl';
+      el.append(cc, nm, rl, q, ln);
+      if (i === myIdx) { const me = document.createElement('span'); me.className = 'me'; me.textContent = '나'; el.append(me); }
+      whGrid.append(el);
+      return { el, cc, rl, q, i, k };
+    });
+    const order = cards.filter(o => o.k !== 'culprit').sort(() => Math.random() - .5).concat(cards.filter(o => o.k === 'culprit'));
+    let t = 500;
+    order.forEach(o => {
+      if (o.k === 'culprit') {
+        whTimers.push(setTimeout(() => { $('whTitle').textContent = '그리고 진범은… 두구두구'; o.el.classList.add('drum'); }, t));
+        t += 1400;
+      }
+      whTimers.push(setTimeout(() => {
+        o.el.classList.remove('drum');
+        o.rl.textContent = ROLE_NAME[o.k]; o.rl.classList.add('on'); o.q.textContent = quip(o.i, o.k); o.el.classList.add('revealed');
+        o.el.querySelector('.wl').textContent = `"${lineOf(o.i, o.k)}"`;
+        if ((o.i === accused || cleared.has(o.i)) && o.k !== 'culprit') { const st = document.createElement('span'); st.className = 'stamp'; st.textContent = '억울함 100%'; o.el.append(st); }
+        else if (o.i === tapFailed) { const st = document.createElement('span'); st.className = 'stamp'; st.textContent = '엉덩이 맞음'; o.el.append(st); }
+        if (o.k === 'seeker' && chars[o.i].smelled > 0) paintChar(o.cc, o.i, { sq: 1 });
+        if (o.k === 'culprit') { $('whTitle').textContent = '정체 공개!'; sfx(.6); }
+      }, t));
+      t += 550;
+    });
+    whTimers.push(setTimeout(() => { $('whAgain').hidden = false; }, t));
+    $('whAgain').hidden = true;
+    $('whTitle').textContent = '누가 누구였을까?';
+    again.hidden = true; setCaps(''); setBig('');
+    whois.hidden = false;
+  }
+  $('whAgain').addEventListener('click', () => { whois.hidden = true; reset(); });
+
+  // ---------- moving my own character ----------
+  const keys = { up: false, down: false, left: false, right: false };
+  const KEYMAP = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
+  const tapBtn = $('tapBtn'), fartBtn = $('fartBtn'), sqBtn = $('sqBtn');
+  // touch layout: the action buttons sit next to the joystick, and key hints like (T) are dropped
+  const touchMQ = matchMedia('(hover:none),(max-width:620px)');
+  const isTouch = () => touchMQ.matches;
+  const kh = k => isTouch() ? '' : ` (${k})`;
+  function placeActions() {
+    const into = isTouch() ? $('mact') : document.querySelector('.controls');
+    ['fartBtn', 'sqBtn', 'tapBtn', 'sniffBtn', 'eraseBtn', 'decoyBtn', 'coverBtn', 'lens', 'myRoleBtn'].forEach(id => { const b = $(id); if (b.parentElement !== into) into.prepend(b); });
+    if (isTouch()) ['myRoleBtn', 'lens', 'coverBtn', 'decoyBtn', 'eraseBtn', 'sniffBtn', 'tapBtn', 'sqBtn', 'fartBtn'].forEach(id => $('mact').prepend($(id)));
+    xLabel = '';
+    coverLabel = '';
+    $('myRoleBtn').textContent = (isTouch() ? '내 역할' : '내 역할·위치') + kh('R'); lensLabel = ''; sqBtn.textContent = '찡그리기' + kh('G'); tapBtn.textContent = '엉덩이 툭' + kh('T');
+    fartLabel = '';
+  }
+  try { touchMQ.addEventListener('change', placeActions); } catch (e) {}
+  function fakeSquint() {
+    if (myRole !== 'culprit' || mode !== 'play') return;
+    const c = chars[culprit]; c.sq = 1.4; roundSmelled.add(culprit);
+    statusEl.textContent = '(찡긋) …나도 냄새 맡은 척.';
+  }
+  let fartLabel = '';
+  function tryFart(forced) {
+    if (myRole !== 'culprit' || fartedRound || mode !== 'play') return;
+    const c = chars[culprit], p0 = pos(c);
+    pending = false; fart(c, p0.X, p0.Y, p0.k);
+    statusEl.textContent = forced ? '참다 참다 결국 터졌다!' : '뿡… 아무도 못 봤겠지?';
+  }
+  // returns 2 when the player fully drives this character (fart team), 1 when they only nudge it (seeker team)
+  function playerMove(c, dt) {
+    const ix = (keys.right ? 1 : 0) - (keys.left ? 1 : 0) + joy.x, iy = (keys.down ? 1 : 0) - (keys.up ? 1 : 0) + joy.y;
+    const free = myRole === 'culprit' || myRole === 'helper';
+    const n = Math.hypot(ix, iy);
+    if (n > .15) {
+      const v = (free ? 120 : 70) * S * Math.min(1, n); // analog: push further, go faster
+      c.x += ix / n * v * dt / W; c.y += iy / n * v * dt / H;
+      if (Math.abs(ix) > .1) c.face = ix > 0 ? 1 : -1;
+      c.walk += dt * 10;
+      if (free) c.pause = 0;
+    } else if (free) c.pause = .05;
+    return free ? 2 : 1;
+  }
+  // who would get bumped right now: the closest person within reach, preferring whoever is behind my butt
+  function tapPick() {
+    const cu = chars[culprit], reach = 48 * S * depth(cu);
+    let best = -1, bs = Infinity;
+    chars.forEach((o, i) => {
+      if (i === culprit) return;
+      const d = Math.hypot((o.x - cu.x) * W, (o.y - cu.y) * H);
+      if (d > reach) return;
+      const behind = (o.x - cu.x) * cu.face < 0;
+      const score = d + (behind ? 0 : 25 * S);
+      if (score < bs) { bs = score; best = i; }
+    });
+    return best;
+  }
+  function tryTap() {
+    if (myRole !== 'culprit' || tapState === 'done' || mode !== 'play') return;
+    const best = tapPick();
+    if (best < 0) { statusEl.textContent = '너무 멀어요. 바짝 붙어서 툭!'; return; }
+    tapTarget = best; doTap();
+    statusEl.textContent = accomplice ? '포섭 성공! 공범이 생겼다.' : '포섭 실패… 들켰을까?';
+  }
+  function updateTapBtn() {
+    tapBtn.hidden = myRole !== 'culprit';
+    tapBtn.disabled = tapState === 'done' || mode !== 'play';
+    fartBtn.hidden = myRole !== 'culprit'; sqBtn.hidden = myRole !== 'culprit'; sqBtn.disabled = mode !== 'play';
+    fartBtn.disabled = fartedRound || mode !== 'play';
+    const t = fartedRound ? '이번 라운드 방구 완료' : `방구 뀌기${kh('F')} · ${Math.max(0, Math.ceil(ROUND_LEN - 3 - roundT))}초`;
+    if (t !== fartLabel) { fartBtn.textContent = t; fartLabel = t; }
+  }
+  window.addEventListener('keydown', e => {
+    if (e.target && e.target.tagName === 'INPUT') return;
+    const k = KEYMAP[e.code];
+    if (k) { keys[k] = true; if (mode === 'play' && e.code.startsWith('Arrow')) e.preventDefault(); }
+    if (e.code === 'KeyT') tryTap();
+    if (e.code === 'KeyC') tryCover();
+    if (e.code === 'KeyQ') trySniff();
+    if (e.code === 'KeyE') tryErase();
+    if (e.code === 'KeyB') tryDecoy();
+    if (e.code === 'KeyF') tryFart(false);
+    if (e.code === 'KeyG') fakeSquint();
+  });
+  window.addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) keys[k] = false; });
+  window.addEventListener('blur', () => { Object.keys(keys).forEach(k => { keys[k] = false; }); });
+  // round joystick: any direction, and how far you push sets the speed
+  const joy = { x: 0, y: 0 }, joyEl = $('joy'), joyKnob = $('joyKnob');
+  function joyAt(e) {
+    const r = joyEl.getBoundingClientRect(), R0 = (r.width - 56) / 2;
+    let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+    const d = Math.hypot(dx, dy); if (d > R0) { dx *= R0 / d; dy *= R0 / d; }
+    joy.x = dx / R0; joy.y = dy / R0;
+    joyKnob.style.transform = `translate(${dx}px,${dy}px)`;
+  }
+  function joyEnd() { joy.x = 0; joy.y = 0; joyKnob.style.transform = ''; joyEl.classList.remove('on'); }
+  joyEl.addEventListener('pointerdown', e => { e.preventDefault(); try { joyEl.setPointerCapture(e.pointerId); } catch (err) {} joyEl.classList.add('on'); joyAt(e); });
+  joyEl.addEventListener('pointermove', e => { if (joyEl.classList.contains('on')) joyAt(e); });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => joyEl.addEventListener(ev, joyEnd));
+  tapBtn.addEventListener('click', tryTap);
+  fartBtn.addEventListener('click', () => tryFart(false));
+  sqBtn.addEventListener('click', fakeSquint);
+
+  // ---------- deep-sea map ----------
+  function rr(x, y, w, h, r) {
+    ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+  function bubble(x, y, r, fill, stroke, lw) {
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x - r * .35, y - r * .35, r * .3, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fill();
+  }
+  const FISH = [
+    { y: .1, sp: .05, off: .1, dir: 1, sz: 1.1, col: '#ffb703', blow: true },
+    { y: .2, sp: .07, off: .8, dir: -1, sz: .9, col: '#ff6b9a' },
+    { y: .15, sp: .04, off: .5, dir: -1, sz: .7, col: '#8ecae6', school: true },
+    { y: .26, sp: .06, off: .3, dir: 1, sz: .8, col: '#9b5de5', blow: true },
+    { y: .46, sp: .045, off: .95, dir: 1, sz: .9, col: '#fb8500', blow: true },
+    { y: .9, sp: .055, off: .6, dir: -1, sz: 1, col: '#ffd166' },
+    { y: .78, sp: .035, off: .2, dir: 1, sz: .6, col: '#f1faee', school: true },
+  ];
+  function drawSeaBG() {
+    const hz = H * .3;
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#2b8ec4'); g.addColorStop(.3, '#17669a'); g.addColorStop(1, '#0c3d63');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.globalAlpha = .1; ctx.fillStyle = '#e6f8ff';
+    for (let i = 0; i < 5; i++) {
+      const x = W * (.12 + i * .2) + Math.sin(T * .3 + i) * 12 * S;
+      ctx.beginPath(); ctx.moveTo(x - 18 * S, 0); ctx.lineTo(x + 18 * S, 0); ctx.lineTo(x + 70 * S, hz * 2.2); ctx.lineTo(x - 30 * S, hz * 2.2); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+    // distant reef: low rounded rocks and coral instead of mountains
+    [[.05, .13], [.22, .09], [.4, .12], [.6, .1], [.78, .13], [.97, .1]].forEach(([x, r], i) => {
+      ctx.beginPath(); ctx.ellipse(x * W, hz + 2 * S, r * W, r * W * .32, 0, Math.PI, 0); ctx.closePath();
+      ctx.fillStyle = i % 2 ? '#15557f' : '#1a6290'; ctx.fill();
+    });
+    const coral = (x, y, sc, col) => {
+      ctx.strokeStyle = col; ctx.lineCap = 'round'; ctx.lineWidth = 5 * S * sc;
+      [[-1, .9], [0, 1.2], [1, .8]].forEach(([d, l]) => {
+        const tx = x + d * 14 * S * sc, ty = y - 30 * S * sc * l;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + d * 4 * S * sc, y - 14 * S * sc, tx, ty); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + d * 7 * S * sc, y - 15 * S * sc * l); ctx.lineTo(x + d * 7 * S * sc + (d || 1) * 9 * S * sc, y - 24 * S * sc * l); ctx.stroke();
+      });
+    };
+    coral(W * .12, hz + 4 * S, 1, '#ff7a8a'); coral(W * .3, hz + 4 * S, .8, '#ffa94d'); coral(W * .5, hz + 4 * S, 1.1, '#c77dff');
+    coral(W * .66, hz + 4 * S, .9, '#ff7a8a'); coral(W * .04, hz + 4 * S, .7, '#ffd166');
+    const sg = ctx.createLinearGradient(0, hz, 0, H);
+    sg.addColorStop(0, '#2f7a93'); sg.addColorStop(1, '#3c8aa0');
+    ctx.fillStyle = sg; ctx.fillRect(0, hz, W, H - hz);
+    ctx.beginPath(); ctx.moveTo(0, hz); ctx.lineTo(W, hz); ctx.strokeStyle = '#0e4468'; ctx.lineWidth = 2 * S; ctx.stroke();
+    for (let i = 0; i < 16; i++) {
+      const x = hash(i * 3.3) * W, y = hz + 18 * S + hash(i * 7.7) * (H - hz - 26 * S);
+      ctx.beginPath(); ctx.ellipse(x, y, 6 * S, 2 * S, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(220,240,240,.18)'; ctx.fill();
+    }
+    // shipwreck
+    const cx = W * .86, cy = hz + 4 * S;
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(-.12);
+    ctx.beginPath(); ctx.moveTo(-50 * S, -26 * S); ctx.lineTo(48 * S, -30 * S); ctx.lineTo(36 * S, 0); ctx.lineTo(-40 * S, 4 * S); ctx.closePath();
+    ctx.fillStyle = '#5b3b2a'; ctx.fill(); ctx.strokeStyle = '#1d1a24'; ctx.lineWidth = 2.4 * S; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-6 * S, -28 * S); ctx.lineTo(-2 * S, -78 * S); ctx.strokeStyle = '#3b2619'; ctx.lineWidth = 4 * S; ctx.stroke();
+    [-28, -8, 14, 32].forEach(x => { ctx.beginPath(); ctx.arc(x * S, -14 * S, 4 * S, 0, Math.PI * 2); ctx.fillStyle = '#2a1b12'; ctx.fill(); });
+    ctx.restore();
+    ctx.font = `600 ${Math.round(12 * S)}px "Noto Sans KR", sans-serif`; ctx.fillStyle = '#cfeaf5'; ctx.textAlign = 'center';
+    ctx.fillText('난파선', cx, cy + 20 * S);
+    // seaweed
+    for (let i = 0; i < 9; i++) {
+      const x = hash(i * 5.1 + 2) * W, base = H - hash(i * 2.7) * H * .18, hgt = (40 + hash(i * 9.3) * 50) * S;
+      ctx.beginPath(); ctx.moveTo(x, base);
+      for (let s = 1; s <= 6; s++) ctx.lineTo(x + Math.sin(T * 1.4 + i + s * .8) * 6 * S * s / 6, base - hgt * s / 6);
+      ctx.strokeStyle = i % 2 ? '#2f9e6a' : '#3cb878'; ctx.lineWidth = 5 * S; ctx.lineCap = 'round'; ctx.stroke();
+    }
+    // fish swimming by (a few blow bubbles too, just to muddy the clues)
+    FISH.forEach((fi, i) => {
+      const span = 1.3, raw = (T * fi.sp + fi.off) % span - .15;
+      const fx = (fi.dir > 0 ? raw : 1 - raw) * W;
+      (fi.school ? [[0, 0], [-14, -7], [-14, 7], [-28, 0], [-26, -13]] : [[0, 0]]).forEach(([dx, dy], j) => {
+        const x = fx + dx * fi.dir * S * fi.sz, y = fi.y * H + dy * S * fi.sz + Math.sin(T * 2 + i + j) * 3 * S;
+        const L = 14 * S * fi.sz, Hh = 7 * S * fi.sz, wag = Math.sin(T * 9 + i * 2 + j) * .25;
+        ctx.save(); ctx.translate(x, y); ctx.scale(fi.dir, 1);
+        ctx.beginPath(); ctx.moveTo(-L * .8, 0); ctx.lineTo(-L * 1.35, -Hh * (.8 + wag)); ctx.lineTo(-L * 1.35, Hh * (.8 - wag)); ctx.closePath();
+        ctx.fillStyle = fi.col; ctx.fill(); ctx.strokeStyle = '#0e2c44'; ctx.lineWidth = 1.6 * S; ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(0, 0, L, Hh, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(L * .45, -Hh * .2, 1.8 * S * fi.sz, 0, Math.PI * 2); ctx.fillStyle = '#0e2c44'; ctx.fill();
+        ctx.restore();
+      });
+      if (fi.blow) {
+        const t = (T * .7 + i * .37) % 1;
+        if (t < .6) bubble(fx + fi.dir * 16 * S * fi.sz, fi.y * H - t * 40 * S, (1.5 + t * 3) * S, 'rgba(255,255,255,.2)', 'rgba(225,245,255,.85)', 1.1 * S);
+      }
+    });
+    // the swim zone
+    ctx.beginPath(); ctx.arc(AREA.x * W, AREA.y * H + 20 * S, areaR() + 30 * S, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(200,240,255,.08)'; ctx.fill();
+    ctx.setLineDash([6 * S, 7 * S]); ctx.strokeStyle = 'rgba(210,240,255,.45)'; ctx.lineWidth = 1.6 * S; ctx.stroke(); ctx.setLineDash([]);
+    // centerpiece: a giant clam holding the oxygen pearl
+    const fx = FIRE.x * W, fy = FIRE.y * H;
+    const pulse = 1 + Math.sin(T * 2.4) * .12;
+    const glow = ctx.createRadialGradient(fx, fy - 14 * S, 4 * S, fx, fy - 14 * S, 110 * S * pulse);
+    glow.addColorStop(0, 'rgba(190,255,245,.4)'); glow.addColorStop(1, 'rgba(190,255,245,0)');
+    ctx.fillStyle = glow; ctx.fillRect(fx - 120 * S, fy - 130 * S, 240 * S, 240 * S);
+    ctx.lineJoin = 'round';
+    // top shell, propped open
+    ctx.save(); ctx.translate(fx, fy - 6 * S); ctx.rotate(-.28);
+    ctx.beginPath(); ctx.ellipse(0, 0, 36 * S, 24 * S, 0, Math.PI, 0); ctx.closePath();
+    let cs = ctx.createLinearGradient(0, -24 * S, 0, 0); cs.addColorStop(0, '#ffc2d6'); cs.addColorStop(1, '#e07aa0');
+    ctx.fillStyle = cs; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.4 * S; ctx.stroke();
+    ctx.strokeStyle = 'rgba(120,30,70,.35)'; ctx.lineWidth = 1.6 * S;
+    for (let a = 1; a < 6; a++) { const t = Math.PI + a / 6 * Math.PI; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(t) * 33 * S, Math.sin(t) * 21 * S); ctx.stroke(); }
+    ctx.restore();
+    // pearl
+    const pg = ctx.createRadialGradient(fx - 3 * S, fy - 14 * S, 1 * S, fx, fy - 10 * S, 11 * S);
+    pg.addColorStop(0, '#ffffff'); pg.addColorStop(.6, '#d6fff6'); pg.addColorStop(1, '#8fd9e8');
+    ctx.beginPath(); ctx.arc(fx, fy - 10 * S, 10 * S * (1 + Math.sin(T * 2.4) * .04), 0, Math.PI * 2);
+    ctx.fillStyle = pg; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2 * S; ctx.stroke();
+    // bottom shell
+    ctx.beginPath(); ctx.ellipse(fx, fy - 2 * S, 38 * S, 16 * S, 0, 0, Math.PI); ctx.closePath();
+    cs = ctx.createLinearGradient(0, fy - 2 * S, 0, fy + 14 * S); cs.addColorStop(0, '#f48fb1'); cs.addColorStop(1, '#c2557e');
+    ctx.fillStyle = cs; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.4 * S; ctx.stroke();
+    ctx.strokeStyle = 'rgba(120,30,70,.35)'; ctx.lineWidth = 1.6 * S;
+    for (let a = 1; a < 6; a++) { const t = a / 6 * Math.PI; ctx.beginPath(); ctx.moveTo(fx, fy - 2 * S); ctx.lineTo(fx + Math.cos(t) * 35 * S, fy - 2 * S + Math.sin(t) * 14 * S); ctx.stroke(); }
+    for (let i = 0; i < 4; i++) {
+      const t = (T * .6 + i / 4) % 1;
+      bubble(fx + Math.sin(T * 2 + i * 1.7) * 6 * S, fy - 22 * S - t * 70 * S, (2 + i % 3) * S * (1 - t * .3), 'rgba(255,255,255,.25)', 'rgba(220,250,255,.85)', 1.2 * S);
+    }
+    ctx.font = `600 ${Math.round(11 * S)}px "Noto Sans KR", sans-serif`; ctx.fillStyle = '#c9fff1'; ctx.textAlign = 'center';
+    ctx.fillText('산소 진주', fx, fy + 30 * S);
+  }
+  function seaGearBack(c, X, by0, bw, bh, f, u) {
+    rr(X - f * bw * .8 - 5 * u, by0 - bh * .7, 10 * u, bh * .9, 4 * u);
+    ctx.fillStyle = '#c3ccd6'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.2 * u; ctx.stroke();
+    rr(X - f * bw * .8 - 2 * u, by0 - bh * .7 - 4 * u, 4 * u, 5 * u, 1 * u); ctx.fillStyle = '#6b7280'; ctx.fill(); ctx.stroke();
+  }
+  function seaGearFront(c, hx, hy, hr, f, u) {
+    const sx = hx - f * hr * .62;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(hx + f * hr * .5, hy + hr * .62); ctx.quadraticCurveTo(hx - f * hr * .2, hy + hr * .95, sx, hy + hr * .3); ctx.lineTo(sx, hy - hr * 1.3);
+    ctx.strokeStyle = INK; ctx.lineWidth = 6.5 * u; ctx.stroke(); ctx.strokeStyle = '#ffcf3a'; ctx.lineWidth = 4 * u; ctx.stroke();
+    const mx0 = hx + f * hr * .36, my0 = hy + hr * .06;
+    ctx.beginPath(); ctx.moveTo(mx0 - f * hr * .6, my0); ctx.lineTo(hx - f * hr * .98, hy - hr * .05);
+    ctx.strokeStyle = '#25303d'; ctx.lineWidth = 3 * u; ctx.stroke();
+    rr(mx0 - hr * .62, my0 - hr * .3, hr * 1.24, hr * .58, hr * .22);
+    ctx.fillStyle = 'rgba(170,228,255,.38)'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.2 * u; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(mx0 - hr * .4, my0 - hr * .18); ctx.lineTo(mx0 - hr * .18, my0 - hr * .18);
+    ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.6 * u; ctx.stroke();
+  }
+  function setMap(m) {
+    MAP = m;
+    document.querySelectorAll('.mp').forEach(o => o.setAttribute('aria-pressed', String(o.dataset.m === m)));
+    $('mapTag').textContent = TX().tag;
+    reset();
+  }
+  document.querySelectorAll('.mp').forEach(b => b.addEventListener('click', () => setMap(b.dataset.m)));
+
+  // ---------- space-station map ----------
+  function drawSpaceBG() {
+    const hz = H * .3;
+    const g = ctx.createLinearGradient(0, 0, 0, hz);
+    g.addColorStop(0, '#05081a'); g.addColorStop(1, '#161c44');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, hz);
+    for (let i = 0; i < 70; i++) {
+      const x = hash(i * 1.7) * W, y = hash(i * 3.1) * hz, a = .35 + .65 * Math.abs(Math.sin(T * 1.3 + i));
+      ctx.beginPath(); ctx.arc(x, y, (hash(i * 5.3) * 1.3 + .5) * S, 0, Math.PI * 2); ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.fill();
+    }
+    // earth through the window
+    const ex = W * .84, ey = hz * .62, er = 46 * S;
+    const glow = ctx.createRadialGradient(ex, ey, er * .9, ex, ey, er * 1.35);
+    glow.addColorStop(0, 'rgba(120,190,255,.45)'); glow.addColorStop(1, 'rgba(120,190,255,0)');
+    ctx.fillStyle = glow; ctx.fillRect(ex - er * 1.4, ey - er * 1.4, er * 2.8, er * 2.8);
+    const eg = ctx.createRadialGradient(ex - er * .35, ey - er * .35, er * .1, ex, ey, er);
+    eg.addColorStop(0, '#7cc6ff'); eg.addColorStop(1, '#1c5fae');
+    ctx.save(); ctx.beginPath(); ctx.arc(ex, ey, er, 0, Math.PI * 2); ctx.fillStyle = eg; ctx.fill(); ctx.clip();
+    [[-.3, -.2, .38, .22], [.25, .2, .3, .2], [.1, -.45, .22, .12]].forEach(([dx, dy, rx, ry]) => {
+      ctx.beginPath(); ctx.ellipse(ex + dx * er, ey + dy * er, rx * er, ry * er, .4, 0, Math.PI * 2); ctx.fillStyle = '#4caf6e'; ctx.fill();
+    });
+    ctx.restore();
+    ctx.font = `600 ${Math.round(12 * S)}px "Noto Sans KR", sans-serif`; ctx.fillStyle = '#cfd8ff'; ctx.textAlign = 'center';
+    ctx.fillText('지구', ex, ey + er + 16 * S);
+    // window frame
+    ctx.fillStyle = '#3a4166';
+    for (let i = 1; i < 4; i++) ctx.fillRect(W * i / 4 - 4 * S, 0, 8 * S, hz);
+    // deck
+    const dg = ctx.createLinearGradient(0, hz, 0, H);
+    dg.addColorStop(0, '#2a3054'); dg.addColorStop(1, '#353d6b');
+    ctx.fillStyle = dg; ctx.fillRect(0, hz, W, H - hz);
+    ctx.strokeStyle = 'rgba(255,255,255,.05)'; ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 48 * S) { ctx.beginPath(); ctx.moveTo(x, hz); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = hz; y < H; y += 48 * S) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    ctx.fillStyle = '#4a5380'; ctx.fillRect(0, hz - 4 * S, W, 8 * S);
+    // float zone
+    ctx.beginPath(); ctx.arc(AREA.x * W, AREA.y * H + 20 * S, areaR() + 30 * S, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(160,190,255,.07)'; ctx.fill();
+    ctx.setLineDash([6 * S, 7 * S]); ctx.strokeStyle = 'rgba(190,210,255,.45)'; ctx.lineWidth = 1.6 * S; ctx.stroke(); ctx.setLineDash([]);
+    // centerpiece: the station's last oxygen tree under a glass dome
+    const fx = FIRE.x * W, fy = FIRE.y * H;
+    const pulse = 1 + Math.sin(T * 2) * .1;
+    const cg = ctx.createRadialGradient(fx, fy - 22 * S, 4 * S, fx, fy - 22 * S, 110 * S * pulse);
+    cg.addColorStop(0, 'rgba(150,255,170,.3)'); cg.addColorStop(1, 'rgba(150,255,170,0)');
+    ctx.fillStyle = cg; ctx.fillRect(fx - 120 * S, fy - 140 * S, 240 * S, 240 * S);
+    ctx.lineJoin = 'round';
+    rr(fx - 38 * S, fy - 2 * S, 76 * S, 14 * S, 5 * S); ctx.fillStyle = '#596190'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.4 * S; ctx.stroke();
+    [-18, -6, 6, 18].forEach((dx, i) => { ctx.beginPath(); ctx.arc(fx + dx * S, fy + 5 * S, 2 * S, 0, Math.PI * 2); ctx.fillStyle = Math.sin(T * 4 + i) > 0 ? '#7dffa8' : '#2e6b48'; ctx.fill(); });
+    // soil + tree
+    ctx.beginPath(); ctx.ellipse(fx, fy - 2 * S, 24 * S, 5 * S, 0, 0, Math.PI * 2); ctx.fillStyle = '#5b3b2a'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(fx - 3 * S, fy - 3 * S); ctx.quadraticCurveTo(fx - 1 * S, fy - 18 * S, fx - 4 * S, fy - 30 * S);
+    ctx.lineTo(fx + 3 * S, fy - 30 * S); ctx.quadraticCurveTo(fx + 2 * S, fy - 18 * S, fx + 4 * S, fy - 3 * S); ctx.closePath();
+    ctx.fillStyle = '#8a5a3c'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.8 * S; ctx.stroke();
+    const sway = Math.sin(T * 1.2) * 1.5 * S;
+    [[-9, -36, 11], [9, -38, 11], [0, -46, 13], [-3, -32, 9], [6, -30, 8]].forEach(([dx, dy, r], i) => {
+      ctx.beginPath(); ctx.arc(fx + dx * S + sway, fy + dy * S, r * S, 0, Math.PI * 2);
+      ctx.fillStyle = i % 2 ? '#43c46b' : '#5ad67e'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.8 * S; ctx.stroke();
+    });
+    ctx.beginPath(); ctx.arc(fx - 5 * S + sway, fy - 50 * S, 4 * S, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fill();
+    // glass dome
+    ctx.beginPath(); ctx.ellipse(fx, fy - 2 * S, 36 * S, 64 * S, 0, Math.PI, 0); ctx.closePath();
+    ctx.fillStyle = 'rgba(190,230,255,.13)'; ctx.fill(); ctx.strokeStyle = '#cfe6ff'; ctx.lineWidth = 2.2 * S; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(fx, fy - 2 * S, 30 * S, 56 * S, 0, Math.PI * 1.12, Math.PI * 1.38); ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 2.4 * S; ctx.lineCap = 'round'; ctx.stroke();
+    // floating O2 sparkles
+    for (let i = 0; i < 4; i++) {
+      const t = (T * .35 + i / 4) % 1, a = i * 1.6 + T * .5;
+      ctx.globalAlpha = 1 - t;
+      ctx.font = `700 ${Math.round(9 * S)}px "Noto Sans KR", sans-serif`; ctx.fillStyle = '#a8ffc4'; ctx.textAlign = 'center';
+      ctx.fillText('O₂', fx + Math.cos(a) * (42 + t * 30) * S, fy - 40 * S - t * 40 * S);
+    }
+    ctx.globalAlpha = 1;
+    ctx.font = `600 ${Math.round(11 * S)}px "Noto Sans KR", sans-serif`; ctx.fillStyle = '#b6ffc9'; ctx.textAlign = 'center';
+    ctx.fillText('마지막 산소나무', fx, fy + 30 * S);
+  }
+  function spaceGearBack(c, X, by0, bw, bh, f, u) {
+    rr(X - f * bw * .8 - 6 * u, by0 - bh * .65, 12 * u, bh * .8, 3 * u);
+    ctx.fillStyle = '#eef1f8'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.2 * u; ctx.stroke();
+    ctx.beginPath(); ctx.arc(X - f * bw * .8, by0 - bh * .35, 2 * u, 0, Math.PI * 2); ctx.fillStyle = '#ff5c8a'; ctx.fill();
+  }
+  function spaceGearFront(c, hx, hy, hr, f, u) {
+    const cy = hy - hr * .08, R0 = hr * 1.38;
+    ctx.beginPath(); ctx.arc(hx, cy, R0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(200,230,255,.16)'; ctx.fill();
+    ctx.strokeStyle = INK; ctx.lineWidth = 4.2 * u; ctx.stroke(); ctx.strokeStyle = '#dbe6ff'; ctx.lineWidth = 2.2 * u; ctx.stroke();
+    ctx.beginPath(); ctx.arc(hx, cy, R0 * .82, Math.PI * 1.1, Math.PI * 1.4); ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 2.4 * u; ctx.lineCap = 'round'; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(hx + f * R0 * .3, cy - R0 * .95); ctx.lineTo(hx + f * R0 * .45, cy - R0 * 1.3);
+    ctx.strokeStyle = INK; ctx.lineWidth = 2 * u; ctx.stroke();
+    ctx.beginPath(); ctx.arc(hx + f * R0 * .45, cy - R0 * 1.3, 2.4 * u, 0, Math.PI * 2);
+    ctx.fillStyle = Math.sin(T * 5 + c.seed) > 0 ? '#ff4d6d' : '#7a2335'; ctx.fill();
+  }
+
+  // ---------- punishment time: the seeker team each picks one, then it actually happens ----------
+  const PUN = [
+    { key: 'spank', label: '엉덩이 찰싹', word: '찰싹!', face: false },
+    { key: 'kancho', label: '똥침', word: '푹!', face: false },
+    { key: 'smell', label: '자기 방구 맡기', word: '으악!', face: true },
+    { key: 'tickle', label: '간지럼', word: '깔깔깔!', face: false },
+  ];
+  const PUN_BY = Object.fromEntries(PUN.map(p => [p.key, p]));
+  const pnEl = $('punish'), pnGrid = $('pnGrid'), pnPicks = $('pnPicks');
+  let punishState = '', pnT = 0, pnHold = 0, pnQueue = [], pnIdx = 0, pnTime = 0, pnHit = false, pnPrinted = false, pnDmg = { prints: [], bump: false, tissue: false };
+  function renderPicks() {
+    pnPicks.textContent = '';
+    pnQueue.forEach(it => {
+      const chip = document.createElement('span'); chip.className = 'pn-chip' + (it.who === myIdx ? ' me' : '');
+      chip.textContent = `${chars[it.who].name}${it.who === myIdx ? '(나)' : ''} → ${it.act ? PUN_BY[it.act].label : '고르는 중…'}`;
+      pnPicks.append(chip);
+    });
+  }
+  function startPunish() {
+    punishState = 'pick'; pnHold = 0; pnDmg = { prints: [], bump: false, tissue: false };
+    const team = chars.map((c, i) => i).filter(i => i !== culprit && i !== helperIdx);
+    pnQueue = team.map(i => ({ who: i, act: i === myIdx ? null : pick(PUN).key }));
+    const mine = team.includes(myIdx);
+    pnT = mine ? 10 : 2.5;
+    $('pnSub').textContent = mine ? `진범 ${chars[culprit].name}에게 줄 벌칙을 고르세요` : `시민 팀이 진범 ${chars[culprit].name}의 벌칙을 고르는 중…`;
+    pnGrid.textContent = ''; pnGrid.hidden = !mine;
+    PUN.forEach(p => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = p.label;
+      b.addEventListener('click', () => {
+        const it = pnQueue.find(q => q.who === myIdx);
+        if (!it || it.act) return;
+        it.act = p.key; pnGrid.querySelectorAll('button').forEach(x => { x.disabled = true; }); b.classList.add('picked');
+        renderPicks();
+      });
+      pnGrid.append(b);
+    });
+    renderPicks();
+    pnEl.hidden = false;
+    statusEl.textContent = '벌칙 시간!';
+  }
+  function tickPunish(dt) {
+    if (punishState === 'pick') {
+      pnT -= dt;
+      const mineIt = pnQueue.find(q => q.who === myIdx);
+      if (mineIt && !mineIt.act && pnT <= 0) { mineIt.act = pick(PUN).key; renderPicks(); }
+      if (pnQueue.every(q => q.act)) {
+        pnHold += dt;
+        if (pnHold > 1.6) { pnEl.hidden = true; punishState = 'play'; pnIdx = 0; pnTime = 0; pnHit = false; }
+      }
+    } else if (punishState === 'play') {
+      pnTime += dt;
+      if (!pnHit && pnTime >= 1) { pnHit = true; hitSfx(pnQueue[pnIdx].act); }
+      if (pnTime > 2.6) {
+        pnIdx++; pnTime = 0; pnHit = false; pnPrinted = false;
+        if (pnIdx >= pnQueue.length) { punishState = 'done'; newsShown = true; showNews(); }
+      }
+    }
+  }
+  function noiseBurst(t, d, hp, v) {
+    const buf = AC.createBuffer(1, Math.ceil(AC.sampleRate * d), AC.sampleRate), ch = buf.getChannelData(0);
+    for (let i = 0; i < ch.length; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / ch.length);
+    const src = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+    src.buffer = buf; f.type = 'highpass'; f.frequency.value = hp; g.gain.value = v;
+    src.connect(f); f.connect(g); g.connect(AC.destination); src.start(t);
+  }
+  function sweep(type, f0, f1, t, d, v) {
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + d);
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+    o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + d + .05);
+  }
+  function hitSfx(key) {
+    if (!soundOn || !AC) return;
+    const t = AC.currentTime;
+    if (key === 'spank') noiseBurst(t, .09, 1200, .6);
+    else if (key === 'kancho') { sweep('sine', 260, 1100, t, .18, .3); sweep('square', 700, 1500, t + .2, .25, .06); }
+    else if (key === 'flick') { noiseBurst(t, .03, 3000, .5); sweep('square', 1400, 900, t, .05, .08); }
+    else if (key === 'tissue') sweep('sine', 700, 1700, t, .12, .25);
+    else if (key === 'smell') { sfx(.5); sweep('sawtooth', 220, 70, t + .3, .7, .08); }
+    else if (key === 'tickle') [0, .12, .24, .36].forEach((d, i) => sweep('sine', 900 + i * 120, 1300 + i * 120, t + d, .08, .18));
+  }
+  function hand(x, y, r) {
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = SKIN; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.2 * S; ctx.stroke();
+  }
+  function handprint(x, y, s, flip, rot) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(flip * s, s);
+    ctx.fillStyle = 'rgba(230,40,70,.55)';
+    ctx.beginPath(); ctx.ellipse(0, 1.5, 3.2, 3.6, 0, 0, Math.PI * 2); ctx.fill();
+    [[-2.2, -3.6, -.25], [-.7, -4.4, -.08], [.8, -4.3, .08], [2.2, -3.5, .25]].forEach(([fx, fy, r]) => {
+      ctx.save(); ctx.translate(fx, fy); ctx.rotate(r); ctx.beginPath(); ctx.ellipse(0, 0, .75, 2.1, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    });
+    ctx.save(); ctx.translate(3.4, .8); ctx.rotate(.9); ctx.beginPath(); ctx.ellipse(0, 0, .8, 1.8, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    ctx.restore();
+  }
+  function drawPunish() {
+    const it = pnQueue[pnIdx]; if (!it) return;
+    const P = PUN_BY[it.act], cu = chars[culprit], pu = chars[it.who], t = pnTime;
+    const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#1b1730'); bg.addColorStop(1, '#2f2849');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    const sp = ctx.createRadialGradient(W * .5, H * .1, 10, W * .5, H * .55, Math.max(W, H) * .6);
+    sp.addColorStop(0, 'rgba(255,245,210,.22)'); sp.addColorStop(1, 'rgba(255,245,210,0)');
+    ctx.fillStyle = sp; ctx.fillRect(0, 0, W, H);
+    const k = Math.min(2.2, .36 * H / (72 * S)), u = S * k;
+    const cx = W * .5, cy = H * .58, ringRx = Math.min(W * .38, 140 * u), ringRy = 56 * u;
+    ctx.beginPath(); ctx.ellipse(cx, cy + 32 * u, ringRx + 40 * u, ringRy + 14 * u, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,240,200,.1)'; ctx.fill();
+    const fc = P.face ? -1 : 1;
+    const hit = clamp((t - .6) / .4), after = Math.max(0, t - 1);
+    const buttX = cx - fc * cu.bw * .65 * u, buttY = cy + (2 + cu.bh * .5) * u;
+    const hx = cx + fc * 2 * u, hr = 14 * u, hy = cy + 2 * u - cu.bh * u - 8.5 * u;
+    const headX = hx - hr * .9, noseX = hx + fc * hr * .93, noseY = hy + hr * .3;
+    const tx = P.face ? (P.key === 'flick' ? headX + 2 * u : noseX) : buttX, ty = P.face ? (P.key === 'flick' ? hy - hr * .35 : noseY) : buttY;
+    // everybody else stands in a ring around the culprit
+    const ring = chars.map((c, i) => i).filter(i => i !== culprit);
+    const spot = i => {
+      // two side arcs, leaving the front and the back of the culprit open so nobody hides them
+      const n = ring.length, q = (ring.indexOf(i) + .5) / n * 220;
+      const a = (q < 110 ? 125 + q : -55 + (q - 110)) * Math.PI / 180;
+      return [cx + Math.cos(a) * ringRx, cy + Math.sin(a) * ringRy];
+    };
+    const [sx, sy] = spot(it.who), ax = tx - (P.face ? 34 : 44) * u, ay = cy;
+    const go = ease(clamp(t / .6)), back = ease(clamp((t - 1.9) / .6));
+    const px = lerp(lerp(sx, ax, go), sx, back), py = lerp(lerp(sy, ay, go), sy, back);
+    const pFace = t < .6 ? (ax > sx ? 1 : -1) : t > 1.9 ? (sx > ax ? 1 : -1) : 1;
+    let jump = 0, shake = 0, tilt = 0;
+    if (after > 0 && !P.face) jump = -Math.sin(clamp(after / .55) * Math.PI) * (P.key === 'kancho' ? 70 : 28) * S;
+    if (P.key === 'tickle' && after > 0 && after < 1.2) shake = Math.sin(after * 60) * 4 * u;
+    if (P.key === 'smell') tilt = clamp((after - .35) / .45) * 1.25 * (1 - back);
+    if (P.key === 'spank' && after > 0 && !pnPrinted) { pnPrinted = true; pnDmg.prints.push([R(-2.5, 2.5), R(-3, 3), R(-.5, .5)]); }
+    if (P.key === 'flick' && after > 0) pnDmg.bump = true;
+    if (P.key === 'tissue' && after > 0) pnDmg.tissue = true;
+    const drawCulprit = () => {
+      ctx.save();
+      ctx.translate(cx + shake, cy + 32 * u + jump); ctx.rotate(tilt); ctx.translate(-cx, -(cy + 32 * u));
+      drawChar(Object.assign({}, cu, { face: fc, pause: 1, sq: after > 0 && after < 1.4 ? 1 : 0 }), cx, cy, k);
+      pnDmg.prints.forEach(([dx, dy, r]) => handprint(buttX + dx * u, buttY + dy * u, u * 1.05, -fc, r));
+      if (pnDmg.bump) { const bx = hx - fc * hr * .55, by = hy - hr * .55; ctx.beginPath(); ctx.arc(bx, by, 3.6 * u, 0, Math.PI * 2); ctx.fillStyle = '#ff6b6b'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.6 * S; ctx.stroke(); }
+      if (pnDmg.tissue) {
+        ctx.save(); ctx.translate(noseX, noseY); ctx.rotate(fc > 0 ? .5 : -.5);
+        ctx.fillStyle = '#ffffff'; ctx.strokeStyle = INK; ctx.lineWidth = 1.6 * S;
+        ctx.beginPath(); ctx.rect(fc > 0 ? 0 : -12 * u, -2 * u, 12 * u, 4 * u); ctx.fill(); ctx.stroke(); ctx.restore();
+      }
+      ctx.restore();
+    };
+    // draw back-to-front so the ring wraps around properly
+    const items = ring.filter(i => i !== it.who).map(i => { const [x, y] = spot(i); return { y, f: () => drawChar(Object.assign({}, chars[i], { face: x < cx ? 1 : -1, pause: 1, sq: 0 }), x, y, k * (.86 + (y - (cy - ringRy)) / (2 * ringRy) * .14)) }; });
+    items.push({ y: py, f: () => drawChar(Object.assign({}, pu, { face: pFace, pause: 1, sq: 0 }), px, py, k) });
+    items.push({ y: cy + .1, f: drawCulprit });
+    items.sort((a, b) => a.y - b.y).forEach(o => o.f());
+    // hands / props
+    if (P.key === 'spank' && t > .4 && t < 1.4) hand(lerp(tx - 8 * u, tx - 3 * u, hit), lerp(ty - 26 * u, ty, hit) + (after > 0 ? jump : 0), 4.5 * u);
+    if (P.key === 'kancho' && t > .5 && t < 1.45) {
+      const kx = lerp(px + 16 * u, tx - 4 * u, hit), ky = ty + 2 * u + jump;
+      ctx.fillStyle = SKIN; ctx.strokeStyle = INK; ctx.lineWidth = 2 * S;
+      rr(kx - 10 * u, ky - 4 * u, 10 * u, 8 * u, 3 * u); ctx.fill(); ctx.stroke();
+      rr(kx - 1 * u, ky - 2.4 * u, 9 * u, 2.2 * u, 1 * u); ctx.fill(); ctx.stroke();
+      rr(kx - 1 * u, ky + .4 * u, 9 * u, 2.2 * u, 1 * u); ctx.fill(); ctx.stroke();
+    }
+    if (P.key === 'flick' && t > .5 && t < 1.4) hand(lerp(tx - 10 * u, tx - 4 * u, hit), ty, 3.6 * u);
+    if (P.key === 'tickle' && t > .5 && t < 1.9) {
+      const fx = buttX - 6 * u + Math.sin(t * 25) * 3 * u, fy = cy - 2 * u + Math.cos(t * 21) * 3 * u;
+      ctx.save(); ctx.translate(fx, fy); ctx.rotate(-.6 + Math.sin(t * 25) * .3);
+      ctx.beginPath(); ctx.ellipse(0, 0, 14 * u, 4 * u, 0, 0, Math.PI * 2); ctx.fillStyle = '#ffd6f0'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.6 * S; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-14 * u, 0); ctx.lineTo(16 * u, 0); ctx.stroke(); ctx.restore();
+    }
+    if (P.key === 'smell' && t < 1.9) {
+      const jx = lerp(px + 18 * u, tx - 12 * u, hit), jy = ty + 4 * u;
+      rr(jx - 7 * u, jy - 9 * u, 14 * u, 18 * u, 3 * u); ctx.fillStyle = 'rgba(220,240,255,.35)'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2 * S; ctx.stroke();
+      ctx.beginPath(); ctx.arc(jx, jy + 2 * u, 5 * u, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,215,60,.85)'; ctx.fill();
+      if (after <= 0) { rr(jx - 8 * u, jy - 12 * u, 16 * u, 4 * u, 1.5 * u); ctx.fillStyle = '#8a5a3c'; ctx.fill(); ctx.stroke(); }
+      else for (let i = 0; i < 3; i++) { const q = clamp(after * 1.5 - i * .15); ctx.globalAlpha = 1 - q; cloud(lerp(jx, tx, q), jy - 10 * u - q * 8 * u, (5 + q * 8) * u, '#ffdf3d', '#c99a00', 1.2 * S, i); ctx.globalAlpha = 1; }
+    }
+    // words
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    ctx.font = `${Math.round(20 * S)}px "Jua", sans-serif`; ctx.fillStyle = '#ffffff';
+    ctx.fillText(`${pu.name} → ${P.label}`, W / 2, 34 * S);
+    ctx.font = `600 ${Math.round(12 * S)}px "Noto Sans KR", sans-serif`; ctx.fillStyle = '#c9c3e6';
+    ctx.fillText(`벌칙 ${pnIdx + 1} / ${pnQueue.length}`, W / 2, 58 * S);
+    if (after > 0 && after < 1.3) {
+      const pop = 1 + Math.max(0, .25 - after) * 2;
+      ctx.font = `${Math.round(40 * S * pop)}px "Jua", sans-serif`;
+      ctx.strokeStyle = INK; ctx.lineWidth = 6 * S; ctx.strokeText(P.word, tx, ty - 40 * u);
+      ctx.fillStyle = '#ff3ea5'; ctx.fillText(P.word, tx, ty - 40 * u);
+      if (P.key === 'kancho') { ctx.font = `${Math.round(22 * S)}px "Jua", sans-serif`; ctx.strokeText('히익!!', cx + 30 * u, hy - 26 * u + jump); ctx.fillStyle = '#ffffff'; ctx.fillText('히익!!', cx + 30 * u, hy - 26 * u + jump); }
+    }
+    ctx.restore();
+  }
+
+  // ---------- helper: cover the CCTV lens with your butt ----------
+  const coverBtn = $('coverBtn');
+  let covers = [], coverLeft = 1, coverT = 0, npcCoverAt = -1, npcCoverUsed = false, coverLabel = '';
+  function startCover(i) {
+    covers.push([gameT, gameT + 3, i]);
+    if (i === myIdx) { coverLeft--; coverT = 3; statusEl.textContent = 'CCTV 렌즈를 엉덩이로 가리는 중…'; }
+  }
+  function tryCover() {
+    if (myRole !== 'helper' || mode !== 'play' || coverLeft <= 0 || coverT > 0) return;
+    startCover(myIdx);
+  }
+  function updateCoverBtn() {
+    coverBtn.hidden = myRole !== 'helper';
+    coverBtn.disabled = mode !== 'play' || coverLeft <= 0 || coverT > 0;
+    const t = coverT > 0 ? `가리는 중 ${Math.ceil(coverT)}초` : 'CCTV 가리기' + kh('C') + (coverLeft > 0 ? '' : ' · 다음 날');
+    if (t !== coverLabel) { coverBtn.textContent = t; coverLabel = t; }
+  }
+  function tickCover(dt) {
+    if (coverT > 0) { coverT -= dt; if (coverT <= 0 && mode === 'play') statusEl.textContent = '가리기 끝.'; }
+    if (mode === 'play' && npcCoverAt > 0 && gameT >= npcCoverAt) { npcCoverAt = -1; npcCoverUsed = true; startCover(helperIdx); }
+  }
+  // a plain butt seen from behind, squashed against the lens: same for everyone, so it can't tell you who
+  function drawCoverButt() {
+    const r = Math.min(W * .28, H * .34), cx = W / 2, cy = H * .62, lw = Math.max(3, r * .045);
+    const PANTS = '#a59e95', COAT = '#d6d0c7';
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.fillRect(0, 0, W, H);
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    // legs
+    [-1, 1].forEach(sd => {
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + sd * r * 1.18, cy);
+      ctx.lineTo(cx + sd * r * 1.08, H + lw * 2); ctx.lineTo(cx, H + lw * 2); ctx.closePath();
+      ctx.fillStyle = PANTS; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = lw; ctx.stroke();
+    });
+    // two cheeks outlined as one shape
+    const cheek = sd => { ctx.beginPath(); ctx.ellipse(cx + sd * r * .58, cy, r * .66, r * .74, 0, 0, Math.PI * 2); };
+    [-1, 1].forEach(sd => { cheek(sd); ctx.strokeStyle = INK; ctx.lineWidth = lw * 2; ctx.stroke(); });
+    [-1, 1].forEach(sd => { cheek(sd); ctx.fillStyle = PANTS; ctx.fill(); });
+    [-1, 1].forEach(sd => {
+      // shine + the little smile under each cheek
+      ctx.beginPath(); ctx.ellipse(cx + sd * r * .78, cy - r * .2, r * .17, r * .1, sd * .5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fill();
+      ctx.beginPath(); ctx.moveTo(cx + sd * r * .12, cy + r * .66); ctx.quadraticCurveTo(cx + sd * r * .6, cy + r * .86, cx + sd * r * 1.02, cy + r * .5);
+      ctx.strokeStyle = INK; ctx.lineWidth = lw; ctx.stroke();
+    });
+    // the crack
+    ctx.beginPath(); ctx.moveTo(cx, cy - r * .5); ctx.quadraticCurveTo(cx + r * .04, cy + r * .2, cx, cy + r * .66);
+    ctx.strokeStyle = INK; ctx.lineWidth = lw; ctx.stroke();
+    // puffy coat hem over the top
+    const top = -lw * 2, hem = cy - r * .42, x0 = cx - r * 1.5, x1 = cx + r * 1.5, rr = r * .35;
+    ctx.beginPath(); ctx.moveTo(x0, top); ctx.lineTo(x0, hem - rr); ctx.quadraticCurveTo(x0, hem, x0 + rr, hem);
+    ctx.lineTo(x1 - rr, hem); ctx.quadraticCurveTo(x1, hem, x1, hem - rr); ctx.lineTo(x1, top); ctx.closePath();
+    ctx.fillStyle = COAT; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = lw; ctx.stroke();
+    ctx.strokeStyle = 'rgba(29,26,36,.25)'; ctx.lineWidth = lw * 1.4;
+    for (let yy = hem - r * .38; yy > 0; yy -= r * .42) { ctx.beginPath(); ctx.moveTo(x0 + r * .18, yy); ctx.quadraticCurveTo(cx, yy + r * .1, x1 - r * .18, yy); ctx.stroke(); }
+    ctx.restore();
+  }
+  function drawCoverLabel() {
+    const k = W / 480;
+    ctx.save();
+    ctx.font = `${Math.round(48 * k)}px "Jua", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = INK; ctx.lineWidth = 10 * k; ctx.strokeText('가려짐!', W / 2, H * .22);
+    ctx.fillStyle = '#ff3ea5'; ctx.fillText('가려짐!', W / 2, H * .22);
+    ctx.restore();
+  }
+  coverBtn.addEventListener('click', tryCover);
+
+  // ---------- plain citizens: sniff the butt next to you; accomplice: erase on demand ----------
+  const sniffBtn = $('sniffBtn'), eraseBtn = $('eraseBtn');
+  let sniffLeft = 1, eraseLeft = 1, lastFartT = -99, sniffPop = null, xLabel = '';
+  let decoyLeft = 1, decoyT = -99, decoys = 0, npcDecoyAt = -1;
+  function sniffPick() {
+    const me = chars[myIdx], reach = 52 * S * depth(me);
+    let best = -1, bd = Infinity;
+    chars.forEach((o, i) => {
+      if (i === myIdx) return;
+      const d = Math.hypot((o.x - me.x) * W, (o.y - me.y) * H);
+      if (d < reach && d < bd) { bd = d; best = i; }
+    });
+    return best;
+  }
+  function trySniff() {
+    if (myRole !== 'seeker' || mode !== 'play' || sniffLeft <= 0) return;
+    const t = sniffPick();
+    if (t < 0) { statusEl.textContent = '너무 멀어요. 바짝 붙어서 킁킁!'; return; }
+    sniffLeft--;
+    const stinky = (t === culprit && gameT - lastFartT <= 6) || (t === helperIdx && gameT - decoyT <= 6);
+    sniffPop = { i: t, t: 0, bad: stinky };
+    chars[myIdx].sq = stinky ? 1.6 : 0;
+    statusEl.textContent = stinky ? `킁킁… ${chars[t].name} 엉덩이가 구리다!!` : `킁킁… ${chars[t].name} 엉덩이는 무취.`;
+  }
+  function tryErase() {
+    if (myRole !== 'helper' || !accomplice || mode !== 'play' || eraseLeft <= 0) return;
+    eraseLeft--; erased.push([Math.max(0, gameT - 5), gameT]);
+    statusEl.textContent = '방금 5초 녹화를 지지직으로 날렸다.';
+  }
+  // accomplice: a whoopee-cushion fart. looks, smells and sniffs like the real thing
+  const decoyBtn = $('decoyBtn');
+  function doDecoy(i) {
+    if (decoyLeft <= 0 || mode !== 'play') return;
+    decoyLeft--; const c = chars[i], p0 = pos(c); fart(c, p0.X, p0.Y, p0.k, true);
+    if (i === myIdx) statusEl.textContent = '뿌우웅~ 방구 쿠션 발사. 이제 다들 나를 의심하겠지.';
+  }
+  function tryDecoy() { if (myRole === 'helper' && accomplice) doDecoy(myIdx); }
+  decoyBtn.addEventListener('click', tryDecoy);
+  function updateExtraBtns() {
+    decoyBtn.hidden = !(myRole === 'helper' && accomplice);
+    decoyBtn.disabled = mode !== 'play' || decoyLeft <= 0;
+    decoyBtn.textContent = '방구 쿠션' + kh('B');
+    if (mode === 'play' && npcDecoyAt > 0 && gameT >= npcDecoyAt) { npcDecoyAt = -1; if (accomplice && helperIdx !== myIdx) doDecoy(helperIdx); }
+    sniffBtn.hidden = myRole !== 'seeker';
+    sniffBtn.disabled = mode !== 'play' || sniffLeft <= 0;
+    eraseBtn.hidden = !(myRole === 'helper' && accomplice);
+    eraseBtn.disabled = mode !== 'play' || eraseLeft <= 0;
+    const t = '킁킁' + kh('Q') + '|' + '녹화 지우기' + kh('E');
+    if (t !== xLabel) { xLabel = t; sniffBtn.textContent = '킁킁' + kh('Q'); eraseBtn.textContent = '녹화 지우기' + kh('E'); }
+  }
+  function drawSniff() {
+    if (myRole === 'seeker' && sniffLeft > 0 && mode === 'play') {
+      const i = sniffPick();
+      if (i >= 0) {
+        const c = chars[i], k = depth(c), x = c.x * W, y = c.y * H - 6 * S * k, r = 30 * S * k;
+        ctx.save(); ctx.beginPath(); ctx.ellipse(x, y, r, r * 1.35, 0, 0, Math.PI * 2);
+        ctx.setLineDash([6 * S, 5 * S]); ctx.lineDashOffset = -T * 30; ctx.strokeStyle = '#2f8a4a'; ctx.lineWidth = 3 * S; ctx.stroke(); ctx.setLineDash([]);
+        ctx.font = `${Math.round(13 * S)}px "Jua", sans-serif`; ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+        const lb = isTouch() ? '킁킁 대상' : '킁킁 대상 (Q)', ly = y + r * 1.35 + 14 * S;
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4 * S; ctx.strokeText(lb, x, ly); ctx.fillStyle = '#2f8a4a'; ctx.fillText(lb, x, ly);
+        ctx.restore();
+      }
+    }
+    if (sniffPop) {
+      sniffPop.t += 1 / 60;
+      if (sniffPop.t > 1.8) { sniffPop = null; return; }
+      const c = chars[sniffPop.i], k = depth(c), x = c.x * W, y = c.y * H - (c.bh + 50) * S * k - sniffPop.t * 10 * S;
+      ctx.save(); ctx.globalAlpha = Math.min(1, (1.8 - sniffPop.t) * 2);
+      ctx.font = `${Math.round(18 * S)}px "Jua", sans-serif`; ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+      const txt = sniffPop.bad ? '구리다!!' : '무취';
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 5 * S; ctx.strokeText(txt, x, y);
+      ctx.fillStyle = sniffPop.bad ? '#c99a00' : '#2f8a4a'; ctx.fillText(txt, x, y);
+      ctx.restore();
+    }
+  }
+  sniffBtn.addEventListener('click', trySniff);
+  eraseBtn.addEventListener('click', tryErase);
+
+  // ---------- caught: news, trending searches, SNS pile-on, street ----------
+  const AGE = { '김부장': 52, '할매': 87, '민수': 24, '영희': 27, '덕배': 31, '박대리': 34 };
+  const newsEl = $('news');
+  let newsIdx = -1, newsTimer = 0, newsShown = false;
+  function showNews() {
+    const nm = chars[culprit].name, age = AGE[nm] || 30;
+    $('newsHead').textContent = TX().head(nm, age); $('stCap').textContent = TX().never;
+    $('jbHead').textContent = TX().head(nm, age);
+    $('jbTicker').textContent = '무취법 위반자 현장 체포 · 단속반 "이런 냄새는 처음" · 시민 여러분은 숨을 참지 마세요';
+    paintChar($('jbChar'), culprit);
+    const crowd = $('crowd'); crowd.textContent = '';
+    const lines = ['헐', '저 사람 아냐?', 'ㅋㅋㅋㅋ', '방구…', '어머 어머'];
+    chars.map((c, i) => i).filter(i => i !== culprit).forEach((i, n) => {
+      const w = document.createElement('div'); w.className = 'cw';
+      const cc = document.createElement('canvas'); cc.width = 160; cc.height = 160; cc.setAttribute('aria-hidden', 'true');
+      paintChar(cc, i, { face: n % 2 ? -1 : 1, sq: n % 3 === 0 ? 1 : 0 });
+      const b = document.createElement('span'); b.className = 'cwb'; b.textContent = lines[n % lines.length]; b.style.animationDelay = (1 + n * .45) + 's';
+      w.append(b, cc); crowd.append(w);
+    });
+    $('newsTicker').textContent = '무취법 시행 이후 최대 냄새 사고 · 단속반 "이런 냄새는 처음" · 산장 일대 긴급 환기 중 · 목격자 "숨 쉬는 줄 알았다"';
+    paintChar($('newsChar'), culprit);
+    const rank = $('newsRank'); rank.textContent = '';
+    [`${nm} 방구`, TX().place, `${nm} 얼굴`, '무취법 처벌 수위', '산장 환기 방법'].forEach((r, i) => {
+      const li = document.createElement('li'); li.textContent = r;
+      if (i < 2) { const b = document.createElement('b'); b.textContent = '급상승'; li.append(b); }
+      rank.append(li);
+    });
+    const feed = $('newsFeed'); feed.textContent = '';
+    [['@눈사람123', `ㅋㅋㅋㅋ 저 산장 나도 가봤는데 ${nm} 거기 있었음`], ['@청정구역지킴이', '무취법 강화하라!!'], ['@익명', '냄새가 화면 밖으로 나는 듯'],
+     ['@산악회장', `${ga(nm)} 우리 산악회 회원이었음… 방금 탈퇴 처리함`], ['@뿡뿡이', '솔직히 참기 힘든 거 인정']].forEach(([u, t], i) => {
+      const p = document.createElement('div'); p.className = 'post'; p.style.animationDelay = (i * .3) + 's';
+      const b = document.createElement('b'); b.textContent = u; p.append(b, t); feed.append(p);
+    });
+    const ws = $('whispers'); ws.textContent = '';
+    [['저 사람이야…', 6, 14], ['방구…', 70, 10], ['어머 어머', 4, 58], ['뉴스 나온 그 사람?', 62, 52], ['가까이 가지 마', 30, 2]].forEach(([t, l, tp], i) => {
+      const w = document.createElement('span'); w.className = 'wsp'; w.textContent = t;
+      w.style.left = l + '%'; w.style.top = tp + '%'; w.style.animationDelay = (i * .25) + 's'; ws.append(w);
+    });
+    paintChar($('streetChar'), culprit, { sq: 1 });
+    newsIdx = -1; newsEl.hidden = false; nextNews();
+  }
+  function nextNews() {
+    newsIdx++; newsTimer = 0;
+    const slides = newsEl.querySelectorAll('.nw-slide');
+    if (newsIdx >= slides.length) {
+      newsEl.hidden = true;
+      setCaps(`진범 ${chars[culprit].name}`, `칭호 「${shameTitle}」`); again.hidden = false; return;
+    }
+    slides.forEach((s, i) => s.classList.toggle('on', i === newsIdx));
+  }
+  newsEl.addEventListener('click', nextNews);
+
+  // ---------- story: narration between rounds, meeting + vote ----------
+  const narrEl = $('narr'), narrTextEl = $('narrText'), narrChar = $('narrChar');
+  const voteEl = $('vote'), voteGrid = $('voteGrid');
+  let narrQ = [], narrDone = null, narrLine = '', narrShown = 0, narrHold = 0, voteT = 0, roundSmelled = new Set(), cleared = new Set();
+  const hasBatchim = w => { const c = w.charCodeAt(w.length - 1) - 0xac00; return c >= 0 && c < 11172 && c % 28 !== 0; };
+  const ga = w => w + (hasBatchim(w) ? '이' : '가');
+  const eun = w => w + (hasBatchim(w) ? '은' : '는');
+  function narrate(lines, done) {
+    narrQ = lines.slice(); narrDone = done; mode = 'narrate'; narrEl.hidden = false;
+    statusEl.textContent = '…'; nextLine();
+  }
+  function nextLine() {
+    const l = narrQ.shift();
+    if (l === undefined) { narrEl.hidden = true; const d = narrDone; narrDone = null; if (d) d(); return; }
+    narrLine = typeof l === 'string' ? l : l.t; narrShown = 0; narrHold = 0; narrTextEl.textContent = '';
+    if (typeof l === 'object' && l.who >= 0) { paintChar(narrChar, l.who, { sq: 1 }); narrChar.hidden = false; }
+    else narrChar.hidden = true;
+  }
+  function tickNarr(dt) {
+    if (narrShown < narrLine.length) {
+      narrShown = Math.min(narrLine.length, narrShown + dt * 20);
+      narrTextEl.textContent = narrLine.slice(0, Math.floor(narrShown));
+    } else if ((narrHold += dt) > 1.6) nextLine();
+  }
+  narrEl.addEventListener('click', () => {
+    if (narrShown < narrLine.length) { narrShown = narrLine.length; narrTextEl.textContent = narrLine; }
+    else nextLine();
+  });
+  function startRound(n) {
+    npcDecoyAt = -1;
+    round = n; roundT = 0; fartAt = R(3, ROUND_LEN - 6); fartedRound = false; pending = false;
+    coverLeft = 1; coverT = 0; npcCoverAt = -1; npcCoverUsed = false; sniffLeft = 1; eraseLeft = 1; sniffPop = null;
+    roundSmelled = new Set(); selfSmelled = false;
+    chars.forEach(c => { [c.x, c.y] = inArea(1); pickTarget(c); c.sq = 0; c.sqDelay = 0; });
+    puffs = [];
+    narrate(TX().day(n, rounds - n + 1), () => {
+      mode = 'play';
+      statusEl.textContent = n === 1 ? '누가 뀌었을까…' : `${n}일차.`;
+      if (accomplice && helperIdx !== myIdx && decoyLeft > 0 && (n === rounds || Math.random() < .5)) npcDecoyAt = gameT + R(3, ROUND_LEN - 5);
+    });
+  }
+  function endRound() {
+    // some people hold their breath and stay standing, so being missing from the list proves nothing
+    const who = Array.from(roundSmelled);
+    who.sort(() => Math.random() - .5);
+    lastFaint = who.slice();
+    const lines = [TX().night(round), '어둠 속에서… 누군가 뀌었습니다.'];
+    if (who.length) {
+      const names = who.map(i => chars[i].name);
+      const list = names.length === chars.length ? '전원이' : names.slice(0, -1).concat(ga(names[names.length - 1])).join(', ');
+      lines.push({ t: `밤사이 ${list} 냄새를 맡고 기절했습니다.`, who: who[0] });
+    } else lines.push('다행히 아무도 기절하지 않았습니다. …정말일까요?');
+    lines.push('무취 단속반이 오기 전에, 위반자를 신고해야 합니다.');
+    narrate(lines, openVote);
+  }
+  const LAST_WORDS = ['저 진짜 아니에요… 오늘 고구마도 안 먹었어요.', '제 엉덩이를 걸고 맹세합니다!', '저도 냄새 맡고 기절했다고요!',
+    '억울해서 방구도 안 나와요.', '저 찍으면 진짜 범인이 웃습니다.', '저는 숨만 쉬었을 뿐입니다.', '솔직히 저쪽이 더 수상하지 않아요?',
+    '제가 뀌었으면 벌써 다 기절했죠.', '엄마… 나 아니야…', '코를 걸고 말하는데, 저 아닙니다.'];
+  let runoff = null, lwT = 0, lwLines = {}, lwDue = {}, lwHold = 0; // runoff = tied candidates
+  function lwSet(i, text) {
+    lwLines[i] = text;
+    const btn = voteGrid.querySelector(`.vb[data-i="${i}"]`), bb = btn && btn.querySelector('.lwb');
+    if (bb) { bb.textContent = `"${text}"`; bb.classList.remove('wait'); bb.style.animation = 'none'; void bb.offsetWidth; bb.style.animation = ''; }
+  }
+  function mySay() {
+    if (mode !== 'lastword' || lwLines[myIdx] !== undefined) return;
+    const v = $('lwInput').value.trim();
+    lwSet(myIdx, v || '……'); $('lwIn').hidden = true;
+  }
+  $('lwSay').addEventListener('click', mySay);
+  $('lwInput').addEventListener('keydown', e => { if (e.key === 'Enter') mySay(); });
+  function tickLastWord(dt) {
+    lwT -= dt;
+    $('voteSub').textContent = `${Math.max(0, Math.ceil(lwT))}`;
+    runoff.forEach(i => { if (lwLines[i] === undefined && i !== myIdx && lwT <= lwDue[i]) { const used = Object.values(lwLines); lwSet(i, pick(LAST_WORDS.filter(w => !used.includes(w)))); } });
+    if (lwLines[myIdx] === undefined && runoff.includes(myIdx) && lwT <= 0) mySay();
+    if (runoff.every(i => lwLines[i] !== undefined)) {
+      lwHold += dt;
+      if (lwHold > 2.2) {
+        mode = 'vote'; voteT = 10;
+        $('voteTitle').textContent = '결선 투표';
+        voteGrid.querySelectorAll('.vb').forEach(b => { b.disabled = false; });
+        $('votePass').hidden = false;
+        statusEl.textContent = '한마디를 듣고 투표하세요.';
+      }
+    }
+  }
+  function openVote(cands) {
+    runoff = cands || null;
+    const duel = !!runoff && runoff.length === 2;
+    mode = duel ? 'lastword' : 'vote'; voteT = runoff ? 10 : 15; voteGrid.textContent = '';
+    voteEl.classList.toggle('lw', duel);
+    lwLines = {}; lwHold = 0; lwT = 12; lwDue = {};
+    if (duel) runoff.forEach(i => { lwDue[i] = R(7, 10.5); });
+    $('voteTitle').textContent = duel ? '동점! 최후의 한마디' : runoff ? '동점! 결선 투표' : '회의 시간 · 누구를 신고할까요?';
+    voteGrid.style.gridTemplateColumns = runoff ? `repeat(${runoff.length},minmax(0,140px))` : '';
+    voteGrid.style.justifyContent = runoff ? 'center' : '';
+    chars.forEach((c, i) => {
+      if (runoff && !runoff.includes(i)) return;
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'vb';
+      const cc = document.createElement('canvas'); cc.width = 160; cc.height = 160; cc.setAttribute('aria-hidden', 'true');
+      paintChar(cc, i);
+      const nm = document.createElement('span'); nm.textContent = c.name + (i === myIdx ? ' (나)' : '');
+      b.append(cc, nm);
+      if (cleared.has(i)) { b.disabled = true; const t = document.createElement('small'); t.textContent = '억울함 인증'; b.append(t); }
+      b.dataset.i = i;
+      b.addEventListener('click', () => castVote(i));
+      if (duel) {
+        b.disabled = true;
+        const bb = document.createElement('div'); bb.className = 'lwb wait ' + (runoff.indexOf(i) === 0 ? 'l' : 'r');
+        bb.textContent = i === myIdx ? '(한마디를 입력하세요)' : '…';
+        b.append(bb);
+      }
+      voteGrid.append(b);
+    });
+    $('votePass').hidden = duel;
+    $('lwIn').hidden = !(duel && runoff.includes(myIdx));
+    if (duel && runoff.includes(myIdx)) { $('lwInput').value = ''; setTimeout(() => { try { $('lwInput').focus(); } catch (e) {} }, 50); }
+    voteEl.hidden = false;
+    statusEl.textContent = duel ? '1대1 동점! 각자 최후의 한마디를 해요.' : runoff ? '동점이라 결선 투표를 해요.' : '회의 시간: 무취법 위반자를 신고하세요.';
+  }
+  // everyone votes; a report needs a clear majority (3+ of 6, no tie)
+  let lastFaint = [];
+  function castVote(mine) {
+    if (mode !== 'vote') return;
+    mode = 'tally';
+    const ballots = chars.map((c, v) => {
+      if (v === myIdx) return mine;
+      const pool = chars.map((o, i) => i).filter(i => i !== v && !cleared.has(i) && (!runoff || runoff.includes(i)));
+      if (!pool.length) return -1;
+      const r = Math.random();
+      if (r < .2) return -1; // pass
+      if (v === culprit || (v === helperIdx && accomplice)) { const f = pool.filter(i => i !== culprit); return f.length ? pick(f) : -1; } // frame someone
+      if (r < .35 && pool.includes(culprit)) return culprit; // a hunch that happens to be right
+      const sus = lastFaint.filter(i => pool.includes(i));
+      return pick(sus.length ? sus : pool);
+    });
+    const count = chars.map(() => 0);
+    ballots.forEach(b => { if (b >= 0) count[b]++; });
+    Array.from(voteGrid.children).forEach(btn => {
+      const i = +btn.dataset.i;
+      btn.disabled = true;
+      if (count[i]) { const t = document.createElement('span'); t.className = 'vcount'; t.textContent = `${count[i]}표`; btn.append(t); }
+      if (i === mine) btn.classList.add('mine');
+    });
+    $('voteSub').textContent = '투표 결과';
+    statusEl.textContent = '개표 중…';
+    setTimeout(() => {
+      voteEl.hidden = true;
+      const max = Math.max(...count), top = count.map((n, i) => n === max ? i : -1).filter(i => i >= 0);
+      if (top.length > 1 && max > 0) {
+        if (!runoff) {
+          narrate([`${top.map(i => chars[i].name).join(', ')}, ${max}표로 동점입니다.`, '결선 투표를 진행합니다.'], () => openVote(top));
+        } else narrate(['결선에서도 동점입니다.', '아무도 신고되지 않았습니다.', '냄새는 아직 남아 있습니다…'], afterVote);
+        return;
+      }
+      if (max < (runoff ? 1 : 3)) {
+        narrate([max === 0 ? '모두 패스했습니다.' : '과반이 나오지 않았습니다.', '아무도 신고되지 않았습니다.', '냄새는 아직 남아 있습니다…'], afterVote);
+        return;
+      }
+      const i = top[0], nm = chars[i].name;
+      if (i === culprit) {
+        accused = i;
+        narrate([`${max}표로 ${ga(nm)} 신고되었습니다.`, `${eun(nm)}…`, '무취법 위반자였습니다!'], () => { mode = 'execute'; mt = 0; statusEl.textContent = '잡았다!'; });
+      } else {
+        cleared.add(i);
+        if (i === helperIdx && decoys > 0) narrate([`${max}표로 ${ga(nm)} 신고되었습니다.`, `${eun(nm)}…`, '방구를 뀌지 않았습니다.', '엉덩이 밑에서 방구 쿠션이 나왔습니다!', `${ga(nm)} 머쓱한 얼굴로 구석에 앉습니다.`], afterVote);
+        else narrate([`${max}표로 ${ga(nm)} 신고되었습니다.`, `${eun(nm)}…`, '방구를 뀌지 않았습니다.', `${ga(nm)} 억울한 얼굴로 구석에 앉습니다.`], afterVote);
+      }
+    }, 2400);
+  }
+  function afterVote() {
+    if (round >= rounds) narrate(['마지막 밤이 지났습니다.', TX().police, '그날의 진실은 아무도 몰랐습니다.'], () => startSmirk(true));
+    else startRound(round + 1);
+  }
+  $('votePass').addEventListener('click', () => castVote(-1));
+
+  cv.addEventListener('click', e => {
+    if (mode !== 'play' || lensT <= 0) return;
+    const r = cv.getBoundingClientRect();
+    lensTX = e.clientX - r.left; lensTY = e.clientY - r.top;
+  });
+  $('restart').addEventListener('click', reset);
+  document.querySelectorAll('.rd:not(.mp)').forEach(b => b.addEventListener('click', () => {
+    rounds = +b.dataset.r;
+    document.querySelectorAll('.rd:not(.mp)').forEach(o => o.setAttribute('aria-pressed', String(o === b)));
+    reset();
+  }));
+  again.addEventListener('click', openWhois);
+
+  // ---------- update ----------
+  let exec = { cx: 0, cy: 0, k: 1 };
+  function update(dt) {
+    T += dt; mt += dt;
+    if (rvLock > 0) {
+      rvLock -= dt; const b = $('rvGo');
+      b.disabled = rvLock > 0;
+      b.textContent = rvLock > 0 ? `역할 확인 중… ${Math.ceil(rvLock)}` : '확인했어요, 시작!';
+    }
+    if (meSpot > 0 && mode === 'play') meSpot -= dt;
+    $('myRoleBtn').disabled = myIdx < 0 || ['intro', 'narrate', 'execute', 'smirk', 'lastword'].includes(mode);
+    if (lensT > 0 && mode === 'play') {
+      const dx = lensTX - lensX, dy = lensTY - lensY, d = Math.hypot(dx, dy), step = LENS_SPEED * S * dt;
+      if (d > step) { lensX += dx / d * step; lensY += dy / d * step; } else { lensX = lensTX; lensY = lensTY; }
+    }
+    if (lensT > 0) { if (mode === 'play') lensT = Math.max(0, lensT - dt); else if (mode !== 'cctv' && mode !== 'cctvpick') lensT = 0; }
+    updateLensBtn(); updateCctvBtn(); updateRoundInfo(); updateTapBtn(); updateCoverBtn(); updateExtraBtns(); tickCover(dt);
+    flakes.forEach(f => {
+      const wind = mode === 'smirk' ? .25 : .01;
+      if (MAP === 'space' && mode !== 'smirk') { f.x -= f.v * dt * .3; if (f.x < 0) f.x = 1; }
+      else if (MAP === 'sea' && mode !== 'smirk') { f.y -= f.v * dt * 1.6; f.x += Math.sin(T * 2 + f.d) * .01 * dt; if (f.y < 0) { f.y = 1; f.x = Math.random(); } }
+      else { f.y += f.v * dt; f.x += (Math.sin(T + f.d) * .01 + wind) * dt; if (f.y > 1) { f.y = 0; f.x = Math.random(); } }
+      if (f.x > 1) f.x -= 1;
+    });
+    puffs.forEach(p => { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= .985; });
+    taps.forEach(b => b.t += dt); taps = taps.filter(b => b.t < 1.1);
+    if (chars) chars.forEach(c => { if (c.react > 0) c.react -= dt; });
+    puffs = puffs.filter(p => p.t < p.life);
+    stains.forEach(s => s.t += dt);
+    stains = stains.filter(s => s.t < s.life);
+
+    if (mode === 'play') {
+      chars.forEach((c, i) => {
+        const ctl = i === myIdx ? playerMove(c, dt) : 0;
+        if (ctl === 2) { /* fart team: the player drives this one */ }
+        else if (c.pause > 0) c.pause -= dt;
+        else {
+          const dx = c.tx - c.x, dy = c.ty - c.y, d = Math.hypot(dx, dy);
+          if (d < .01) pickTarget(c);
+          else {
+            c.x += dx / d * c.spd * dt; c.y += dy / d * c.spd * dt;
+            if (Math.abs(dx) > .003) c.face = dx > 0 ? 1 : -1;
+            c.walk += dt * 10;
+          }
+        }
+        if (c.kick > 0) { c.x += c.kickDir * 90 * S * dt / W; c.kick -= dt; }
+        keepIn(c);
+        c.bt -= dt;
+        if (c.bt <= 0) { c.bt = c.bp + R(-.15, .15); breathe(c, i); }
+        if (c.sqDelay > 0) { c.sqDelay -= dt; if (c.sqDelay <= 0) c.sq = 1.4; }
+        else if (c.sq > 0) c.sq -= dt;
+      });
+      if (MAP === 'space' && Math.random() < dt * .35) { const o = pick(chars); o.kick = .7; o.kickDir = Math.random() < .5 ? -1 : 1; }
+      bumpCD -= dt;
+      if (bumpCD <= 0) {
+        bumpCD = R(2.5, 5);
+        const pairs = [];
+        for (let a = 0; a < chars.length; a++) for (let b = a + 1; b < chars.length; b++)
+          if (Math.hypot((chars[a].x - chars[b].x) * W, (chars[a].y - chars[b].y) * H) < 36 * S) pairs.push([a, b]);
+        if (pairs.length) {
+          const [a, b] = pick(pairs);
+          taps.push({ x: (chars[a].x + chars[b].x) / 2, y: (chars[a].y + chars[b].y) / 2, t: 0 });
+          if (Math.random() < .5) chars[b].react = 1.4;
+          if ((a === myIdx || b === myIdx) && mode === 'play') statusEl.textContent = '방금 누가 엉덩이로 툭 쳤다…?!';
+          sfx(.08);
+        }
+      }
+      // the culprit tries to recruit someone once a game with a sneaky butt tap
+      if (tapState === 'idle' && gameT >= tapAt && myRole !== 'culprit') {
+        const pool = chars.map((c, i) => i).filter(i => i !== culprit);
+        tapTarget = pick(pool); tapState = 'going'; tapSince = gameT;
+      }
+      if (tapState === 'going') {
+        const cu = chars[culprit], tg = chars[tapTarget];
+        cu.pause = 0; cu.spd = Math.max(cu.spd, .11); cu.tx = clamp(tg.x - tg.face * .03, .08, .92); cu.ty = tg.y;
+        if (Math.hypot((cu.x - tg.x) * W, (cu.y - tg.y) * H) < 34 * S) doTap();
+        else if (gameT - tapSince > 9) { tapState = 'idle'; tapAt = gameT + R(4, 8); }
+      }
+      if (eraseAt && gameT >= eraseAt) { erased.push([Math.max(0, gameT - 5), gameT]); eraseAt = 0; }
+      // walking into a fart cloud that is still hanging around counts as smelling it too
+      puffs.forEach(p => {
+        if (p.kind !== 'f' || p.t / p.life > .75) return;
+        const seen = clouds.get(p.cid);
+        if (!seen) return;
+        const pr = p.r0 + (p.r1 - p.r0) * (1 - Math.pow(1 - clamp(p.t / p.life * 1.2), 2));
+        chars.forEach((o, oi) => {
+          if (seen.has(oi)) return;
+          const k2 = depth(o);
+          // the culprit has to get their face into it; everyone else just needs to walk through
+          const ox = o.x * W + (oi === culprit ? o.face * 2 * S * k2 : 0);
+          const oy = oi === culprit ? o.y * H - (o.bh + 6.5) * S * k2 : o.y * H + 6 * S * k2;
+          const reach = oi === culprit ? pr + 10 * S * k2 : pr + 16 * S * k2;
+          if (Math.hypot(ox - p.x, (oy - p.y) * 1.2) < reach) {
+            seen.add(oi); o.smelled++;
+            if (!(oi === culprit && myRole === 'culprit')) { o.sqDelay = .12; roundSmelled.add(oi); }
+            else statusEl.textContent = `윽, 내 냄새… 찡그릴지는 내 마음${isTouch() ? '' : '(G)'}`;
+          }
+        });
+      });
+      gameT += dt; roundT += dt; recAcc += dt;
+      while (recAcc >= 1 / 15) { recAcc -= 1 / 15; record(); }
+      if (myRole !== 'culprit' && !fartedRound && roundT >= fartAt) pending = true;
+      if (myRole === 'culprit' && !fartedRound && roundT >= ROUND_LEN - 3) tryFart(true);
+      if (roundT >= ROUND_LEN) endRound();
+    } else if (mode === 'narrate') {
+      tickNarr(dt);
+    } else if (mode === 'lastword') {
+      tickLastWord(dt);
+    } else if (mode === 'vote') {
+      voteT -= dt;
+      $('voteSub').textContent = `${Math.max(0, Math.ceil(voteT))}`;
+      if (voteT <= 0) castVote(-1);
+    } else if (mode === 'cctv') {
+      if (!cctvDrag) cctvT += dt;
+      syncCctvBar();
+      if (!cctvDrag && cctvT >= cctvEnd - cctvStart) endCctv();
+    } else if (mode === 'accuse') {
+      if (mt > 1.3) {
+        setBig('');
+        if (accused === culprit) { mode = 'execute'; mt = 0; setCaps(''); statusEl.textContent = '잡았다!'; }
+        else { mode = 'wrong'; mt = 0; chars[accused].sq = 2; setBig('나 아니라고!!'); setCaps(`${chars[accused].name}: 진짜 억울하다고…`); }
+      }
+    } else if (mode === 'wrong') {
+      if (mt > 1.8) startSmirk(false);
+    } else if (mode === 'execute') {
+      const c = chars[culprit];
+      const p = ease(clamp((mt - 1) / .8));
+      const kf = Math.min(2.2, .4 * H / (72 * S));
+      exec = { cx: lerp(c.x * W, W * .5, p), cy: lerp(c.y * H, H * .6, p), k: lerp(depth(c), kf, p) };
+      if (mt > .3 && mt < 2.2) setBig(failedHold ? '참다가 들켰다!!!' : '너였어!!!');
+      if (mt >= 2.2 && !bigFired) {
+        bigFired = true; setBig('뿌다다다닥!!'); sfx(1.6);
+        chars.forEach((o, i) => { if (i !== culprit) o.sq = 6; });
+      }
+      if (mt >= 2.2 && mt < 3.3) {
+        const u = S * exec.k;
+        const bx = exec.cx - c.face * (c.bw + 4) * u, by = exec.cy + (2 + c.bh * .6) * u;
+        const n = Math.ceil(dt * 45);
+        for (let j = 0; j < n; j++) {
+          puffs.push({ x: bx + R(-6, 6) * S, y: by, vx: R(-45, 45) * S, vy: -R(70, 150) * S,
+            r0: 8 * S, r1: R(30, 58) * S, t: 0, life: R(1.8, 2.6), kind: 'boom', seed: Math.random() * 99 });
+        }
+      }
+      chars.forEach(o => { if (o.sq > 0) o.sq -= dt * .2; });
+      if (mt > 4.2 && !punishState) { setBig(''); setCaps(''); startPunish(); }
+      tickPunish(dt);
+      if (!newsEl.hidden) { newsTimer += dt; if (newsTimer > (newsIdx === 0 ? 4.6 : 3.6)) nextNews(); }
+    } else if (mode === 'smirk') {
+      const c = chars[culprit];
+      if (mt > 2.6 && capMain.hidden && whois.hidden) setCaps(TX().truth);
+      if (mt > 3.8 && capSub.hidden && whois.hidden) setCaps(TX().truth, `진범 ${c.name} · 칭호 「${gloryTitle}」`);
+      if (mt > 4.4 && whois.hidden) again.hidden = false;
+      noseT -= dt;
+      if (mt > 2.8 && noseT <= 0) { noseT = 1.9; for (let j = 0; j < 3; j++) wisps.push({ t: -j * .08, life: 1.6, dy: R(-.02, .02) }); }
+      wisps.forEach(w => w.t += dt);
+      wisps = wisps.filter(w => w.t < w.life);
+    }
+  }
+  let noseT = 0, wisps = [];
+
+  // ---------- drawing ----------
+  function drawBG() { if (MAP === 'sea') { drawSeaBG(); return; } if (MAP === 'space') { drawSpaceBG(); return; } drawSnowBG(); }
+  function drawSnowBG() {
+    const hz = H * .3;
+    const sky = ctx.createLinearGradient(0, 0, 0, hz);
+    sky.addColorStop(0, '#c4d8ea'); sky.addColorStop(1, '#e7f0f7');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, hz + 2);
+    wpoly(MT_BACK.map(p => [p[0] * W, p[1] * H]), 11, '#d3e1ee', '#8296ab', 1.6 * S);
+    { const mg = ctx.createLinearGradient(0, H * .05, 0, H * .31); mg.addColorStop(0, '#ffffff'); mg.addColorStop(1, '#dde8f1'); wpoly(MT_FRONT.map(p => [p[0] * W, p[1] * H]), 23, mg, '#2a3346', 2 * S); }
+    MT_FRONT.forEach((p, i) => {
+      if (i < 2 || i > MT_FRONT.length - 3) return;
+      const n = MT_FRONT[i + 1];
+      if (p[1] < n[1]) line(p[0] * W + 4 * S, p[1] * H + 8 * S, lerp(p[0], n[0], .5) * W, lerp(p[1], n[1], .7) * H, '#b8cadb', 2 * S);
+    });
+    { const gg = ctx.createLinearGradient(0, hz, 0, H); gg.addColorStop(0, '#e6eef5'); gg.addColorStop(1, '#f7fafc'); ctx.fillStyle = gg; ctx.fillRect(0, hz, W, H - hz); }
+    ctx.beginPath();
+    for (let i = 0; i <= 20; i++) { const x = i / 20 * W, y = hz; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.strokeStyle = '#2a3346'; ctx.lineWidth = 2 * S; ctx.stroke();
+    for (let i = 0; i < 14; i++) {
+      const x = hash(i * 3.3) * W, y = hz + 20 * S + hash(i * 7.7) * (H - hz - 30 * S);
+      ctx.beginPath(); ctx.arc(x, y, 7 * S, Math.PI * 1.1, Math.PI * 1.9);
+      ctx.strokeStyle = '#b9cad9'; ctx.lineWidth = 2 * S; ctx.stroke();
+    }
+    // cabin
+    const cx = W * .86, cw = 74 * S, ch = 46 * S, cy = hz + 6 * S;
+    wpoly([[cx - cw / 2, cy - ch], [cx + cw / 2, cy - ch], [cx + cw / 2, cy], [cx - cw / 2, cy]], 51, '#9a6440', INK, 2.6 * S);
+    wpoly([[cx - cw * .62, cy - ch], [cx, cy - ch - 34 * S], [cx + cw * .62, cy - ch]], 57, '#fbfdff', INK, 2.6 * S);
+    wpoly([[cx - 12 * S, cy - ch + 10 * S], [cx + 12 * S, cy - ch + 10 * S], [cx + 12 * S, cy - ch + 28 * S], [cx - 12 * S, cy - ch + 28 * S]], 63, '#ffe27a', INK, 2 * S);
+    ctx.font = `600 ${Math.round(12 * S)}px "Noto Sans KR", sans-serif`; ctx.fillStyle = '#5b6677'; ctx.textAlign = 'center';
+    ctx.fillText('산장', cx, cy + 16 * S);
+    // trampled snow patch = where people can actually go
+    ctx.beginPath(); ctx.arc(AREA.x * W, AREA.y * H + 20 * S, areaR() + 30 * S, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(150,175,198,.16)'; ctx.fill();
+    ctx.setLineDash([6 * S, 7 * S]); ctx.strokeStyle = 'rgba(110,135,160,.45)'; ctx.lineWidth = 1.6 * S; ctx.stroke(); ctx.setLineDash([]);
+    // fire
+    const fx = FIRE.x * W, fy = FIRE.y * H;
+    const glow = ctx.createRadialGradient(fx, fy, 4 * S, fx, fy, 110 * S);
+    glow.addColorStop(0, 'rgba(255,170,60,.32)'); glow.addColorStop(1, 'rgba(255,170,60,0)');
+    ctx.fillStyle = glow; ctx.fillRect(fx - 120 * S, fy - 120 * S, 240 * S, 240 * S);
+    line(fx - 22 * S, fy + 10 * S, fx + 22 * S, fy - 2 * S, '#6b4026', 7 * S);
+    line(fx - 22 * S, fy - 2 * S, fx + 22 * S, fy + 10 * S, '#7d4c2e', 7 * S);
+    const fl = 1 + Math.sin(T * 13) * .08 + Math.sin(T * 7.3) * .06;
+    blob(fx, fy - 14 * S * fl, 15 * S, 20 * S * fl, 71, '#ff7a2a', INK, 2.4 * S, .14);
+    blob(fx + 2 * S, fy - 10 * S * fl, 8 * S, 12 * S * fl, 73, '#ffd23f', null, 0, .14);
+    ctx.font = `600 ${Math.round(11 * S)}px "Noto Sans KR", sans-serif`; ctx.fillStyle = '#8a6a4a';
+    ctx.fillText('모닥불 (따뜻함)', fx, fy + 30 * S);
+  }
+
+  function drawStains() {
+    stains.forEach(s => {
+      const a = 1 - s.t / s.life, x = s.x * W, y = s.y * H;
+      ctx.beginPath(); ctx.ellipse(x, y, 22 * S * s.k, 7 * S * s.k, 0, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(232,196,70,${.42 * a})`; ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x - 4 * S, y - 1 * S, 10 * S * s.k, 3 * S * s.k, 0, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,248,220,${.6 * a})`; ctx.fill();
+    });
+  }
+
+  function headwear(c, hx, hy, hr, f, u, front) {
+    const col = c.color, dk = shade(col, -.25);
+    if (!front) {
+      if (c.hat === 'hood') blob(hx - f * hr * .2, hy - hr * .05, hr * 1.38, hr * 1.36, c.seed + 31, col, INK, 2.6 * u, .05);
+      if (c.hat === 'earmuff') blob(hx - f * hr * 1.0, hy + hr * .25, hr * .32, hr * .55, c.seed + 33, '#3b2b25', INK, 2 * u, .08);
+      return;
+    }
+    if (c.hat === 'beanie') {
+      blob(hx, hy - hr * .6, hr * 1.02, hr * .55, c.seed + 21, col, INK, 2.4 * u, .05);
+      blob(hx, hy - hr * .36, hr * 1.07, hr * .2, c.seed + 22, dk, INK, 2.2 * u, .04);
+      blob(hx - f * hr * .15, hy - hr * 1.22, hr * .3, hr * .3, c.seed + 23, '#ffffff', INK, 2 * u, .12);
+    } else if (c.hat === 'cap') {
+      blob(hx, hy - hr * .58, hr * 1.02, hr * .52, c.seed + 21, col, INK, 2.4 * u, .05);
+      blob(hx + f * hr * .95, hy - hr * .36, hr * .62, hr * .14, c.seed + 24, dk, INK, 2.2 * u, .05);
+    } else if (c.hat === 'earmuff') {
+      blob(hx - f * hr * .12, hy - hr * .6, hr * 1.0, hr * .46, c.seed + 25, '#3b2b25', INK, 2.2 * u, .06);
+      ctx.beginPath(); ctx.arc(hx - f * hr * .1, hy, hr * 1.1, Math.PI * 1.12, Math.PI * 1.88);
+      ctx.strokeStyle = col; ctx.lineWidth = 3.4 * u; ctx.lineCap = 'round'; ctx.stroke();
+      blob(hx - f * hr * .52, hy + hr * .1, hr * .36, hr * .38, c.seed + 26, col, INK, 2.2 * u, .14);
+    } else if (c.hat === 'perm') {
+      for (let i = 0; i < 8; i++) {
+        const a = Math.PI * (1 + i / 7 * .78);
+        blob(hx - f * hr * .12 + f * Math.cos(a) * hr * .92, hy - hr * .1 + Math.sin(a) * hr * .92, hr * .3, hr * .3, c.seed + 40 + i, '#dcd6e0', INK, 1.8 * u, .12);
+      }
+      blob(hx - f * hr * .95, hy + hr * .25, hr * .3, hr * .3, c.seed + 50, '#dcd6e0', INK, 1.8 * u, .12);
+    } else if (c.hat === 'hood') {
+      ctx.beginPath(); ctx.arc(hx + f * hr * .1, hy, hr * 1.05, f > 0 ? -Math.PI * .55 : Math.PI * .45, f > 0 ? Math.PI * .55 : Math.PI * 1.55);
+      ctx.strokeStyle = shade(col, -.15); ctx.lineWidth = 3 * u; ctx.stroke();
+    } else if (c.hat === 'bald') {
+      ctx.fillStyle = 'rgba(255,255,255,.8)';
+      ctx.beginPath(); ctx.ellipse(hx - f * hr * .25, hy - hr * .65, hr * .28, hr * .12, -.4 * f, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.6 * u; ctx.lineCap = 'round';
+      [-.2, 0, .2].forEach(d => {
+        ctx.beginPath(); ctx.moveTo(hx + d * hr, hy - hr * .98);
+        ctx.quadraticCurveTo(hx + d * hr + f * hr * .3, hy - hr * 1.5, hx + d * hr + f * hr * .5, hy - hr * 1.25); ctx.stroke();
+      });
+    }
+  }
+
+  function dot(x, y, rx, ry, fill) { ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill(); }
+
+  // each person gets their own eyes, mouth and one prop so they read at a glance
+  function drawFace(c, hx, hy, hr, f, u) {
+    const t = c.trait, sq = c.sq > 0;
+    let e1 = hx + f * hr * .12, e2 = hx + f * hr * .6;
+    if (t === 'derp') { e1 = hx - f * hr * .04; e2 = hx + f * hr * .66; }
+    const ey = hy + hr * .05, mx = hx + f * hr * .45, my = hy + hr * .62;
+    dot(hx + f * hr * .02, hy + hr * .45, hr * .22, hr * .13, t === 'granny' ? 'rgba(255,80,110,.55)' : 'rgba(255,110,130,.38)');
+    ctx.strokeStyle = INK; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    if (sq) {
+      ctx.lineWidth = 2 * u;
+      [[e1, 1], [e2, -1]].forEach(([x, d]) => {
+        ctx.beginPath(); ctx.moveTo(x - d * 3 * u, ey - 3 * u); ctx.lineTo(x + d * 1.5 * u, ey); ctx.lineTo(x - d * 3 * u, ey + 3 * u); ctx.stroke();
+      });
+    } else if (t === 'sleepy') {
+      [e1, e2].forEach(x => {
+        dot(x, ey + hr * .03, hr * .1, hr * .06, INK);
+        line(x - hr * .14, ey - hr * .02, x + hr * .14, ey - hr * .02, INK, 2 * u);
+      });
+    } else {
+      [[e1, t === 'derp' ? 1.25 : 1], [e2, t === 'derp' ? .8 : 1]].forEach(([x, s]) => {
+        dot(x, ey, hr * .1 * s, hr * .14 * s, INK);
+        dot(x - hr * .03, ey - hr * .05, hr * .035 * s, hr * .035 * s, '#ffffff');
+      });
+      if (t === 'lady') {
+        ctx.lineWidth = 1.6 * u;
+        [e1, e2].forEach(x => { ctx.beginPath(); ctx.moveTo(x + f * hr * .08, ey - hr * .12); ctx.lineTo(x + f * hr * .17, ey - hr * .2); ctx.stroke(); });
+      }
+    }
+    if (t === 'boss') {
+      ctx.lineWidth = 3 * u;
+      [e1, e2].forEach(x => { ctx.beginPath(); ctx.moveTo(x - hr * .13, ey - hr * .25); ctx.lineTo(x + hr * .13, ey - hr * .19 + f * 0); ctx.stroke(); });
+    }
+    if (t === 'granny' || t === 'clerk') {
+      ctx.lineWidth = 1.8 * u; ctx.strokeStyle = t === 'granny' ? '#7a5a2e' : INK;
+      [e1, e2].forEach(x => {
+        ctx.beginPath();
+        if (t === 'granny') ctx.arc(x, ey, hr * .21, 0, Math.PI * 2);
+        else ctx.rect(x - hr * .2, ey - hr * .16, hr * .4, hr * .3);
+        ctx.fillStyle = 'rgba(225,240,255,.3)'; ctx.fill(); ctx.stroke();
+      });
+      ctx.beginPath(); ctx.moveTo(e1 + f * hr * .2, ey - hr * .03); ctx.lineTo(e2 - f * hr * .2, ey - hr * .03); ctx.stroke();
+      ctx.strokeStyle = INK;
+    }
+    // cold red nose
+    blob(hx + f * hr * .93, hy + hr * .3, hr * .16, hr * .14, c.seed + 13, '#ff8f8f', INK, 1.6 * u, .08);
+    if (t === 'sleepy') {
+      ctx.beginPath(); ctx.moveTo(hx + f * hr * .86, hy + hr * .4);
+      ctx.quadraticCurveTo(hx + f * hr * .92, hy + hr * .62, hx + f * hr * .86, hy + hr * .7);
+      ctx.quadraticCurveTo(hx + f * hr * .78, hy + hr * .62, hx + f * hr * .86, hy + hr * .4);
+      ctx.fillStyle = 'rgba(150,215,255,.95)'; ctx.fill(); ctx.lineWidth = 1.2 * u; ctx.strokeStyle = '#4a8fbf'; ctx.stroke(); ctx.strokeStyle = INK;
+    }
+    // mouth
+    ctx.lineWidth = 2 * u;
+    if (sq) {
+      ctx.beginPath();
+      for (let i = 0; i <= 4; i++) { const x = hx + f * hr * .2 + i * f * hr * .12, yy = my + (i % 2 ? 1.5 : -1.5) * u; i ? ctx.lineTo(x, yy) : ctx.moveTo(x, yy); }
+      ctx.stroke();
+    } else if (t === 'granny') {
+      ctx.beginPath(); ctx.arc(mx, my - hr * .1, hr * .15, Math.PI * .15, Math.PI * .85); ctx.stroke();
+    } else if (t === 'sleepy') {
+      ctx.beginPath(); ctx.arc(mx, my, hr * .07, 0, Math.PI * 2); ctx.stroke();
+    } else if (t === 'lady') {
+      dot(mx, my, hr * .1, hr * .065, '#ff5c8a');
+    } else if (t === 'derp') {
+      ctx.beginPath(); ctx.arc(mx, my - hr * .07, hr * .2, 0, Math.PI); ctx.closePath();
+      ctx.fillStyle = '#7a2230'; ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(mx - hr * .09, my - hr * .07, hr * .08, hr * .09); ctx.fillRect(mx + hr * .01, my - hr * .07, hr * .08, hr * .09);
+    } else if (t === 'clerk') {
+      ctx.beginPath();
+      for (let i = 0; i <= 4; i++) { const x = mx - hr * .18 + i * hr * .09, yy = my + (i % 2 ? 1 : -1) * u; i ? ctx.lineTo(x, yy) : ctx.moveTo(x, yy); }
+      ctx.stroke();
+      const sx = hx - f * hr * .1, sy = hy - hr * .42;
+      ctx.beginPath(); ctx.moveTo(sx, sy - hr * .12); ctx.quadraticCurveTo(sx + hr * .09, sy + hr * .02, sx, sy + hr * .06); ctx.quadraticCurveTo(sx - hr * .09, sy + hr * .02, sx, sy - hr * .12);
+      ctx.fillStyle = 'rgba(160,215,255,.95)'; ctx.fill();
+    } else {
+      line(mx - f * hr * .12, my, mx + f * hr * .14, my, INK, 2 * u);
+    }
+    if (t === 'boss') blob(hx + f * hr * .58, hy + hr * .5, hr * .3, hr * .1, c.seed + 14, '#4a2f22', INK, 1.4 * u, .08);
+  }
+
+  function drawChar(c, X, Y, k) {
+    const u = S * k, f = c.face, col = c.color, bw = c.bw * u, bh = c.bh * u;
+    if (MAP === 'space') Y += Math.sin(T * 1.6 + c.seed) * 5 * u; // floating in zero-g
+    const moving = (mode === 'play' || mode === 'cctv') && c.pause <= 0;
+    const bob = moving ? -Math.abs(Math.sin(c.walk)) * 2.5 * u : 0;
+    const sw = moving ? Math.sin(c.walk) * 4 * u : 0;
+    ctx.beginPath(); ctx.ellipse(X, Y + 33 * u, bw + 1.5 * u, 4.5 * u, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(70,95,125,.18)'; ctx.fill();
+    const y = Y + bob, by0 = y + 2 * u;
+    [[-6, 1], [6, -1]].forEach(([dx, s]) => {
+      line(X + dx * u, by0 + bh - 4 * u, X + dx * u + s * sw, Y + 30 * u, '#3a3550', 4.6 * u);
+      blob(X + dx * u + s * sw + f * 2 * u, Y + 31.5 * u, 5.5 * u, 3.2 * u, c.seed + 60 + dx, '#6b4430', INK, 2 * u, .08);
+    });
+    const hr = 14 * u, hx = X + f * 2 * u, hy = by0 - bh - 8.5 * u;
+    headwear(c, hx, hy, hr, f, u, false);
+    if (MAP === 'sea') seaGearBack(c, X, by0, bw, bh, f, u);
+    if (MAP === 'space') spaceGearBack(c, X, by0, bw, bh, f, u);
+    blob(X, by0, bw, bh, c.seed, col, INK, 3 * u, .05);
+    // butt: two cheeks, the near one sitting in front of the far one
+    const sx = bw / (17 * u), sy = bh / (22 * u), sr = (sx + sy) / 2;
+    const jig = moving ? Math.sin(c.walk * 2) * .06 : 0;
+    const farC = { x: X - f * 15 * sx * u, y: by0 + 6.8 * sy * u, r: 6.6 * sr * u * (1 + jig) };
+    const nearC = { x: X - f * 10.2 * sx * u, y: by0 + 11 * sy * u, r: 8.2 * sr * u * (1 - jig * .6) };
+    ctx.fillStyle = col;
+    [farC, nearC].forEach(ch => { ctx.beginPath(); ctx.arc(ch.x, ch.y, ch.r, 0, Math.PI * 2); ctx.fill(); });
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(X, by0, bw * .97, bh * .97, 0, 0, Math.PI * 2);
+    [farC, nearC].forEach(ch => { ctx.moveTo(ch.x + ch.r, ch.y); ctx.arc(ch.x, ch.y, ch.r, 0, Math.PI * 2); });
+    ctx.clip();
+    const sg = ctx.createRadialGradient(X - bw * .4, by0 - bh * .5, bw * .1, X, by0, Math.max(bw, bh) * 1.25);
+    sg.addColorStop(0, 'rgba(255,255,255,.42)'); sg.addColorStop(.5, 'rgba(255,255,255,0)'); sg.addColorStop(1, 'rgba(20,0,50,.22)');
+    ctx.fillStyle = sg; ctx.fillRect(X - bw * 2, by0 - bh * 1.3, bw * 4, bh * 2.6);
+    ctx.restore();
+    ctx.strokeStyle = shade(col, -.22); ctx.lineWidth = 2 * u; ctx.lineCap = 'round';
+    [-.41, 0, .41].forEach(q => {
+      const w = bw * Math.sqrt(1 - q * q) * .88, yy = by0 + q * bh;
+      ctx.beginPath(); ctx.moveTo(X - w, yy); ctx.quadraticCurveTo(X, yy + 3 * u, X + w, yy); ctx.stroke();
+    });
+    const inBody = (px, py) => Math.pow((px - X) / bw, 2) + Math.pow((py - by0) / bh, 2) <= .985;
+    ctx.strokeStyle = INK; ctx.lineWidth = 2.4 * u; ctx.lineJoin = 'round';
+    [[farC, nearC], [nearC, farC]].forEach(([a, b]) => {
+      ctx.beginPath();
+      let onEdge = false;
+      for (let i = 0; i <= 72; i++) {
+        const ang = i / 72 * Math.PI * 2 + (f > 0 ? 0 : Math.PI);
+        const px = a.x + Math.cos(ang) * a.r, py = a.y + Math.sin(ang) * a.r;
+        const ok = !inBody(px, py) && Math.hypot(px - b.x, py - b.y) > b.r * .99;
+        if (ok) { onEdge ? ctx.lineTo(px, py) : ctx.moveTo(px, py); onEdge = true; } else onEdge = false;
+      }
+      ctx.stroke();
+    });
+    ctx.beginPath();
+    for (let i = 0; i <= 30; i++) {
+      const ang = Math.PI * (.3 + i / 30);
+      const px = nearC.x + f * Math.cos(ang) * nearC.r, py = nearC.y + Math.sin(ang) * nearC.r;
+      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    }
+    ctx.lineWidth = 2.1 * u; ctx.stroke();
+    if (c.trait === 'clerk') {
+      const tx = X + f * 3.5 * u, ty = by0 - bh + 6 * u;
+      ctx.beginPath(); ctx.moveTo(tx - 2.2 * u, ty); ctx.lineTo(tx + 2.2 * u, ty); ctx.lineTo(tx + 1.4 * u, ty + 2.6 * u); ctx.lineTo(tx + 2.8 * u, ty + 11 * u);
+      ctx.lineTo(tx, ty + 14 * u); ctx.lineTo(tx - 2.8 * u, ty + 11 * u); ctx.lineTo(tx - 1.4 * u, ty + 2.6 * u); ctx.closePath();
+      ctx.fillStyle = '#3d6bff'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2 * u; ctx.stroke();
+    }
+    // arm + mitten
+    const ax = X + f * bw * .3 - sw * .6;
+    blob(ax, by0 + 1 * u, 5 * u, bh * .5, c.seed + 70, col, INK, 2.4 * u, .06);
+    blob(ax, by0 + bh * .55, 4.2 * u, 4 * u, c.seed + 71, shade(col, -.3), INK, 2 * u, .08);
+    // head
+    blob(hx, hy, hr, hr * 1.05, c.seed + 11, SKIN, INK, 2.6 * u, .05);
+    ctx.save(); ctx.beginPath(); ctx.ellipse(hx, hy, hr * .97, hr * 1.02, 0, 0, Math.PI * 2); ctx.clip();
+    const hg = ctx.createRadialGradient(hx - hr * .35, hy - hr * .45, hr * .1, hx, hy, hr * 1.15);
+    hg.addColorStop(0, 'rgba(255,255,255,.45)'); hg.addColorStop(.5, 'rgba(255,255,255,0)'); hg.addColorStop(1, 'rgba(140,60,20,.2)');
+    ctx.fillStyle = hg; ctx.fillRect(hx - hr, hy - hr * 1.1, hr * 2, hr * 2.2); ctx.restore();
+    if (c.hat === 'cap' || c.hat === 'beanie' || c.hat === 'bald') {
+      const ex0 = hx - f * hr * .66, ey0 = hy + hr * .16;
+      blob(ex0, ey0, hr * .17, hr * .24, c.seed + 12, shade(SKIN, -.04), INK, 2 * u, .04);
+      ctx.beginPath(); ctx.arc(ex0 + f * hr * .02, ey0, hr * .1, f > 0 ? Math.PI * .6 : -Math.PI * .4, f > 0 ? Math.PI * 1.4 : Math.PI * .4);
+      ctx.strokeStyle = 'rgba(160,80,60,.6)'; ctx.lineWidth = 1.4 * u; ctx.stroke();
+    }
+    drawFace(c, hx, hy, hr, f, u);
+    headwear(c, hx, hy, hr, f, u, true);
+    if (MAP === 'sea') seaGearFront(c, hx, hy, hr, f, u);
+    if (MAP === 'space') spaceGearFront(c, hx, hy, hr, f, u);
+    ctx.font = `700 ${Math.round(12.5 * u)}px "Noto Sans KR", sans-serif`;
+    ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+    ctx.fillStyle = MAP !== 'snow' ? '#eaf6ff' : INK; ctx.fillText(c.name, X, hy - 23 * u);
+  }
+
+  function drawPuffs() {
+    puffs.forEach(p => {
+      if (p.kind === 'f') return; // the lingering gas is invisible without the magnifier
+      const u = p.t / p.life, br = p.kind === 'b' || p.kind === 'fb';
+      const grow = br ? clamp(u * 1.6) : clamp(u * 1.2);
+      const r = p.r0 + (p.r1 - p.r0) * (1 - Math.pow(1 - grow, 2));
+      ctx.globalAlpha = br ? (1 - u) * .95 : clamp((1 - u) * 1.6);
+      if (MAP === 'sea') bubble(p.x, p.y, r * .6, p.kind === 'boom' ? 'rgba(255,240,180,.45)' : 'rgba(255,255,255,.22)', 'rgba(225,245,255,.9)', 1.4 * S);
+      else cloud(p.x, p.y, r, p.kind === 'boom' ? '#fff6d2' : '#ffffff', '#a7b9ca', 1.4 * S, p.seed);
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  function doTap() {
+    tapState = 'done';
+    const cu = chars[culprit], tg = chars[tapTarget];
+    cu.face = tg.x > cu.x ? -1 : 1;
+    cu.pause = .9; tg.pause = Math.max(tg.pause, .9);
+    tg.x = clamp(tg.x + (tg.x - cu.x) * .5, .06, .94);
+    taps.push({ x: (cu.x + tg.x) / 2, y: (cu.y + tg.y) / 2, t: 0 });
+    sfx(.12);
+    if (tapTarget === helperIdx) accomplice = true;
+    else {
+      tapFailed = tapTarget; tg.react = 1.8;
+      if (tapTarget === myIdx && mode === 'play') statusEl.textContent = '방금 누가 엉덩이로 툭 쳤다…?!';
+    }
+  }
+  // everyone sees the last five seconds before the fart deadline
+  function drawCountdown() {
+    if (mode !== 'play') return;
+    const left = ROUND_LEN - 3 - roundT;
+    if (left > 5 || left <= 0) return;
+    const n = Math.ceil(left), frac = left - Math.floor(left), pulse = 1 + (frac > .7 ? (frac - .7) * 1.2 : 0);
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `${Math.round(16 * S)}px "Jua", sans-serif`; ctx.fillStyle = '#ff3ea5';
+    ctx.fillText('방구 마감', W / 2, 24 * S);
+    ctx.font = `${Math.round(50 * S * pulse)}px "Jua", sans-serif`; ctx.fillStyle = MAP !== 'snow' ? '#ffffff' : INK;
+    ctx.fillText(String(n), W / 2, 62 * S);
+    ctx.restore();
+  }
+  function drawTapTarget() {
+    if (myRole !== 'culprit' || tapState === 'done' || mode !== 'play') return;
+    const i = tapPick(); if (i < 0) return;
+    const c = chars[i], k = depth(c), x = c.x * W, y = c.y * H - 6 * S * k, r = 30 * S * k;
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(x, y, r, r * 1.35, 0, 0, Math.PI * 2);
+    ctx.setLineDash([6 * S, 5 * S]); ctx.lineDashOffset = -T * 30; ctx.strokeStyle = '#ff3ea5'; ctx.lineWidth = 3 * S; ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = `${Math.round(13 * S)}px "Jua", sans-serif`; ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+    const ly = y + r * 1.35 + 14 * S;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4 * S; const tl = isTouch() ? '툭 대상' : '툭 대상 (T)'; ctx.strokeText(tl, x, ly);
+    ctx.fillStyle = '#ff3ea5'; ctx.fillText(tl, x, ly);
+    ctx.restore();
+  }
+  function drawTaps() {
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    taps.forEach(b => {
+      const u = b.t / 1.1, x = b.x * W, y = b.y * H - (28 + u * 26) * S;
+      ctx.globalAlpha = 1 - u * u;
+      ctx.font = `${Math.round(22 * S)}px "Jua", sans-serif`;
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 5 * S; ctx.strokeText('툭!', x, y);
+      ctx.fillStyle = '#ff3ea5'; ctx.fillText('툭!', x, y);
+    });
+    ctx.globalAlpha = 1;
+    if (myIdx >= 0 && chars[myIdx] && meSpot > 0 && mode !== 'smirk') {
+      const c = chars[myIdx], k = depth(c), x = c.x * W, y = c.y * H - 6 * S * k, pr = (36 + Math.sin(T * 8) * 4) * S * k;
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(x, y, pr, pr * 1.35, 0, 0, Math.PI * 2);
+      ctx.strokeStyle = '#b6ff3b'; ctx.lineWidth = 4 * S; ctx.setLineDash([8 * S, 6 * S]); ctx.lineDashOffset = -T * 40; ctx.stroke();
+      ctx.font = `${Math.round(18 * S)}px "Jua", sans-serif`; ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+      ctx.strokeStyle = INK; ctx.setLineDash([]); ctx.lineWidth = 4 * S; ctx.strokeText('나는 여기!', x, y - pr * 1.35 - 10 * S);
+      ctx.fillStyle = '#b6ff3b'; ctx.fillText('나는 여기!', x, y - pr * 1.35 - 10 * S);
+      ctx.restore();
+    }
+    if (myIdx >= 0 && chars[myIdx] && (mode === 'play' || mode === 'cctv')) {
+      const c = chars[myIdx], k = depth(c), x = c.x * W, y = c.y * H - (c.bh + 45) * S * k;
+      ctx.beginPath(); ctx.moveTo(x - 7 * S, y - 8 * S); ctx.lineTo(x + 7 * S, y - 8 * S); ctx.lineTo(x, y + 2 * S); ctx.closePath();
+      ctx.fillStyle = '#b6ff3b'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2 * S; ctx.stroke();
+    }
+    chars.forEach(c => {
+      if (c.react <= 0) return;
+      const k = depth(c), x = c.x * W, y = c.y * H - (c.bh + 54) * S * k;
+      ctx.font = `${Math.round(20 * S * k)}px "Jua", sans-serif`;
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4 * S; ctx.strokeText('?!', x, y);
+      ctx.fillStyle = MAP !== 'snow' ? '#ffffff' : INK; ctx.fillText('?!', x, y);
+    });
+    ctx.restore();
+  }
+  function drawStatic(sn) {
+    ctx.fillStyle = '#15181d'; ctx.fillRect(0, 0, W, H);
+    for (let i = 0; i < 26; i++) {
+      const y = Math.random() * H, h = R(2, 18) * S;
+      ctx.fillStyle = `rgba(${R(150, 255) | 0},${R(150, 255) | 0},${R(150, 255) | 0},${R(.05, .35)})`;
+      ctx.fillRect(0, y, W, h);
+    }
+    for (let i = 0; i < 900; i++) {
+      const g = Math.random() * 255 | 0;
+      ctx.fillStyle = `rgb(${g},${g},${g})`; ctx.fillRect(Math.random() * W, Math.random() * H, 2, 2);
+    }
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `${Math.round(34 * S)}px "Jua", sans-serif`; ctx.fillStyle = '#ffffff';
+    ctx.fillText('지지직…', W / 2, H / 2 - 12 * S);
+    ctx.font = `700 ${Math.round(13 * S)}px "Noto Sans KR", sans-serif`; ctx.fillStyle = '#ff8a8a';
+    ctx.fillText(`녹화 손상 · ${sn.r}R ${fmt(sn.t)}`, W / 2, H / 2 + 22 * S);
+    ctx.restore();
+  }
+  // fart puffs + stains in their true yellow (magnifier and CCTV both use this)
+  function drawYellow() {
+    drawStains();
+    puffs.forEach(p => {
+      if (p.kind !== 'f' && p.kind !== 'fb') return;
+      const fb = p.kind === 'fb', uu = p.t / p.life, grow = clamp(uu * (fb ? 1.6 : 1.2));
+      const pr = p.r0 + (p.r1 - p.r0) * (1 - Math.pow(1 - grow, 2));
+      ctx.globalAlpha = fb ? (1 - uu) * .95 : clamp((1 - uu) * 1.3) * .8;
+      if (MAP === 'sea' && fb) bubble(p.x, p.y, pr * .6, 'rgba(255,223,61,.85)', '#c99a00', 1.4 * S);
+      else cloud(p.x, p.y, pr, '#ffdf3d', '#c99a00', 1.4 * S, p.seed);
+    });
+    ctx.globalAlpha = 1;
+  }
+  function drawLens() {
+    const r = 44 * S;
+    if (Math.hypot(lensTX - lensX, lensTY - lensY) > 6 * S) {
+      ctx.beginPath(); ctx.arc(lensTX, lensTY, 5 * S, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(29,26,36,.55)'; ctx.lineWidth = 2 * S; ctx.stroke();
+    }
+    ctx.save();
+    ctx.beginPath(); ctx.arc(lensX, lensY, r, 0, Math.PI * 2); ctx.clip();
+    ctx.fillStyle = 'rgba(255,248,205,.22)'; ctx.fillRect(lensX - r, lensY - r, r * 2, r * 2);
+    drawYellow();
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(lensX, lensY, r - 4 * S, Math.PI * 1.1, Math.PI * 1.45);
+    ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 4 * S; ctx.lineCap = 'round'; ctx.stroke();
+    line(lensX + r * .72, lensY + r * .72, lensX + r * 1.3, lensY + r * 1.3, INK, 12 * S);
+    line(lensX + r * .74, lensY + r * .74, lensX + r * 1.27, lensY + r * 1.27, '#8a5233', 7 * S);
+    ctx.beginPath(); ctx.arc(lensX, lensY, r, 0, Math.PI * 2);
+    ctx.strokeStyle = INK; ctx.lineWidth = 5 * S; ctx.stroke();
+  }
+
+  function drawFlakes(dark) {
+    flakes.forEach(f => {
+      ctx.beginPath(); ctx.arc(f.x * W, f.y * H, f.r * S * (dark ? 1.3 : 1), 0, Math.PI * 2);
+      ctx.fillStyle = dark ? 'rgba(255,255,255,.75)' : MAP === 'sea' ? 'rgba(255,255,255,.18)' : MAP === 'space' ? 'rgba(255,255,255,.3)' : '#ffffff'; ctx.fill();
+      if (!dark && MAP !== 'space') { ctx.strokeStyle = MAP === 'sea' ? 'rgba(220,245,255,.6)' : '#b3c4d4'; ctx.lineWidth = 1; ctx.stroke(); }
+    });
+  }
+
+  function ring(c) {
+    const { X, Y, k } = pos(c);
+    ctx.beginPath();
+    for (let i = 0; i <= 22; i++) {
+      const a = i / 20 * Math.PI * 2 - .4, rr = 40 * S * k * (1 + (hash(i * 4.1 + boil) - .5) * .12);
+      const x = X + Math.cos(a) * rr * 1.05, y = Y - 8 * S * k + Math.sin(a) * rr * 1.4;
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.strokeStyle = '#ff3ea5'; ctx.lineWidth = 4 * S; ctx.lineCap = 'round'; ctx.stroke();
+  }
+
+  function drawScene() {
+    const shaking = mode === 'execute' && mt > 2.2 && mt < 3.3 && !reduce;
+    ctx.save();
+    if (shaking) ctx.translate(R(-7, 7) * S, R(-7, 7) * S);
+    drawBG();
+    const order = chars.map((c, i) => i).sort((a, b) => chars[a].y - chars[b].y);
+    if (mode === 'execute') {
+      order.forEach(i => { if (i !== culprit) { const p = pos(chars[i]); drawChar(chars[i], p.X, p.Y, p.k); } });
+      const dk = clamp(mt / .6), rad = 52 * S * exec.k;
+      const g = ctx.createRadialGradient(exec.cx, exec.cy, rad * .7, exec.cx, exec.cy, rad * 1.7);
+      g.addColorStop(0, 'rgba(8,6,16,0)'); g.addColorStop(1, `rgba(8,6,16,${.86 * dk})`);
+      ctx.fillStyle = g; ctx.fillRect(-20, -20, W + 40, H + 40);
+      ctx.beginPath(); ctx.ellipse(exec.cx, exec.cy + 33 * S * exec.k, rad * 1.3, rad * .35, 0, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,250,220,${.25 * dk})`; ctx.fill();
+      drawChar(chars[culprit], exec.cx, exec.cy, exec.k);
+      drawPuffs();
+    } else {
+      order.forEach(i => { const p = pos(chars[i]); drawChar(chars[i], p.X, p.Y, p.k); });
+      drawPuffs();
+      drawFlakes(false);
+      if ((mode === 'accuse' || mode === 'wrong') && accused >= 0) ring(chars[accused]);
+      drawTapTarget();
+      drawSniff();
+      drawTaps();
+      drawCountdown();
+      if (mode === 'play' && lensT > 0) drawLens();
+    }
+    ctx.restore();
+  }
+
+  // The "high-budget" close-up: smooth shading, no scribble jitter, on purpose.
+  function hatHi(c, Rr) {
+    const col = c.color;
+    const g = ctx.createLinearGradient(0, -Rr * 1.2, 0, -Rr * .4);
+    g.addColorStop(0, shade(col, .35)); g.addColorStop(1, shade(col, -.3));
+    if (c.hat === 'beanie' || c.hat === 'cap') {
+      ctx.beginPath(); ctx.ellipse(0, -Rr * .52, Rr * .86, Rr * .56, 0, Math.PI, 0); ctx.closePath();
+      ctx.fillStyle = g; ctx.fill();
+      if (c.hat === 'beanie') {
+        ctx.beginPath(); ctx.ellipse(0, -Rr * .5, Rr * .9, Rr * .13, 0, 0, Math.PI * 2); ctx.fillStyle = shade(col, -.2); ctx.fill();
+        ctx.strokeStyle = shade(col, -.38); ctx.lineWidth = Rr * .012;
+        for (let i = -8; i <= 8; i++) { ctx.beginPath(); ctx.moveTo(i * Rr * .1, -Rr * .6); ctx.lineTo(i * Rr * .1, -Rr * .4); ctx.stroke(); }
+        const pg = ctx.createRadialGradient(-Rr * .06, -Rr * 1.2, 0, 0, -Rr * 1.12, Rr * .22);
+        pg.addColorStop(0, '#ffffff'); pg.addColorStop(1, '#cfd6e2');
+        ctx.beginPath(); ctx.arc(0, -Rr * 1.12, Rr * .2, 0, Math.PI * 2); ctx.fillStyle = pg; ctx.fill();
+      } else {
+        ctx.beginPath(); ctx.ellipse(0, -Rr * .5, Rr * .8, Rr * .14, 0, 0, Math.PI * 2); ctx.fillStyle = shade(col, -.35); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.font = `${Math.round(Rr * .2)}px "Nanum Myeongjo", serif`; ctx.textAlign = 'center';
+        ctx.fillText('山', 0, -Rr * .72);
+      }
+    } else if (c.hat === 'earmuff') {
+      const hg = ctx.createLinearGradient(0, -Rr, 0, -Rr * .3);
+      hg.addColorStop(0, '#5a4034'); hg.addColorStop(1, '#2b1d17');
+      ctx.beginPath(); ctx.ellipse(0, -Rr * .5, Rr * .84, Rr * .48, 0, Math.PI, 0); ctx.quadraticCurveTo(Rr * .3, -Rr * .32, 0, -Rr * .45); ctx.quadraticCurveTo(-Rr * .3, -Rr * .3, -Rr * .84, -Rr * .5); ctx.fillStyle = hg; ctx.fill();
+      ctx.beginPath(); ctx.ellipse(0, -Rr * .1, Rr * .95, Rr * .98, 0, Math.PI * 1.05, Math.PI * 1.95);
+      ctx.strokeStyle = shade(col, -.2); ctx.lineWidth = Rr * .07; ctx.stroke();
+      [-1, 1].forEach(sd => {
+        const mg = ctx.createRadialGradient(sd * Rr * .86 - Rr * .06, -Rr * .02, 0, sd * Rr * .86, 0, Rr * .25);
+        mg.addColorStop(0, shade(col, .45)); mg.addColorStop(1, shade(col, -.15));
+        ctx.beginPath(); ctx.arc(sd * Rr * .86, 0, Rr * .24, 0, Math.PI * 2); ctx.fillStyle = mg; ctx.fill();
+      });
+    } else if (c.hat === 'perm') {
+      for (let row = 0; row < 2; row++) for (let i = 0; i <= 10; i++) {
+        const a = Math.PI * (1.0 + i / 10), rr = row ? .72 : .9;
+        const x = Math.cos(a) * Rr * rr, y = -Rr * .12 + Math.sin(a) * Rr * rr * 1.02;
+        const cg = ctx.createRadialGradient(x - Rr * .04, y - Rr * .04, 0, x, y, Rr * .15);
+        cg.addColorStop(0, '#f4f1f6'); cg.addColorStop(1, '#9d95a6');
+        ctx.beginPath(); ctx.arc(x, y, Rr * .14, 0, Math.PI * 2); ctx.fillStyle = cg; ctx.fill();
+      }
+    } else if (c.hat === 'hood') {
+      ctx.beginPath(); ctx.ellipse(0, -Rr * .05, Rr * .9, Rr * 1.02, 0, 0, Math.PI * 2);
+      ctx.strokeStyle = shade(col, -.15); ctx.lineWidth = Rr * .12; ctx.stroke();
+    } else if (c.hat === 'bald') {
+      ctx.fillStyle = 'rgba(255,255,255,.55)';
+      ctx.beginPath(); ctx.ellipse(-Rr * .28, -Rr * .66, Rr * .22, Rr * .09, -.3, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#3a2a20'; ctx.lineWidth = Rr * .012; ctx.lineCap = 'round';
+      [-.08, 0, .08].forEach(d => { ctx.beginPath(); ctx.moveTo(d * Rr, -Rr * .9); ctx.quadraticCurveTo(d * Rr + Rr * .12, -Rr * 1.18, d * Rr + Rr * .24, -Rr * 1.06); ctx.stroke(); });
+    }
+  }
+
+  function drawSmirk() {
+    const c = chars[culprit], col = c.color;
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#141b28'); bg.addColorStop(1, '#3a4a60');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    drawFlakes(true);
+    const z = 1 + Math.min(mt, 8) * .022;
+    const Rr = Math.min(W, H) * .29 * z, cx = W * .5, cy = H * .5;
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(-.05);
+    if (c.hat === 'hood') {
+      const hg = ctx.createRadialGradient(-Rr * .3, -Rr * .5, Rr * .1, 0, 0, Rr * 1.3);
+      hg.addColorStop(0, shade(col, .3)); hg.addColorStop(1, shade(col, -.45));
+      ctx.beginPath(); ctx.ellipse(0, -Rr * .05, Rr * 1.15, Rr * 1.22, 0, 0, Math.PI * 2); ctx.fillStyle = hg; ctx.fill();
+    }
+    // long-padding shoulders
+    const pg = ctx.createLinearGradient(0, Rr * .7, 0, Rr * 2.2);
+    pg.addColorStop(0, shade(col, .25)); pg.addColorStop(1, shade(col, -.4));
+    ctx.beginPath(); ctx.ellipse(0, Rr * 1.55, Rr * 1.55, Rr * .85, 0, 0, Math.PI * 2); ctx.fillStyle = pg; ctx.fill();
+    ctx.strokeStyle = shade(col, -.32); ctx.lineWidth = Rr * .02;
+    [.78, .56].forEach(s => { ctx.beginPath(); ctx.ellipse(0, Rr * 1.55, Rr * 1.55 * s, Rr * .85 * s, 0, Math.PI * 1.06, Math.PI * 1.94); ctx.stroke(); });
+    ctx.beginPath(); ctx.ellipse(0, Rr * .86, Rr * .6, Rr * .2, 0, 0, Math.PI * 2); ctx.fillStyle = shade(col, .1); ctx.fill();
+    line(0, Rr * .95, 0, Rr * 2.4, '#e2e4ec', Rr * .02);
+    ctx.beginPath(); ctx.ellipse(0, Rr * .74, Rr * .3, Rr * .18, 0, 0, Math.PI * 2); ctx.fillStyle = shade(SKIN, -.18); ctx.fill();
+    if (c.hat !== 'earmuff' && c.hat !== 'hood') {
+      [-1, 1].forEach(sd => {
+        ctx.beginPath(); ctx.ellipse(sd * Rr * .8, Rr * .02, Rr * .12, Rr * .18, 0, 0, Math.PI * 2);
+        ctx.fillStyle = shade(SKIN, -.08); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(sd * Rr * .8, Rr * .02, Rr * .05, Rr * .1, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(200,90,90,.3)'; ctx.fill();
+      });
+    }
+    const head = ctx.createRadialGradient(-Rr * .3, -Rr * .42, Rr * .08, 0, 0, Rr * 1.1);
+    head.addColorStop(0, shade(SKIN, .4)); head.addColorStop(.5, SKIN); head.addColorStop(1, shade(SKIN, -.38));
+    ctx.beginPath(); ctx.ellipse(0, 0, Rr * .8, Rr * .93, 0, 0, Math.PI * 2); ctx.fillStyle = head; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 0, Rr * .8, Rr * .93, 0, -1.1, .9);
+    ctx.strokeStyle = 'rgba(170,205,255,.35)'; ctx.lineWidth = Rr * .03; ctx.stroke();
+    [-1, 1].forEach(sd => {
+      const bl = ctx.createRadialGradient(sd * Rr * .46, Rr * .24, 0, sd * Rr * .46, Rr * .24, Rr * .22);
+      bl.addColorStop(0, 'rgba(255,80,100,.42)'); bl.addColorStop(1, 'rgba(255,80,100,0)');
+      ctx.fillStyle = bl; ctx.fillRect(sd * Rr * .46 - Rr * .22, Rr * .02, Rr * .44, Rr * .44);
+    });
+    hatHi(c, Rr);
+    [-1, 1].forEach(sd => {
+      const ex = sd * Rr * .3, ey = -Rr * .1, erx = Rr * .15, ery = Rr * .1;
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(ex, ey, erx, ery, 0, 0, Math.PI * 2); ctx.clip();
+      ctx.fillStyle = '#fbfaf4'; ctx.fillRect(ex - erx, ey - ery, erx * 2, ery * 2);
+      const ix = ex - Rr * .055, iy = ey + Rr * .015;
+      const ir = ctx.createRadialGradient(ix, iy, 0, ix, iy, Rr * .07);
+      ir.addColorStop(0, '#6a4428'); ir.addColorStop(1, '#2a170c');
+      ctx.beginPath(); ctx.arc(ix, iy, Rr * .07, 0, Math.PI * 2); ctx.fillStyle = ir; ctx.fill();
+      ctx.beginPath(); ctx.arc(ix, iy, Rr * .034, 0, Math.PI * 2); ctx.fillStyle = '#0c0705'; ctx.fill();
+      ctx.beginPath(); ctx.arc(ix - Rr * .024, iy - Rr * .026, Rr * .017, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
+      const lid = sd < 0 ? .5 : .62;
+      ctx.fillStyle = shade(SKIN, -.12); ctx.fillRect(ex - erx, ey - ery, erx * 2, ery * 2 * lid);
+      ctx.restore();
+      const ly = ey - ery + ery * 2 * lid;
+      ctx.beginPath(); ctx.moveTo(ex - erx, ly); ctx.quadraticCurveTo(ex, ly - ery * .1, ex + erx, ly + ery * .05);
+      ctx.strokeStyle = '#2a1a12'; ctx.lineWidth = Rr * .018; ctx.lineCap = 'round'; ctx.stroke();
+    });
+    ctx.strokeStyle = '#3a2414'; ctx.lineWidth = Rr * .045; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-Rr * .44, -Rr * .27); ctx.lineTo(-Rr * .18, -Rr * .24); ctx.stroke();
+    const raise = clamp((mt - .8) / 1.2);
+    ctx.beginPath(); ctx.moveTo(Rr * .18, -Rr * .27 - raise * Rr * .04);
+    ctx.quadraticCurveTo(Rr * .31, -Rr * (.33 + raise * .1), Rr * .46, -Rr * (.28 + raise * .04)); ctx.stroke();
+    // cold red nose
+    const ng = ctx.createRadialGradient(Rr * .02, Rr * .1, 0, Rr * .02, Rr * .1, Rr * .12);
+    ng.addColorStop(0, 'rgba(255,110,110,.75)'); ng.addColorStop(1, 'rgba(255,110,110,0)');
+    ctx.fillStyle = ng; ctx.fillRect(-Rr * .12, -Rr * .04, Rr * .28, Rr * .28);
+    ctx.beginPath(); ctx.moveTo(-Rr * .05, Rr * .15); ctx.quadraticCurveTo(Rr * .02, Rr * .2, Rr * .09, Rr * .15);
+    ctx.strokeStyle = 'rgba(120,50,40,.45)'; ctx.lineWidth = Rr * .016; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(Rr * .0, Rr * .05, Rr * .025, Rr * .014, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fill();
+    const sm = ease(clamp((mt - 1.3) / 1.4));
+    ctx.beginPath();
+    ctx.moveTo(-Rr * .19, Rr * .36);
+    ctx.quadraticCurveTo(0, Rr * .385, Rr * .11, Rr * (.36 - sm * .03));
+    ctx.quadraticCurveTo(Rr * .19, Rr * (.34 - sm * .07), Rr * .25, Rr * (.36 - sm * .15));
+    ctx.strokeStyle = '#4a1e1e'; ctx.lineWidth = Rr * .028; ctx.lineCap = 'round'; ctx.stroke();
+    if (sm > .6) {
+      ctx.beginPath(); ctx.arc(Rr * .28, Rr * .24, Rr * .04, 1.2, 2.6);
+      ctx.strokeStyle = 'rgba(74,30,30,.45)'; ctx.lineWidth = Rr * .013; ctx.stroke();
+    }
+    {
+      // per-person touches on the close-up
+      const tr = c.trait;
+      if (tr === 'granny' || tr === 'clerk') {
+        ctx.strokeStyle = tr === 'granny' ? '#8a6a3a' : '#1d1a24'; ctx.lineWidth = Rr * .028;
+        [-1, 1].forEach(sd => {
+          ctx.beginPath();
+          if (tr === 'granny') ctx.arc(sd * Rr * .3, -Rr * .1, Rr * .2, 0, Math.PI * 2);
+          else ctx.rect(sd * Rr * .3 - Rr * .2, -Rr * .24, Rr * .4, Rr * .27);
+          ctx.fillStyle = 'rgba(220,240,255,.16)'; ctx.fill(); ctx.stroke();
+        });
+        ctx.beginPath(); ctx.moveTo(-Rr * .1, -Rr * .13); ctx.quadraticCurveTo(0, -Rr * .18, Rr * .1, -Rr * .13); ctx.stroke();
+      }
+      if (tr === 'boss') {
+        ctx.fillStyle = '#3a2418';
+        ctx.beginPath(); ctx.ellipse(-Rr * .1, Rr * .26, Rr * .15, Rr * .06, -.25, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(Rr * .12, Rr * .25, Rr * .16, Rr * .06, .3, 0, Math.PI * 2); ctx.fill();
+      }
+      if (tr === 'sleepy') {
+        const sg = ctx.createLinearGradient(0, Rr * .17, 0, Rr * .33);
+        sg.addColorStop(0, 'rgba(190,230,255,.95)'); sg.addColorStop(1, 'rgba(120,190,240,.95)');
+        ctx.beginPath(); ctx.moveTo(Rr * .05, Rr * .17); ctx.quadraticCurveTo(Rr * .1, Rr * .29, Rr * .06, Rr * .33); ctx.quadraticCurveTo(Rr * .01, Rr * .29, Rr * .05, Rr * .17);
+        ctx.fillStyle = sg; ctx.fill();
+      }
+      if (tr === 'lady') {
+        ctx.strokeStyle = '#2a1a12'; ctx.lineWidth = Rr * .016;
+        [-1, 1].forEach(sd => [0, 1, 2].forEach(i => {
+          const x = sd * Rr * .3 + sd * Rr * (.06 + i * .045), y0 = -Rr * .1 - Rr * .02 * (sd < 0 ? 0 : -1);
+          ctx.beginPath(); ctx.moveTo(x, y0 - Rr * .02); ctx.lineTo(x + sd * Rr * .03, y0 - Rr * .08); ctx.stroke();
+        }));
+      }
+    }
+    if (mt > 2) {
+      const sy = -Rr * .38 + Math.min(mt - 2, 5) * Rr * .03, sx = Rr * .6;
+      const sg = ctx.createLinearGradient(sx, sy - Rr * .08, sx, sy + Rr * .06);
+      sg.addColorStop(0, 'rgba(230,245,255,.95)'); sg.addColorStop(1, 'rgba(140,190,235,.9)');
+      ctx.beginPath(); ctx.moveTo(sx, sy - Rr * .09);
+      ctx.bezierCurveTo(sx + Rr * .05, sy - Rr * .01, sx + Rr * .05, sy + Rr * .05, sx, sy + Rr * .05);
+      ctx.bezierCurveTo(sx - Rr * .05, sy + Rr * .05, sx - Rr * .05, sy - Rr * .01, sx, sy - Rr * .09);
+      ctx.fillStyle = sg; ctx.fill();
+      ctx.beginPath(); ctx.ellipse(sx - Rr * .015, sy + Rr * .01, Rr * .01, Rr * .02, -.3, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
+    }
+    wisps.forEach(w => {
+      if (w.t < 0) return;
+      const uu = w.t / w.life;
+      ctx.globalAlpha = (1 - uu) * .55;
+      ctx.beginPath(); ctx.ellipse(Rr * (.08 + uu * .55), Rr * (.2 + w.dy - uu * .05), Rr * (.03 + uu * .09), Rr * (.015 + uu * .03), 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff'; ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    const vg = ctx.createRadialGradient(cx, cy, Math.min(W, H) * .3, cx, cy, Math.max(W, H) * .75);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.6)');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+    if (!reduce) for (let i = 0; i < 160; i++) {
+      ctx.fillStyle = i % 2 ? 'rgba(255,255,255,.05)' : 'rgba(0,0,0,.07)';
+      ctx.fillRect(Math.random() * W, Math.random() * H, 1.5, 1.5);
+    }
+    const bar = H * .11 * ease(clamp(mt / .8));
+    ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, W, bar); ctx.fillRect(0, H - bar, W, bar);
+  }
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    update(dt);
+    try { bgmTick(); } catch (e) {}
+    ctx.clearRect(0, 0, W, H);
+    mode === 'smirk' ? drawSmirk() : mode === 'cctv' ? drawReplay() : (mode === 'execute' && punishState === 'play') ? drawPunish() : drawScene();
+    requestAnimationFrame(frame);
+  }
+  placeActions();
+  reset();
+  requestAnimationFrame(frame);
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+</script>
+</body>
+</html>
