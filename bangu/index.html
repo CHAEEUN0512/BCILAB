@@ -376,7 +376,7 @@ button[aria-pressed="true"]{background:var(--lime)}
         <dl class="ht-roles">
           <dt>무취 시민</dt><dd><b>킁킁</b>(Q, 라운드마다 1번): 바로 옆 사람 엉덩이를 맡아요. 6초 안에 뀐 진범이면 "구리다!!"</dd>
           <dt>냄새 감별사</dt><dd><b>돋보기</b>(한 판에 1번): 5초 동안 동그란 범위 안의 방구김이 노랗게 보여요.</dd>
-          <dt>경비 아저씨</dt><dd><b>CCTV</b>(한 판에 1번): 회의 시간에 라운드 하나를 골라 돌려봐요. 방구김이 노랗게 찍혀요. 아래 막대를 끌면 빨리감기.</dd>
+          <dt>경비 아저씨</dt><dd><b>CCTV</b>(한 판에 1번): 돌아다닐 때든 회의 때든 원할 때 라운드 하나를 골라 돌려봐요. 방구김이 노랗게 찍혀요. 아래 막대를 끌면 빨리감기.</dd>
           <dt>진범</dt><dd><b>방구</b>(F, 라운드마다 1번, 마감까지 안 뀌면 저절로 터짐) · <b>찡그리기</b>(G) · <b>엉덩이 툭</b>(T, 한 판에 1번): 조력자를 공범으로 포섭해요.</dd>
           <dt>진범의 조력자</dt><dd><b>CCTV 가리기</b>(C, 라운드마다 1번): 3초 동안 녹화에 엉덩이만 찍혀요. 공범이 되면 <b>녹화 지우기</b>(E, 직전 5초)와 <b>방구 쿠션</b>(B, 가짜 방구)도 써요.</dd>
         </dl>
@@ -948,7 +948,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     // say why it's greyed out instead of just going dead
     const t = cctvLeft <= 0 ? 'CCTV 이미 봤음' : gameT < 2 ? 'CCTV 녹화 중…' : mode !== 'play' ? 'CCTV 돌려보기' : `CCTV 돌려보기 (${cctvLeft}번)`;
     if (t !== cctvLabel) { cctvBtn.textContent = t; cctvLabel = t; }
-    cctvBtn.hidden = true; // CCTV is watched in the meeting now
+    cctvBtn.hidden = myRole !== 'cctv'; // walking around or in the meeting: the guard decides when
     cctvBtn.disabled = mode !== 'play' || cctvLeft <= 0 || gameT < 2;
   }
   function updateRoundInfo() {
@@ -975,8 +975,8 @@ button[aria-pressed="true"]{background:var(--lime)}
   function roundAtT(t) { const sn = snapAt(t); return sn ? sn.r : 1; }
   let cctvFromTalk = false;
   function openCctv() {
-    if (mode !== 'talk' || cctvLeft <= 0 || gameT < 2 || myRole !== 'cctv') return;
-    cctvFromTalk = true; talkEl.hidden = true;
+    if ((mode !== 'talk' && mode !== 'play') || cctvLeft <= 0 || gameT < 2 || myRole !== 'cctv') return;
+    cctvFromTalk = mode === 'talk'; talkEl.hidden = true;
     mode = 'cctvpick';
     tl.querySelectorAll('.tl-tick,.tl-cut').forEach(n => n.remove());
     covers.forEach(([a, b]) => {
@@ -999,6 +999,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     statusEl.textContent = 'CCTV: 돌려볼 라운드를 고르는 중…';
   }
   // back to the meeting after watching (or cancelling)
+  cctvBtn.addEventListener('click', openCctv);
   function backToTalk() { cctvFromTalk = false; mode = 'talk'; talkEl.hidden = false; statusEl.textContent = '회의 시간: 한마디 해서 사람들을 설득하세요.'; myTurn(); }
   const roomGone = () => roundT < 3; // current round barely recorded → default to the last one
   const pickAt = e => { const r = tl.getBoundingClientRect(); setRound(roundAtT(clamp((e.clientX - r.left) / r.width) * Math.max(gameT, 2))); };
@@ -1073,7 +1074,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     { key: 'sniffer', team: '시민 팀', t: 'seek', name: '냄새 감별사', mission: '돋보기로 방구김을 찾아 시민들에게 알려요.', win: '진범이 신고되면 승리',
       ability: [['돋보기', '한 판에 1번', '5초 동안 방구김이 노랗게 보여요', '']] },
     { key: 'cctv', team: '시민 팀', t: 'seek', name: '경비 아저씨', mission: 'CCTV 녹화에서 증거를 찾아 시민들을 도와요.', win: '진범이 신고되면 승리',
-      ability: [['CCTV 돌려보기', '한 판에 1번', '회의 때 라운드 하나를 처음부터 끝까지 다시 봐요', '']] },
+      ability: [['CCTV 돌려보기', '한 판에 1번', '언제든(회의 때도) 라운드 하나를 처음부터 끝까지 다시 봐요', '']] },
     { key: 'culprit', team: '방구 팀', t: 'fart', name: '진범', mission: '들키지 말고 라운드마다 한 번씩 몰래 뀌세요.', win: '마지막 라운드까지 버티면 승리',
       ability: [['방구 뀌기', '라운드마다 1번', '마감까지 안 뀌면 저절로 터져요', 'F'], ['찡그리기', '언제든', '냄새 맡은 척해요', 'G'], ['엉덩이 툭', '한 판에 1번', '조력자를 치면 공범이 돼요', 'T']] },
     { key: 'helper', team: '방구 팀', t: 'fart', name: '진범의 조력자', mission: '진범이 누군지 몰라요. 추리해서 몰래 도와주세요.', win: '진범이 안 잡히면 승리',
@@ -2176,7 +2177,7 @@ button[aria-pressed="true"]{background:var(--lime)}
   function myTurn() {
     tkAct.textContent = '';
     if (cleared.has(myIdx)) { tkHint('억울함 인증을 받아서 발언권이 없어요.'); later(900, () => tkButton('투표하러 가기', toVote, 'tk-go')); return; }
-    if (myRole === 'cctv' && cctvLeft > 0) tkButton('CCTV 먼저 보기 (한 판에 1번)', openCctv, 'tk-cctv');
+    if (myRole === 'cctv' && cctvLeft > 0) tkButton('CCTV 보기 (한 판에 1번)', openCctv, 'tk-cctv');
     tkHint('내 차례!  "나 ___인데,"');
     CLAIMABLE.forEach(r => tkButton(ROLE_NAME[r], () => pickWho(r)));
     tkButton('조용히 있기', () => { tkAct.textContent = ''; tkSay(myIdx, '…… (조용히 숨만 쉰다)'); afterMine(-1); });
