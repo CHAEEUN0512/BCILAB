@@ -68,6 +68,7 @@ h1{
 .joy.on .joy-knob{background:#d6ff8a}
 @media (hover:none),(max-width:620px){.mpad{display:flex}}
 .dots{display:flex;gap:6px}
+.dots.cnt{font-weight:700;font-variant-numeric:tabular-nums}
 .round{font-weight:700;font-size:14px;background:var(--paper);border:2px solid var(--ink);border-radius:999px;padding:2px 10px;font-variant-numeric:tabular-nums}
 .seg{display:inline-flex;border:2.5px solid var(--ink);border-radius:12px;box-shadow:3px 3px 0 var(--ink);overflow:hidden;background:var(--paper)}
 .seg .rd,.seg .rd:hover{border:0;border-radius:0;box-shadow:none;margin:0}
@@ -392,7 +393,7 @@ button[aria-pressed="true"]{background:var(--lime)}
       <div class="tt-sub">2087년, 방구는 불법이 되었다.</div>
       <div class="tt-box">
         <span class="seg" role="group" aria-label="맵"><button type="button" class="rd mp" data-m="snow" aria-pressed="true">설산</button><button type="button" class="rd mp" data-m="sea" aria-pressed="false">심해</button><button type="button" class="rd mp" data-m="space" aria-pressed="false">우주</button></span>
-        <span class="seg" role="group" aria-label="라운드 수"><button type="button" class="rd" data-r="3" aria-pressed="true">3라운드</button><button type="button" class="rd" data-r="5" aria-pressed="false">5라운드</button></span>
+        <span class="seg" role="group" aria-label="라운드 수"><button type="button" class="rd" data-r="3" aria-pressed="true">3라운드</button><button type="button" class="rd" data-r="6" aria-pressed="false">6라운드 · 진범 2명</button></span>
         <button type="button" class="tt-go" id="ttGo">게임 시작</button>
       </div>
       <button type="button" class="tt-how" id="ttHow">게임 방법</button>
@@ -404,7 +405,7 @@ button[aria-pressed="true"]{background:var(--lime)}
         <h3>기본</h3>
         <p>입김은 <b>얼굴 앞</b>에서, 방구는 <b>엉덩이 뒤</b>에서 나와요. 겉보기엔 똑같아요.</p>
         <p>진범은 라운드마다 한 번 몰래 뀌어요. 냄새 구름에 얼굴이 닿은 사람은 찡그리고, 밤에 <b>기절자</b>로 발표돼요.</p>
-        <p>밤이 지나면 회의 시간이에요. 한마디씩 하는데, 내 차례엔 버튼 세 번으로 <b>"나 ○○인데, ○○가 범인인 거 봤어! / 수상해! / 범인 아니야!"</b>를 말해요. 역할은 거짓말이어도 돼요. 같은 역할을 두 명이 주장하면 둘 중 하나는 거짓말쟁이예요. 그다음 투표해요. 3표 이상 받은 단독 1등이 신고되고, 동점이면 결선을 해요. 마지막 밤까지 못 잡으면 진범이 이겨요.</p>
+        <p>밤이 지나면 회의 시간이에요. 한마디씩 하는데, 내 차례엔 버튼 세 번으로 <b>"나 ○○인데, ○○가 범인인 거 봤어! / 수상해! / 범인 아니야!"</b>를 말해요. 역할은 거짓말이어도 돼요. 같은 역할을 두 명이 주장하면 둘 중 하나는 거짓말쟁이예요. 그다음 투표해요. 3표 이상 받은 단독 1등이 신고되고, 동점이면 결선을 해요. 마지막 밤까지 못 잡으면 진범이 이겨요. <b>6라운드</b>는 진범이 2명이에요. 서로 누군지 알고, 둘 다 잡아야 시민이 이겨요.</p>
         <h3>이동</h3>
         <p>방향키나 WASD, 폰은 아래 조이스틱. 누구나 자유롭게 다닐 수 있어요. 대신 가장자리에 붙어 있으면 추워서 몇 초 뒤 모닥불 쪽으로 밀려나요. 내 캐릭터 머리 위에는 초록 화살표가 있어요.</p>
         <h3>역할</h3>
@@ -638,6 +639,7 @@ button[aria-pressed="true"]{background:var(--lime)}
   const MT_BACK = [[0, .3], [0, .2], [.12, .1], [.22, .19], [.36, .05], [.5, .17], [.63, .08], [.78, .18], [.9, .06], [1, .15], [1, .3]];
   const MT_FRONT = [[0, .31], [0, .24], [.07, .17], [.17, .25], [.29, .13], [.42, .26], [.55, .16], [.68, .27], [.8, .15], [.92, .24], [1, .19], [1, .31]];
 
+  let partner = -1, partnerJailed = false, pFartAt = 0, pFarted = false, lastFartBy = {}; // 6-round mode: a second culprit
   let chars, puffs, stains, culprit, farts, nextFart, pending, mode, mt, accused, winTimer, T = 0, shameTitle, gloryTitle, bigFired;
   let rvLock = 0, meSpot = 0, selfSmelled = false, cloudSeq = 0, failedHold = false, bumpCD = 3; const clouds = new Map();
   let tapState = 'idle', tapAt = 0, tapTarget = -1, tapSince = 0, accomplice = false, tapFailed = -1, erased = [], eraseAt = 0, taps = [];
@@ -689,6 +691,8 @@ button[aria-pressed="true"]{background:var(--lime)}
   function setBig(t) { big.hidden = !t; big.textContent = t || ''; }
   function updateMeter() {
     const box = $('dots');
+    if (partner >= 0) { box.textContent = `${farts + decoys}번`; box.classList.add('cnt'); return; }
+    box.classList.remove('cnt');
     const n = Math.max(rounds, farts + decoys);
     if (box.childElementCount !== n) { box.textContent = ''; for (let i = 0; i < n; i++) { const d = document.createElement('span'); d.className = 'dot'; box.append(d); } }
     Array.from(box.children).forEach((d, i) => d.classList.toggle('on', i < farts + decoys));
@@ -704,6 +708,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     puffs = []; stains = [];
     culprit = Math.floor(Math.random() * chars.length);
     const pool = chars.map((c, i) => i).filter(i => i !== culprit).sort(() => Math.random() - .5);
+    partner = rounds >= 6 ? pool.pop() : -1; partnerJailed = false; pFarted = false; pFartAt = R(3, ROUND_LEN - 5); lastFartBy = {};
     helperIdx = pool[0]; cctvIdx = pool[1]; snifferIdx = pool[2]; cctvUsed = 0;
     helperLine = LORE[Math.floor(Math.random() * LORE.length)][1];
     Object.keys(npcLine).forEach(k => delete npcLine[k]);
@@ -773,7 +778,8 @@ button[aria-pressed="true"]{background:var(--lime)}
     stains.push({ x: bx / W, y: (Y + 33 * S * k) / H, t: 0, life: 10, k });
     if (decoy) { decoys++; decoyT = gameT; updateMeter(); sfx(.35); }
     else {
-      farts++; fartedRound = true; updateMeter(); sfx(.35);
+      farts++; if (partner >= 0 && c === chars[partner]) pFarted = true; else fartedRound = true; updateMeter(); sfx(.35);
+      lastFartBy[chars.indexOf(c)] = gameT;
       if (helperIdx !== myIdx && !npcCoverUsed && npcCoverAt < 0 && Math.random() < .5) npcCoverAt = gameT + R(.2, 1.2);
       lastFartT = gameT; fartLog.push(gameT);
       fartWit.push({ r: round, smelled: [], near: chars.map((o, oi) => oi).filter(oi => Math.hypot((chars[oi].x - c.x) * W, (chars[oi].y - c.y) * H) < 130 * S) });
@@ -1146,14 +1152,14 @@ button[aria-pressed="true"]{background:var(--lime)}
   }
   function showReveal() {
     const role = ROLES[Math.floor(Math.random() * ROLES.length)];
-    const seekers = chars.map((c, i) => i).filter(i => i !== culprit && i !== helperIdx && i !== cctvIdx && i !== snifferIdx);
+    const seekers = chars.map((c, i) => i).filter(i => i !== culprit && i !== partner && i !== helperIdx && i !== cctvIdx && i !== snifferIdx);
     const me = role.key === 'culprit' ? culprit : role.key === 'helper' ? helperIdx : role.key === 'cctv' ? cctvIdx : role.key === 'sniffer' ? snifferIdx : pick(seekers);
     myIdx = me; myRole = role.key;
     const front = $('cardFront');
     front.className = 'face front t-' + role.t;
     $('cTeam').textContent = role.team;
     $('cRole').textContent = role.name;
-    $('cMission').textContent = role.mission;
+    $('cMission').textContent = role.mission + (role.key === 'culprit' && partner >= 0 ? ` 동료 진범은 ${chars[partner].name}! 둘 중 한 명만 살아남아도 승리.` : '');
     const ab = $('cAbility'); ab.textContent = '';
     role.ability.forEach(([nm, often, what, key]) => {
       const row = document.createElement('div'); row.className = 'ab';
@@ -1213,7 +1219,7 @@ button[aria-pressed="true"]{background:var(--lime)}
   const ROLE_NAME = { culprit: '진범', helper: '진범의 조력자', accomplice: '공범', cctv: '경비 아저씨', sniffer: '냄새 감별사', seeker: '무취 시민' };
   const pick = a => a[Math.floor(Math.random() * a.length)];
   let whTimers = [];
-  function roleOf(i) { return i === culprit ? 'culprit' : i === helperIdx ? (accomplice ? 'accomplice' : 'helper') : i === cctvIdx ? 'cctv' : i === snifferIdx ? 'sniffer' : 'seeker'; }
+  function roleOf(i) { return i === culprit || i === partner ? 'culprit' : i === helperIdx ? (accomplice ? 'accomplice' : 'helper') : i === cctvIdx ? 'cctv' : i === snifferIdx ? 'sniffer' : 'seeker'; }
   function paintChar(cc, i, over) {
     const c2 = cc.getContext('2d');
     c2.setTransform(1, 0, 0, 1, 0, 0); c2.clearRect(0, 0, cc.width, cc.height);
@@ -1238,7 +1244,8 @@ button[aria-pressed="true"]{background:var(--lime)}
     if (k === 'culprit') {
       b.push([`방구 ${farts}번`, 'y']);
       if (tapState === 'done' && tapTarget >= 0) b.push([accomplice ? '툭 포섭 성공' : '툭 포섭 실패', accomplice ? 'g' : 'p']);
-      b.push([accused === culprit ? '결국 잡힘' : '완전범죄', accused === culprit ? 'p' : 'g']);
+      const got = (i === partner && partnerJailed) || (i === culprit && accused === culprit);
+      b.push([got ? (i === partner ? '먼저 체포됨' : '결국 잡힘') : '완전범죄', got ? 'p' : 'g']);
     }
     if (k === 'helper' || k === 'accomplice') {
       const mine = covers.filter(x => x[2] === i), cvHit = mine.filter(x => caught(x[0], x[1], .5)).length;
@@ -1271,7 +1278,7 @@ button[aria-pressed="true"]{background:var(--lime)}
       if (accomplice && accHits >= 2) return [helperIdx, `증거 인멸 ${accHits}번 적중`];
       return [culprit, farts ? `방구 ${farts}번 뀌고 끝까지 안 들킴` : '끝까지 안 들킴'];
     }
-    const sc = chars.map((c, i) => (i === culprit || (i === helperIdx && accomplice)) ? -1 : stats[i].right * 3 + stats[i].sniffHit * 2);
+    const sc = chars.map((c, i) => (i === culprit || i === partner || (i === helperIdx && accomplice)) ? -1 : stats[i].right * 3 + stats[i].sniffHit * 2);
     const top = Math.max(...sc);
     if (top <= 0) return [-1, ''];
     const tied = sc.map((x, i) => (x === top ? i : -1)).filter(i => i >= 0).sort((a, b) => stats[a].got - stats[b].got); // tie: the less suspected one
@@ -1328,7 +1335,7 @@ button[aria-pressed="true"]{background:var(--lime)}
   let resultSaved = false;
   function loadRec() { try { const r = JSON.parse(localStorage.getItem('bangu-rec') || '{}'); return { w: r.w | 0, l: r.l | 0 }; } catch (e) { return { w: 0, l: 0 }; } }
   function showResult() {
-    const caught = accused === culprit, fartTeam = myRole === 'culprit' || myRole === 'helper';
+    const caught = accused === culprit, fartTeam = myRole === 'culprit' || myRole === 'jailed' || myRole === 'helper';
     const win = caught !== fartTeam, el = $('whRes');
     el.textContent = win ? (fartTeam ? '승리! 끝까지 안 들켰다' : '승리! 진범을 잡았다') : (fartTeam ? '패배… 결국 들켰다' : '패배… 진범이 빠져나갔다');
     el.className = 'wh-res ' + (win ? 'win' : 'lose'); el.hidden = false;
@@ -1969,7 +1976,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     const t = sniffPick();
     if (t < 0) { statusEl.textContent = '너무 멀어요. 바짝 붙어서 킁킁!'; return; }
     sniffLeft--; stats[myIdx].sniff++;
-    const stinky = (t === culprit && gameT - lastFartT <= 6) || (t === helperIdx && gameT - decoyT <= 6);
+    const stinky = ((t === culprit || t === partner) && gameT - (lastFartBy[t] ?? -99) <= 6) || (t === helperIdx && gameT - decoyT <= 6);
     sniffPop = { i: t, t: 0, bad: stinky }; if (stinky) stats[myIdx].sniffHit++;
     chars[myIdx].sq = stinky ? 1.6 : 0;
     statusEl.textContent = stinky ? `킁킁… ${chars[t].name} 엉덩이가 구리다!!` : `킁킁… ${chars[t].name} 엉덩이는 무취.`;
@@ -2112,7 +2119,7 @@ button[aria-pressed="true"]{background:var(--lime)}
   });
   function startRound(n) {
     npcDecoyAt = -1;
-    round = n; roundT = 0; fartAt = R(3, ROUND_LEN - 6); fartedRound = false; pending = false;
+    round = n; roundT = 0; fartAt = R(3, ROUND_LEN - 6); fartedRound = false; pending = false; pFarted = false; pFartAt = R(3, ROUND_LEN - 5);
     coverLeft = 1; coverT = 0; npcCoverAt = -1; npcCoverUsed = false; sniffLeft = 1; eraseLeft = 1; sniffPop = null;
     roundSmelled = new Set(); selfSmelled = false;
     chars.forEach(c => { [c.x, c.y] = inArea(1); pickTarget(c); c.sq = 0; c.sqDelay = 0; });
@@ -2295,7 +2302,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     const c = everyone().filter(i => i !== myIdx && !claims[i]).sort(() => Math.random() - .5);
     for (const i of c) {
       if ((i === snifferIdx || i === cctvIdx) && Math.random() < .35) return [i, roleOf(i)];
-      if ((i === culprit || (i === helperIdx && accomplice)) && Math.random() < .2) return [i, pick(['sniffer', 'cctv'])];
+      if ((i === culprit || i === partner || (i === helperIdx && accomplice)) && Math.random() < .2) return [i, pick(['sniffer', 'cctv'])];
     }
     return -1;
   }
@@ -2348,9 +2355,9 @@ button[aria-pressed="true"]{background:var(--lime)}
   function witnessSay(i) {
     const w = fartWit.filter(f => f.r === round && f.smelled.includes(i));
     if (!w.length || Math.random() < .35) return false;
-    const f = w[w.length - 1], liar = i === culprit || (i === helperIdx && accomplice);
+    const f = w[w.length - 1], liar = i === culprit || i === partner || (i === helperIdx && accomplice);
     let names = f.near.filter(j => j !== i);
-    if (liar) names = names.filter(j => j !== culprit).concat(pick(alive().filter(j => j !== culprit && j !== i && !names.includes(j))) ?? []);
+    if (liar) names = names.filter(j => j !== culprit && j !== partner).concat(pick(alive().filter(j => j !== culprit && j !== partner && j !== i && !names.includes(j))) ?? []);
     names = names.filter(j => j !== undefined).sort(() => Math.random() - .5).slice(0, 3);
     if (!names.length) return false;
     names.forEach(j => { sway[j] += .8; });
@@ -2360,8 +2367,8 @@ button[aria-pressed="true"]{background:var(--lime)}
     return true;
   }
   function botTarget(i) {
-    const fartSide = i === culprit || (i === helperIdx && accomplice);
-    const pool = alive().filter(j => j !== i && !(fartSide && j === culprit)); // the fart side never names the culprit
+    const fartSide = i === culprit || i === partner || (i === helperIdx && accomplice);
+    const pool = alive().filter(j => j !== i && !(fartSide && (j === culprit || j === partner))); // the fart side never names the culprit
     if (!pool.length) return -1;
     const faint = lastFaint.filter(j => pool.includes(j));
     return faint.length && Math.random() < .6 ? pick(faint) : pick(pool);
@@ -2427,7 +2434,7 @@ button[aria-pressed="true"]{background:var(--lime)}
       paintChar(cc, i);
       const nm = document.createElement('span'); nm.textContent = c.name + (i === myIdx ? ' (나)' : '');
       b.append(cc, nm);
-      if (cleared.has(i)) { b.disabled = true; const t = document.createElement('small'); t.textContent = '억울함 인증'; b.append(t); }
+      if (cleared.has(i)) { b.disabled = true; const t = document.createElement('small'); t.textContent = partnerJailed && i === partner ? '체포됨' : '억울함 인증'; b.append(t); }
       else if (claims[i]) { const t = document.createElement('small'); t.className = 'clm'; t.textContent = `자칭 ${ROLE_NAME[claims[i]]}`; b.append(t); }
       b.dataset.i = i;
       b.addEventListener('click', () => castVote(i));
@@ -2457,12 +2464,14 @@ button[aria-pressed="true"]{background:var(--lime)}
       const r = Math.random();
       if (r < .2) return -1; // pass
       const w = i => Math.max(.15, 1 + (lastFaint.includes(i) ? 1.2 : 0) + (sway[i] || 0) * 1.3); // what the meeting said moves votes
-      if (v === culprit || (v === helperIdx && accomplice)) { const f = pool.filter(i => i !== culprit); return f.length ? wpick(f, w) : -1; } // frame someone
-      if (r < .32 && pool.includes(culprit)) return culprit; // a hunch that happens to be right
+      const bad = i => i === culprit || (i === partner && !partnerJailed);
+      if (bad(v) || v === partner || (v === helperIdx && accomplice)) { const f = pool.filter(i => !bad(i)); return f.length ? wpick(f, w) : -1; } // frame someone
+      const hunch = pool.filter(bad);
+      if (r < .32 && hunch.length) return pick(hunch); // a hunch that happens to be right
       return wpick(pool, w);
     });
     const count = chars.map(() => 0);
-    ballots.forEach((b, v) => { if (b >= 0) { count[b]++; stats[b].got++; if (b === culprit) stats[v].right++; } });
+    ballots.forEach((b, v) => { if (b >= 0) { count[b]++; stats[b].got++; if (b === culprit || b === partner) stats[v].right++; } });
     Array.from(voteGrid.children).forEach(btn => {
       const i = +btn.dataset.i;
       btn.disabled = true;
@@ -2485,7 +2494,16 @@ button[aria-pressed="true"]{background:var(--lime)}
         return;
       }
       const i = top[0], nm = chars[i].name;
-      if (i === culprit) {
+      if ((i === culprit || i === partner) && partner >= 0 && !partnerJailed) {
+        // first of two caught: jail them, the other one keeps going
+        if (i === culprit) { [culprit, partner] = [partner, culprit]; if (myRole === 'culprit') myRole = 'jailed'; fartedRound = pFarted; }
+        partnerJailed = true; cleared.add(partner);
+        narrate([`${max}표로 ${ga(nm)} 신고되었습니다.`, `${eun(nm)}…`, '무취법 위반자였습니다! 한 명 체포!', '그런데… 냄새가 아직 남아 있습니다.', '진범이 한 명 더 있습니다.'], () => {
+          afterVote();
+          if (myRole === 'jailed') toast('체포됐다…', `이제 ${chars[culprit].name}만 믿는 수밖에. 투표·회의로 계속 도와줄 수 있어.`, 'bad', 6);
+          else if (myRole === 'culprit') toast('동료가 잡혔다!', `${eun(chars[partner].name)} 체포. 이제 혼자 끝까지 버텨야 해.`, 'bad', 6);
+        });
+      } else if (i === culprit) {
         accused = i;
         narrate([`${max}표로 ${ga(nm)} 신고되었습니다.`, `${eun(nm)}…`, '무취법 위반자였습니다!'], () => { mode = 'execute'; mt = 0; statusEl.textContent = '잡았다!'; });
       } else {
@@ -2639,6 +2657,7 @@ button[aria-pressed="true"]{background:var(--lime)}
       gameT += dt; roundT += dt; recAcc += dt;
       while (recAcc >= 1 / 15) { recAcc -= 1 / 15; record(); }
       if (myRole !== 'culprit' && !fartedRound && roundT >= fartAt) pending = true;
+      if (partner >= 0 && !partnerJailed && !pFarted && roundT >= pFartAt) { const c = chars[partner], p0 = pos(c); fart(c, p0.X, p0.Y, p0.k); }
       if (myRole === 'culprit' && !fartedRound && roundT >= ROUND_LEN - 3) tryFart(true);
       if (roundT >= ROUND_LEN) endRound();
     } else if (mode === 'narrate') {
