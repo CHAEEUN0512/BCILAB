@@ -716,7 +716,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     lensLeft = 1; lensT = 0; updateLensBtn();
     cleared = new Set(); roundSmelled = new Set(); narrEl.hidden = true; voteEl.hidden = true; reviewing = false; myIdx = -1; myRole = '';
     stats = chars.map(() => ({ got: 0, right: 0, sniff: 0, sniffHit: 0 }));
-    resultSaved = false; $('toast').hidden = true; $('confirm').hidden = true; reveal.hidden = true; $('howto').hidden = true; $('talk').hidden = true; talkTimers.forEach(clearTimeout); talkTimers = []; sway = []; claims = {};
+    fartPop = 0; resultSaved = false; $('toast').hidden = true; $('confirm').hidden = true; reveal.hidden = true; $('howto').hidden = true; $('talk').hidden = true; talkTimers.forEach(clearTimeout); talkTimers = []; sway = []; claims = {};
     if (toTitle) { mode = 'intro'; showTitle(); return; }
     $('titleScr').hidden = true;
     narrate(TX().intro, () => { mode = 'intro'; showReveal(); });
@@ -1348,6 +1348,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     if (myRole !== 'culprit' || fartedRound || mode !== 'play') return;
     const c = chars[culprit], p0 = pos(c);
     pending = false; fart(c, p0.X, p0.Y, p0.k);
+    fartPop = 1.3; // a private "뿡!" over my own butt so I know it went off
     statusEl.textContent = forced ? '참다 참다 결국 터졌다!' : '뿡… 아무도 못 봤겠지?';
   }
   // returns 2 when the player fully drives this character (fart team), 1 when they only nudge it (seeker team)
@@ -1385,7 +1386,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     tapTarget = best; doTap();
     statusEl.textContent = accomplice ? '포섭 성공! 공범이 생겼다.' : '포섭 실패…';
   }
-  let tapLabel = '';
+  let tapLabel = '', fartPop = 0;
   function updateTapBtn() {
     const tl = tapState === 'done' && tapTarget >= 0 ? (isTouch() ? (accomplice ? '툭 성공!' : '툭 실패…') : (accomplice ? `툭 성공 · ${chars[tapTarget].name} 공범` : `툭 실패 · ${chars[tapTarget].name}`)) : '엉덩이 툭' + kh('T');
     if (tl !== tapLabel) { tapLabel = tl; tapBtn.textContent = tl; }
@@ -1393,7 +1394,8 @@ button[aria-pressed="true"]{background:var(--lime)}
     tapBtn.disabled = tapState === 'done' || mode !== 'play';
     fartBtn.hidden = myRole !== 'culprit'; sqBtn.hidden = myRole !== 'culprit'; sqBtn.disabled = mode !== 'play';
     fartBtn.disabled = fartedRound || mode !== 'play';
-    const t = fartedRound ? '이번 라운드 방구 완료' : `방구 뀌기${kh('F')} · ${Math.max(0, Math.ceil(ROUND_LEN - 3 - roundT))}초`;
+    // the number is the deadline, not a timer: say so
+    const t = fartedRound ? '이번 라운드 방구 완료' : `지금 방구 뀌기${kh('F')} · 마감 ${Math.max(0, Math.ceil(ROUND_LEN - 3 - roundT))}초`;
     if (t !== fartLabel) { fartBtn.textContent = t; fartLabel = t; }
   }
   window.addEventListener('keydown', e => {
@@ -3034,6 +3036,17 @@ button[aria-pressed="true"]{background:var(--lime)}
       if ((mode === 'accuse' || mode === 'wrong') && accused >= 0) ring(chars[accused]);
       drawTapTarget();
       drawSniff();
+      if (fartPop > 0 && myRole === 'culprit') {
+        fartPop -= 1 / 60;
+        const c = chars[culprit], k = depth(c), u = S * k, x = c.x * W - c.face * (c.bw + 18) * u, y = c.y * H - 4 * u - (1.3 - fartPop) * 18 * S;
+        ctx.save(); ctx.globalAlpha = Math.min(1, fartPop * 2); ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+        ctx.font = `${Math.round(28 * S)}px "Jua", sans-serif`;
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 6 * S; ctx.strokeText('뿡!', x, y);
+        ctx.fillStyle = '#c99a00'; ctx.fillText('뿡!', x, y);
+        ctx.font = `${Math.round(10 * S)}px "Noto Sans KR", sans-serif`; ctx.lineWidth = 3 * S;
+        ctx.strokeText('(나만 보여요)', x, y + 16 * S); ctx.fillStyle = '#5b5566'; ctx.fillText('(나만 보여요)', x, y + 16 * S);
+        ctx.restore();
+      }
       drawTaps();
       drawCountdown();
       if (mode === 'play' && lensT > 0) drawLens();
