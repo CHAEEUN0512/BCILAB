@@ -721,7 +721,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     lensLeft = 1; lensT = 0; updateLensBtn();
     cleared = new Set(); roundSmelled = new Set(); narrEl.hidden = true; voteEl.hidden = true; reviewing = false; myIdx = -1; myRole = '';
     stats = chars.map(() => ({ got: 0, right: 0, sniff: 0, sniffHit: 0 }));
-    fartPop = 0; fartLog = []; edgeT = 0; edgeWarned = false; resultSaved = false; $('toast').hidden = true; $('confirm').hidden = true; reveal.hidden = true; $('howto').hidden = true; $('talk').hidden = true; talkTimers.forEach(clearTimeout); talkTimers = []; sway = []; claims = {};
+    fartPop = 0; fartLog = []; fartWit = []; usedLines = new Set(); edgeT = 0; edgeWarned = false; resultSaved = false; $('toast').hidden = true; $('confirm').hidden = true; reveal.hidden = true; $('howto').hidden = true; $('talk').hidden = true; talkTimers.forEach(clearTimeout); talkTimers = []; sway = []; claims = {};
     if (toTitle) { mode = 'intro'; showTitle(); return; }
     $('titleScr').hidden = true;
     narrate(TX().intro, () => { mode = 'intro'; showReveal(); });
@@ -776,13 +776,14 @@ button[aria-pressed="true"]{background:var(--lime)}
       farts++; fartedRound = true; updateMeter(); sfx(.35);
       if (helperIdx !== myIdx && !npcCoverUsed && npcCoverAt < 0 && Math.random() < .5) npcCoverAt = gameT + R(.2, 1.2);
       lastFartT = gameT; fartLog.push(gameT);
+      fartWit.push({ r: round, smelled: [], near: chars.map((o, oi) => oi).filter(oi => Math.hypot((chars[oi].x - c.x) * W, (chars[oi].y - c.y) * H) < 130 * S) });
       if (accomplice && helperIdx !== myIdx) eraseAt = gameT + R(.8, 2);
     }
     statusEl.textContent = '방금… 뭔가 났다.';
     chars.forEach((o, oi) => {
       if (oi === culprit || o === c) return;
       const d = Math.hypot((o.x - c.x) * W, (o.y - c.y) * H);
-      if (d < 115 * S) { o.smelled++; clouds.get(cid).add(oi); o.sqDelay = R(.4, .9); roundSmelled.add(oi); }
+      if (d < 115 * S) { o.smelled++; clouds.get(cid).add(oi); o.sqDelay = R(.4, .9); roundSmelled.add(oi); if (!decoy && fartWit.length) fartWit[fartWit.length - 1].smelled.push(oi); }
     });
   }
 
@@ -1422,7 +1423,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     tapTarget = best; doTap();
     statusEl.textContent = accomplice ? '포섭 성공! 공범이 생겼다.' : '포섭 실패…';
   }
-  let tapLabel = '', fartPop = 0, fartLog = [];
+  let tapLabel = '', fartPop = 0, fartLog = [], fartWit = [];
   // did a real fart (or its fresh puff) land inside this recording window?
   const caught = (a, b, lead = 0) => fartLog.some(t => t >= a - lead && t <= b);
   function updateTapBtn() {
@@ -2187,6 +2188,78 @@ button[aria-pressed="true"]{background:var(--lime)}
     defend: [n => `${eun(n)} 아니에요. 계속 제 옆에 있었어요.`, n => `${n} 엉덩이는 제가 보증해요.`],
     alibi: ['저는 아니에요! 오늘 내내 숨만 쉬었어요.', '저 찍으면 진짜 범인이 웃어요.', '제 엉덩이를 걸고 맹세합니다!']
   };
+  // everyone talks like themselves. n = a name; the helpers add the right particle
+  const VOICE = {
+    boss: { // 김부장
+      accuse: [n => `어이 ${n}, 아까부터 엉덩이가 수상하더만.`, n => `내 30년 직장 감으로 말하는데, ${ga(n)} 범인이야.`, n => `${n}! 회의 끝나고 내 방으로 와.`, n => `${eun(n)} 결재 올릴 때도 냄새가 났어.`, n => `${n}, 자네 오늘 점심 뭐 먹었나?`],
+      shrug: ['다들 정신 똑바로 차려. 회사였으면 전원 감봉이야.', '나는 냄새 같은 거 안 맡아. 바빠서.', '이런 걸로 회의를 왜 하는지 모르겠군.'],
+      deny: ['뭐? 나를 의심해? 인사고과 기대해.', '내가 뀌었으면 결재 도장 찍고 뀌었지!', '감히 부장 엉덩이를!', '나 때는 말이야, 방구도 허락받고 뀌었어.', '법무팀 불러!'],
+      agree: [n => `역시 내 생각이랑 같군. ${n}, 각오해.`, n => `그래, ${ga(n)} 좀 이상했어.`],
+      doubt: ['근거 가져와. 감으로 하는 거 아니야.', '그런 보고는 결재 못 해.', '다시 해 와.', '숫자로 말해, 숫자로.'],
+      okay: ['흠, 이번 한 번은 넘어가지.', '알았어. 일단 보류.'],
+      thanks: ['역시 아는 사람은 알아. 승진 추천서 써 주지.', '그래, 내 엉덩이는 청렴해.'],
+      witness: '내가 기절하기 직전에 봤는데,'
+    },
+    granny: { // 할매
+      accuse: [n => `아이고, ${n} 저놈 엉덩이에서 김 나는 거 내 똑똑히 봤다.`, n => `${ga(n)} 아까 방귀 참는 얼굴이더라. 할미는 다 알아.`, n => `${n}야, 할미한테 솔직히 말해 봐라.`, n => `육십 년 맡아 본 냄새 중에 ${n} 쪽이 제일 독했다.`],
+      shrug: ['아이고 내 코야… 다 똑같은 냄새다.', '젊은 것들이 뭘 먹고 다니길래…', '할미는 귀도 어둡고 코도 어둡다.'],
+      deny: ['아이고 이 할미를 뭘로 보고!', '나는 방귀 끊은 지 삼십 년이다!', '할미 엉덩이는 조용하다!', '느그 할미한테도 그래 말하나?', '아이고 허리야… 억울해서 허리가 다 아프다.'],
+      agree: [n => `그려, 할미 생각도 ${n}여.`, n => `내 그럴 줄 알았다. ${n}, 이리 와 봐라.`],
+      doubt: ['어디서 엉뚱한 사람을 잡노.', '그 말은 할미가 못 믿겠다.', '쯧쯧, 눈이 삐었나.', '그건 아이다.'],
+      okay: ['그려, 착한 아다.', '알았다, 믿어 보자.'],
+      thanks: ['아이고 고맙다, 사탕 줄까?', '역시 사람 볼 줄 아는구먼.'],
+      witness: '할미가 쓰러지기 전에 봤는데,'
+    },
+    sleepy: { // 민수
+      accuse: [n => `음… 졸면서 봤는데… ${n} 쪽이 뿌옜어요…`, n => `자다 깼는데 ${n} 근처에서 냄새가… zzz`, n => `${n}… 수상해요… 근데 일단 좀 잘게요.`],
+      shrug: ['zzz… 아 네? 저 안 잤어요.', '아무것도 못 봤어요… 눈을 감고 있어서…', '회의 몇 분 남았어요…?'],
+      deny: ['네…? 저 자고 있었는데요…?', '자는 사람이 어떻게 뀌어요…', '저 진짜 아니에요… 잘래요…', '잠꼬대로 뀌었으면… 그건 무효 아닌가요…', '억울해서 잠이 다 깼어요.'],
+      agree: [n => `…저도 ${n} 같아요… zzz`, n => `아… 맞아요… ${n}…`],
+      doubt: ['음… 잘 모르겠어요…', '그거… 꿈 아니었어요?', '그건… 좀… zzz', '내일 다시 생각해 봐요…'],
+      okay: ['네… 그럼 됐어요…', '알겠어요… zzz'],
+      thanks: ['아… 고마워요… 이제 잘게요…', '역시… 믿을 사람은… zzz'],
+      witness: '잠깐 눈 떴을 때 봤는데,'
+    },
+    lady: { // 영희
+      accuse: [n => `솔직히 ${n} 뒤에 서 있기 싫었어요.`, n => `${n}, 지금 눈 피했죠? 다 보여요.`, n => `${ga(n)} 지나가면 공기가 달라져요. 진짜로.`, n => `난 처음부터 ${reul(n)} 찍었어요.`],
+      shrug: ['저는 향수 뿌려서 하나도 몰라요.', '이 중에 범인 있으면 진짜 손절이에요.', '아 진짜, 귀마개를 코에 했어야 했는데.'],
+      deny: ['헐 어이없어. 증거 있어요?', '저 같은 사람이 그런 걸 할 리가요.', '저 지금 엄청 상처받았어요.', '와… 이건 명예훼손이에요.', '저 오늘 샐러드만 먹었거든요?'],
+      agree: [n => `완전 동의. ${n} 수상했어요.`, n => `그쵸? ${n} 진짜 이상했어요.`],
+      doubt: ['그 말 믿어도 돼요?', '말하는 사람이 더 수상한데요?', '음, 그건 좀 아닌 듯.', '갑자기요?'],
+      okay: ['오케이, 일단 믿어 볼게요.', '흠, 그럴 수도요.'],
+      thanks: ['역시 보는 눈이 있네요.', '고마워요. 저 진짜 억울했어요.'],
+      witness: '저 기절하기 전에 똑똑히 봤는데,'
+    },
+    derp: { // 덕배
+      accuse: [n => `헐 대박 ${ga(n)} 엉덩이 들썩이는 거 봤음 ㅋㅋ`, n => `${n} 맞죠? 맞잖아요 ㅋㅋㅋ`, n => `저 ${n} 옆에 있다가 기절할 뻔했어요 ㅋㅋ`],
+      shrug: ['저 아침에 고구마 3개 먹었는데 저 아니에요 ㅋㅋ', '누가 뀌었든 저는 재밌어요 ㅋㅋㅋ', '근데 방구 뀌는 게 왜 불법이에요?'],
+      deny: ['아 아니라고요 ㅋㅋ 진짜 아님 ㅋㅋ', '제가 뀌었으면 소리부터 났을걸요?', '저는 뀌면 뀌었다고 말해요!', '헐 저요?? 왜요?? ㅋㅋ', '제 엉덩이 걸고 아님 ㅋㅋ'],
+      agree: [n => `ㅇㅈ ${n} ㅋㅋ`, n => `ㄹㅇ ${n} 같음 ㅋㅋ`],
+      doubt: ['에이 그건 아닌 듯 ㅋㅋ', '그건 좀 억지 ㅋㅋ', '음 글쎄요 ㅋㅋ', '그건 뇌피셜 아님? ㅋㅋ'],
+      okay: ['ㅇㅋㅇㅋ', '그럼 됐고요 ㅋㅋ'],
+      thanks: ['ㅠㅠ 형 최고', '거봐요 저 아니라니까요 ㅋㅋ'],
+      witness: '저 기절하기 직전에 봤는데요 ㅋㅋ'
+    },
+    clerk: { // 박대리
+      accuse: [n => (n === '김부장' ? '부장님… 부장님 맞으시죠…?' : `죄송한데요… ${n} 쪽에서 조금… 났습니다.`), n => `보고드립니다. 냄새 발원지는 ${n} 방향입니다.`, n => `${n}님, 회의록에 남기겠습니다.`],
+      shrug: ['저는… 의견 없습니다.', '팀장님 의견에 따르겠습니다.', '일단 메모해 두겠습니다.'],
+      deny: ['저, 저는 아닙니다! 진짜입니다!', '부, 부장님 저 아닙니다…', '저 오늘 야근이라 그럴 힘도 없습니다.', '사직서 쓰겠습니다… 아니, 결백합니다.', '그 시간에 저는 보고서 쓰고 있었습니다.'],
+      agree: [n => `저, 저도 ${n}님이 좀…`, n => `동의합니다. ${n}님 쪽이었습니다.`],
+      doubt: ['확인이… 필요할 것 같습니다.', '근거 자료가 있으신지…', '검토해 보겠습니다… (안 믿음)', '그건 좀… 무리수 같습니다.'],
+      okay: ['네, 알겠습니다.', '그럼 그렇게 정리하겠습니다.'],
+      thanks: ['가, 감사합니다…!', '은혜는 꼭 갚겠습니다.'],
+      witness: '쓰러지기 전에 확인한 바로는,'
+    }
+  };
+  let usedLines = new Set();
+  function fresh(arr) { // pick a line nobody has said yet this game, if there is one
+    const left = arr.filter(x => !usedLines.has(x));
+    const v = pick(left.length ? left : arr); usedLines.add(v); return v;
+  }
+  function voice(i, kind, n) {
+    const v = VOICE[chars[i].trait] || VOICE.clerk, x = fresh(v[kind]);
+    return typeof x === 'function' ? x(n) : x;
+  }
   function later(ms, fn) { talkTimers.push(setTimeout(fn, ms)); }
   const alive = () => chars.map((c, i) => i).filter(i => !cleared.has(i));
   function tkSay(i, text) {
@@ -2212,7 +2285,7 @@ button[aria-pressed="true"]{background:var(--lime)}
       const [i, role] = claimer, t = botTarget(i);
       if (t >= 0) { const rv = claimConflict(i, role); later(d, () => claimRole(i, role, t)); d += 1200 + (rv >= 0 && rv !== myIdx ? 1200 : 0); }
     }
-    const speakers = alive().filter(i => i !== myIdx).sort(() => Math.random() - .5).slice(0, 2);
+    const speakers = alive().filter(i => i !== myIdx && !(claimer !== -1 && i === claimer[0])).sort(() => Math.random() - .5).slice(0, 2);
     speakers.forEach((i, k) => later(d + k * 1200, () => botOpen(i)));
     later(d + 200 + speakers.length * 1200, myTurn);
   }
@@ -2271,6 +2344,20 @@ button[aria-pressed="true"]{background:var(--lime)}
     sway[t] += E.push + Math.sign(E.push) * bonus;
     return d;
   }
+  function witnessSay(i) {
+    const w = fartWit.filter(f => f.r === round && f.smelled.includes(i));
+    if (!w.length || Math.random() < .35) return false;
+    const f = w[w.length - 1], liar = i === culprit || (i === helperIdx && accomplice);
+    let names = f.near.filter(j => j !== i);
+    if (liar) names = names.filter(j => j !== culprit).concat(pick(alive().filter(j => j !== culprit && j !== i && !names.includes(j))) ?? []);
+    names = names.filter(j => j !== undefined).sort(() => Math.random() - .5).slice(0, 3);
+    if (!names.length) return false;
+    names.forEach(j => { sway[j] += .8; });
+    const list = names.map(j => chars[j].name), last = list.pop();
+    const who = list.length ? `${list.join(', ')}, ${last}` : last;
+    tkSay(i, `${VOICE[chars[i].trait].witness} 냄새 날 때 근처에 ${hasBatchim(last) ? who + '이' : who + '가'} 있었어요.`);
+    return true;
+  }
   function botTarget(i) {
     const fartSide = i === culprit || (i === helperIdx && accomplice);
     const pool = alive().filter(j => j !== i && !(fartSide && j === culprit)); // the fart side never names the culprit
@@ -2280,8 +2367,9 @@ button[aria-pressed="true"]{background:var(--lime)}
   }
   function botOpen(i) {
     const t = botTarget(i);
-    if (t < 0 || Math.random() < .25) { tkSay(i, pick(TALK.shrug)); return; }
-    sway[t] += claims[i] && claims[i] !== 'seeker' ? 2 : 1; tkSay(i, pick(TALK.accuse)(chars[t].name));
+    if (witnessSay(i)) return;
+    if (t < 0 || Math.random() < .25) { tkSay(i, voice(i, 'shrug')); return; }
+    sway[t] += claims[i] && claims[i] !== 'seeker' ? 2 : 1; tkSay(i, voice(i, 'accuse', chars[t].name));
   }
   function usedTool() { return (myRole === 'seeker' && sniffLeft === 0) || (myRole === 'sniffer' && lensLeft === 0) || (myRole === 'cctv' && cctvLeft === 0); }
   function myTurn() {
@@ -2306,14 +2394,14 @@ button[aria-pressed="true"]{background:var(--lime)}
   }
   function afterMine(t, d0, end) {
     let d = d0 || 1000;
-    if (t >= 0) { later(d, () => tkSay(t, end === 'clean' ? pick(TALK.thanks) : pick(TALK.deny))); d += 1200; }
+    if (t >= 0) { later(d, () => tkSay(t, voice(t, end === 'clean' ? 'thanks' : 'deny'))); d += 1200; }
     const by = alive().filter(i => i !== myIdx && i !== t).sort(() => Math.random() - .5)[0];
     if (by !== undefined) {
       later(d, () => {
-        if (t < 0) { tkSay(by, pick(TALK.shrug)); return; }
+        if (t < 0) { tkSay(by, voice(by, 'shrug')); return; }
         const yes = Math.random() < .6;
-        if (end === 'clean') { tkSay(by, yes ? pick(TALK.okay) : pick(TALK.doubt)); sway[t] += yes ? -.5 : 1; return; }
-        tkSay(by, yes ? pick(TALK.agree)(chars[t].name) : pick(TALK.doubt));
+        if (end === 'clean') { tkSay(by, voice(by, yes ? 'okay' : 'doubt')); sway[t] += yes ? -.5 : 1; return; }
+        tkSay(by, yes ? voice(by, 'agree', chars[t].name) : voice(by, 'doubt'));
         sway[t] += yes ? 1 : -.5;
       });
       d += 1200;
