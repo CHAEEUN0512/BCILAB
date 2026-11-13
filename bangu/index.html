@@ -277,12 +277,12 @@ button[aria-pressed="true"]{background:var(--lime)}
 .title{position:absolute;inset:0;background:rgba(14,16,26,.74);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:14px;text-align:center}
 .tt-logo{font-family:var(--font-loud);color:#ffffff;font-size:clamp(34px,7vw,64px);line-height:1.05;text-shadow:4px 4px 0 var(--hot),6px 6px 0 #000}
 .tt-sub{font-family:var(--font-serious);font-weight:800;color:#f1e9cf;font-size:clamp(13px,2vw,17px);text-shadow:0 1px 6px #000}
-.tt-row{display:flex;align-items:center;gap:10px}
-.tt-lb{color:#ffffff;font-weight:700;font-size:14px;min-width:2.6em;text-align:right}
-.tt-row .rd{font-size:15px;padding:8px 14px}
-.title .tt-go{font-family:var(--font-loud);font-weight:400;font-size:clamp(22px,3.6vw,28px);padding:10px 34px;background:var(--lime);border-radius:16px;box-shadow:4px 4px 0 #000;margin-top:4px}
+.tt-box{display:flex;flex-direction:column;align-items:stretch;gap:10px;width:min(300px,86%)}
+.tt-box .seg{display:flex;width:100%;box-sizing:border-box}
+.tt-box .seg .rd{flex:1;font-size:15px;padding:9px 6px}
+.title .tt-go{font-family:var(--font-loud);font-weight:400;font-size:clamp(22px,3.6vw,28px);padding:10px 0;width:100%;background:var(--lime);border-radius:12px;box-shadow:3px 3px 0 #000;margin-top:2px}
 .title .tt-go:hover{background:#d6ff8a}
-.title .tt-how{font-size:14px;padding:6px 14px}
+.title .tt-how{font-size:12.5px;padding:4px 12px;border-width:2px;box-shadow:2px 2px 0 #000}
 .tt-rec{color:#c9d3dc;font-size:13px;font-weight:600}
 .howto{position:absolute;inset:0;z-index:7;background:rgba(14,16,26,.88);overflow:auto;padding:14px;display:flex}
 .ht-in{margin:auto;max-width:640px;background:var(--paper);border:2.5px solid var(--ink);border-radius:16px;padding:16px 18px;font-size:14px;line-height:1.6}
@@ -335,13 +335,11 @@ button[aria-pressed="true"]{background:var(--lime)}
     <div class="title" id="titleScr" hidden>
       <div class="tt-logo">방구 뀐 놈을<br>찾아라</div>
       <div class="tt-sub">2087년, 방구는 불법이 되었다.</div>
-      <div class="tt-row"><span class="tt-lb">맵</span>
+      <div class="tt-box">
         <span class="seg" role="group" aria-label="맵"><button type="button" class="rd mp" data-m="snow" aria-pressed="true">설산</button><button type="button" class="rd mp" data-m="sea" aria-pressed="false">심해</button><button type="button" class="rd mp" data-m="space" aria-pressed="false">우주</button></span>
-      </div>
-      <div class="tt-row"><span class="tt-lb">길이</span>
         <span class="seg" role="group" aria-label="라운드 수"><button type="button" class="rd" data-r="3" aria-pressed="true">3라운드</button><button type="button" class="rd" data-r="5" aria-pressed="false">5라운드</button></span>
+        <button type="button" class="tt-go" id="ttGo">게임 시작</button>
       </div>
-      <button type="button" class="tt-go" id="ttGo">게임 시작</button>
       <button type="button" class="tt-how" id="ttHow">게임 방법</button>
       <div class="tt-rec" id="ttRec"></div>
     </div>
@@ -2375,9 +2373,14 @@ button[aria-pressed="true"]{background:var(--lime)}
       blob(hx + f * hr * .95, hy - hr * .36, hr * .62, hr * .14, c.seed + 24, dk, INK, 2.2 * u, .05);
     } else if (c.hat === 'earmuff') {
       blob(hx - f * hr * .12, hy - hr * .6, hr * 1.0, hr * .46, c.seed + 25, '#3b2b25', INK, 2.2 * u, .06);
-      ctx.beginPath(); ctx.arc(hx - f * hr * .1, hy, hr * 1.1, Math.PI * 1.12, Math.PI * 1.88);
-      ctx.strokeStyle = col; ctx.lineWidth = 3.4 * u; ctx.lineCap = 'round'; ctx.stroke();
-      blob(hx - f * hr * .52, hy + hr * .1, hr * .36, hr * .38, c.seed + 26, col, INK, 2.2 * u, .14);
+      const mx0 = hx - f * hr * .55, my0 = hy + hr * .12;
+      // band: from the muff up over the hair to the crown (the far half is hidden behind the head)
+      ctx.beginPath(); ctx.moveTo(mx0, my0 - hr * .3);
+      ctx.quadraticCurveTo(mx0 + f * hr * .02, hy - hr * .85, mx0 + f * hr * .3, hy - hr * 1.04);
+      ctx.strokeStyle = INK; ctx.lineWidth = 5 * u; ctx.lineCap = 'round'; ctx.stroke();
+      ctx.strokeStyle = shade(col, -.1); ctx.lineWidth = 2.6 * u; ctx.stroke();
+      blob(mx0, my0, hr * .37, hr * .42, c.seed + 26, col, INK, 2.2 * u, .2);
+      blob(mx0 + f * hr * .05, my0 - hr * .02, hr * .22, hr * .24, c.seed + 27, '#fff3b0', null, 0, .2);
     } else if (c.hat === 'perm') {
       for (let i = 0; i < 8; i++) {
         const a = Math.PI * (1 + i / 7 * .78);
@@ -2385,8 +2388,10 @@ button[aria-pressed="true"]{background:var(--lime)}
       }
       blob(hx - f * hr * .95, hy + hr * .25, hr * .3, hr * .3, c.seed + 50, '#dcd6e0', INK, 1.8 * u, .12);
     } else if (c.hat === 'hood') {
-      ctx.beginPath(); ctx.arc(hx + f * hr * .1, hy, hr * 1.05, f > 0 ? -Math.PI * .55 : Math.PI * .45, f > 0 ? Math.PI * .55 : Math.PI * 1.55);
-      ctx.strokeStyle = shade(col, -.15); ctx.lineWidth = 3 * u; ctx.stroke();
+      ctx.beginPath(); ctx.arc(hx, hy, hr * 1.06, 0, Math.PI * 2);
+      ctx.strokeStyle = shade(col, -.15); ctx.lineWidth = 3.2 * u; ctx.stroke();
+      ctx.beginPath(); ctx.arc(hx, hy, hr * 1.2, 0, Math.PI * 2);
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.4 * u; ctx.stroke();
     } else if (c.hat === 'bald') {
       ctx.fillStyle = 'rgba(255,255,255,.8)';
       ctx.beginPath(); ctx.ellipse(hx - f * hr * .25, hy - hr * .65, hr * .28, hr * .12, -.4 * f, 0, Math.PI * 2); ctx.fill();
@@ -2430,21 +2435,23 @@ button[aria-pressed="true"]{background:var(--lime)}
       [e1, e2].forEach(x => { ctx.beginPath(); ctx.moveTo(x - hr * .13, ey - hr * .25); ctx.lineTo(x + hr * .13, ey - hr * .19 + f * 0); ctx.stroke(); });
     }
     if (t === 'granny' || t === 'clerk') {
-      ctx.lineWidth = 1.8 * u; ctx.strokeStyle = t === 'granny' ? '#7a5a2e' : INK;
-      [e1, e2].forEach(x => {
+      ctx.lineWidth = 2.2 * u; ctx.strokeStyle = t === 'granny' ? '#7a5a2e' : INK;
+      const lx = [e1 - f * hr * .05, e2 + f * hr * .05], gr = hr * .28, gw = hr * .27, gh = hr * .21;
+      lx.forEach(x => {
         ctx.beginPath();
-        if (t === 'granny') ctx.arc(x, ey, hr * .21, 0, Math.PI * 2);
-        else ctx.rect(x - hr * .2, ey - hr * .16, hr * .4, hr * .3);
+        if (t === 'granny') ctx.arc(x, ey, gr, 0, Math.PI * 2);
+        else ctx.roundRect(x - gw, ey - gh, gw * 2, gh * 2, hr * .06);
         ctx.fillStyle = 'rgba(225,240,255,.3)'; ctx.fill(); ctx.stroke();
       });
-      ctx.beginPath(); ctx.moveTo(e1 + f * hr * .2, ey - hr * .03); ctx.lineTo(e2 - f * hr * .2, ey - hr * .03); ctx.stroke();
+      // temple arm back toward the ear
+      ctx.beginPath(); ctx.moveTo(lx[0] - f * (t === 'granny' ? gr : gw), ey - hr * .04); ctx.lineTo(hx - f * hr * .45, ey - hr * .1); ctx.stroke();
       ctx.strokeStyle = INK;
     }
     if (sq) {
       // squeezed-shut "> <" eyes, bold, a touch lower so caps and glasses don't hide them
       ctx.lineWidth = 2.6 * u; ctx.strokeStyle = t === 'clerk' ? '#ffffff' : INK; // white on 박대리's dark glasses
       const ew = hr * .14, eh = hr * .15, sy = ey + hr * .06;
-      [[e1, 1], [e2, -1]].forEach(([x, d]) => {
+      [[e1, f], [e2, -f]].forEach(([x, d]) => { // both point inward: > <
         ctx.beginPath(); ctx.moveTo(x - d * ew, sy - eh); ctx.lineTo(x + d * ew, sy); ctx.lineTo(x - d * ew, sy + eh); ctx.stroke();
       });
       ctx.strokeStyle = INK;
