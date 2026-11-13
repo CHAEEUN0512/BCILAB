@@ -368,7 +368,7 @@ button[aria-pressed="true"]{background:var(--lime)}
         <h3>기본</h3>
         <p>입김은 <b>얼굴 앞</b>에서, 방구는 <b>엉덩이 뒤</b>에서 나와요. 겉보기엔 똑같아요.</p>
         <p>진범은 라운드마다 한 번 몰래 뀌어요. 냄새 구름에 얼굴이 닿은 사람은 찡그리고, 밤에 <b>기절자</b>로 발표돼요.</p>
-        <p>밤이 지나면 회의 시간이에요. 한마디씩 하는데, 내 차례엔 버튼 두 번으로 <b>"나 ○○인데, ○○가 범인인 거 봤어!"</b>를 말해요. 역할은 거짓말이어도 돼요. 같은 역할을 두 명이 주장하면 둘 중 하나는 거짓말쟁이예요. 그다음 투표해요. 3표 이상 받은 단독 1등이 신고되고, 동점이면 결선을 해요. 마지막 밤까지 못 잡으면 진범이 이겨요.</p>
+        <p>밤이 지나면 회의 시간이에요. 한마디씩 하는데, 내 차례엔 버튼 세 번으로 <b>"나 ○○인데, ○○가 범인인 거 봤어! / 수상해! / 범인 아니야!"</b>를 말해요. 역할은 거짓말이어도 돼요. 같은 역할을 두 명이 주장하면 둘 중 하나는 거짓말쟁이예요. 그다음 투표해요. 3표 이상 받은 단독 1등이 신고되고, 동점이면 결선을 해요. 마지막 밤까지 못 잡으면 진범이 이겨요.</p>
         <h3>이동</h3>
         <p>방향키나 WASD, 폰은 아래 조이스틱. 방구 팀은 자유롭게 다니고, 시민 팀은 떠밀려 다니면서 조금만 조종돼요. 내 캐릭터 머리 위에는 초록 화살표가 있어요.</p>
         <h3>역할</h3>
@@ -2062,6 +2062,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     deny: ['저 아니라고요!! 제 엉덩이는 결백해요!', '말도 안 돼! 저 오늘 숨만 쉬었어요.', '증거 있어요? 증거?', '제가 뀌었으면 여기 다 기절했죠!', '억울해서 방구도 안 나와요.'],
     agree: [n => `맞아요, 저도 ${reul(n)} 의심했어요.`, n => `${n} 쪽에서 뭔가 났던 것 같긴 해요.`, () => '듣고 보니 그럴듯한데요?', () => '오… 확실하네요.'],
     doubt: ['에이, 그건 좀 억지 같은데요.', '흠… 잘 모르겠어요.', '그 말 믿어도 되나요?', '말하는 사람이 더 수상한데요?'],
+    thanks: ['고마워요… 역시 아는 사람은 알아.', '거봐요! 제 엉덩이는 결백하다니까요.', '흑… 내 편이 있었어.'],
     okay: ['그래요, 믿어 볼게요.', '하긴, 그 사람은 아닌 것 같아요.', '음… 일단 넘어가죠.'],
     myAccuse: [n => `제가 볼 땐 ${ga(n)} 범인이에요!`, n => `${n}, 아까 엉덩이 들썩이는 거 다 봤어요.`, n => `${eun(n)} 냄새 날 때마다 근처에 있었어요.`],
     defend: [n => `${eun(n)} 아니에요. 계속 제 옆에 있었어요.`, n => `${n} 엉덩이는 제가 보증해요.`],
@@ -2120,13 +2121,20 @@ button[aria-pressed="true"]{background:var(--lime)}
   }
   // "나 ○○인데, ○○가 범인인 거 봤어!" — one sentence: who I am (true or not) + who I saw
   const raMyeonseo = w => w + (hasBatchim(w) ? '이라면서요?' : '라면서요?');
-  function claimRole(i, role, t) {
+  // how the sentence ends: [text, how much it pushes votes onto t]
+  const ENDS = {
+    seen: { btn: '범인인 거 봤어!', say: (n, me) => `${ga(n)} 범인인 거 봤어${me ? '!' : '요.'}`, push: 2.5 },
+    sus: { btn: '수상해!', say: (n, me) => `${ga(n)} 수상해${me ? '!' : '요.'}`, push: 1.5 },
+    clean: { btn: '범인 아니야!', say: (n, me) => `${eun(n)} 범인 아니${me ? '야!' : '에요.'}`, push: -2.5 }
+  };
+  function claimRole(i, role, t, end = 'seen') {
     const before = claims[i];
     let rival = claimConflict(i, role);
     if (rival === myIdx && !claims[myIdx]) rival = -1; // a bot took MY real job; I can call it out on my turn
     claims[i] = role;
     const job = ROLE_NAME[role], n = chars[t].name;
-    tkSay(i, i === myIdx ? `나 ${job}인데, ${ga(n)} 범인인 거 봤어!` : `저 ${job}인데요, ${ga(n)} 범인인 거 봤어요.`);
+    const E = ENDS[end];
+    tkSay(i, i === myIdx ? `나 ${job}인데, ${E.say(n, true)}` : `저 ${job}인데요, ${E.say(n, false)}`);
     let d = 1100, trusted = role !== 'seeker';
     if (before && before !== role) { // changed story
       const by = alive().find(j => j !== i && j !== t);
@@ -2140,7 +2148,8 @@ button[aria-pressed="true"]{background:var(--lime)}
       });
       d += 1200; sway[i] += 1.5; sway[rival] += 1.5; trusted = false;
     } else if (role !== 'seeker') sway[i] -= 1;
-    sway[t] += 2.5 + (trusted ? 1 : 0) + (i === myIdx && role === myRole && usedTool() ? 1.5 : 0);
+    const bonus = (trusted ? 1 : 0) + (i === myIdx && role === myRole && usedTool() ? 1.5 : 0);
+    sway[t] += E.push + Math.sign(E.push) * bonus;
     return d;
   }
   function botTarget(i) {
@@ -2165,18 +2174,25 @@ button[aria-pressed="true"]{background:var(--lime)}
   }
   function pickWho(role) {
     tkAct.textContent = '';
-    tkHint(`"나 ${ROLE_NAME[role]}인데, ___ 범인인 거 봤어!"`);
-    alive().filter(i => i !== myIdx).forEach(i => tkButton(chars[i].name, () => { tkAct.textContent = ''; afterMine(i, claimRole(myIdx, role, i)); }));
+    tkHint(`"나 ${ROLE_NAME[role]}인데, ___"`);
+    alive().filter(i => i !== myIdx).forEach(i => tkButton(chars[i].name, () => pickEnd(role, i)));
     tkButton('뒤로', myTurn);
   }
-  function afterMine(t, d0) {
+  function pickEnd(role, t) {
+    tkAct.textContent = '';
+    tkHint(`"나 ${ROLE_NAME[role]}인데, ${chars[t].name} ___"`);
+    Object.keys(ENDS).forEach(k => tkButton(ENDS[k].btn, () => { tkAct.textContent = ''; afterMine(t, claimRole(myIdx, role, t, k), k); }));
+    tkButton('뒤로', () => pickWho(role));
+  }
+  function afterMine(t, d0, end) {
     let d = d0 || 1000;
-    if (t >= 0) { later(d, () => tkSay(t, pick(TALK.deny))); d += 1200; }
+    if (t >= 0) { later(d, () => tkSay(t, end === 'clean' ? pick(TALK.thanks) : pick(TALK.deny))); d += 1200; }
     const by = alive().filter(i => i !== myIdx && i !== t).sort(() => Math.random() - .5)[0];
     if (by !== undefined) {
       later(d, () => {
         if (t < 0) { tkSay(by, pick(TALK.shrug)); return; }
         const yes = Math.random() < .6;
+        if (end === 'clean') { tkSay(by, yes ? pick(TALK.okay) : pick(TALK.doubt)); sway[t] += yes ? -.5 : 1; return; }
         tkSay(by, yes ? pick(TALK.agree)(chars[t].name) : pick(TALK.doubt));
         sway[t] += yes ? 1 : -.5;
       });
