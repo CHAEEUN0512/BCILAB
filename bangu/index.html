@@ -274,8 +274,30 @@ button:disabled{opacity:.55;cursor:default;transform:none;box-shadow:3px 3px 0 v
 button#lens[aria-pressed="true"]{background:var(--fart);opacity:1}
 button:focus-visible{outline:3px solid var(--hot);outline-offset:3px}
 button[aria-pressed="true"]{background:var(--lime)}
-.hint{margin:0;font-size:15px;line-height:1.65;max-width:68ch;color:#3b3646}
-.hint b{background:linear-gradient(transparent 55%,var(--fart) 55%);font-weight:700}
+.title{position:absolute;inset:0;background:rgba(14,16,26,.74);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:14px;text-align:center}
+.tt-logo{font-family:var(--font-loud);color:#ffffff;font-size:clamp(34px,7vw,64px);line-height:1.05;text-shadow:4px 4px 0 var(--hot),6px 6px 0 #000}
+.tt-sub{font-family:var(--font-serious);font-weight:800;color:#f1e9cf;font-size:clamp(13px,2vw,17px);text-shadow:0 1px 6px #000}
+.tt-row{display:flex;align-items:center;gap:10px}
+.tt-lb{color:#ffffff;font-weight:700;font-size:14px;min-width:2.6em;text-align:right}
+.tt-row .rd{font-size:15px;padding:8px 14px}
+.title .tt-go{font-family:var(--font-loud);font-weight:400;font-size:clamp(22px,3.6vw,28px);padding:10px 34px;background:var(--lime);border-radius:16px;box-shadow:4px 4px 0 #000;margin-top:4px}
+.title .tt-go:hover{background:#d6ff8a}
+.title .tt-how{font-size:14px;padding:6px 14px}
+.tt-rec{color:#c9d3dc;font-size:13px;font-weight:600}
+.howto{position:absolute;inset:0;z-index:7;background:rgba(14,16,26,.88);overflow:auto;padding:14px;display:flex}
+.ht-in{margin:auto;max-width:640px;background:var(--paper);border:2.5px solid var(--ink);border-radius:16px;padding:16px 18px;font-size:14px;line-height:1.6}
+.ht-title{font-family:var(--font-loud);font-size:24px;margin-bottom:4px}
+.ht-in h3{margin:12px 0 2px;font-size:15px}
+.ht-in p{margin:4px 0}
+.ht-in b{background:linear-gradient(transparent 55%,var(--fart) 55%);font-weight:700}
+.ht-roles{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:4px 0}
+.ht-roles dt{font-weight:700;white-space:nowrap}
+.ht-roles dd{margin:0}
+.ht-in #htClose{margin-top:12px}
+.wh-res{font-family:var(--font-loud);font-size:clamp(20px,3.4vw,28px);padding:2px 16px;border-radius:12px;border:2.5px solid #000}
+.wh-res.win{background:var(--lime);color:var(--ink)}
+.wh-res.lose{background:#ffd0e6;color:var(--ink)}
+.wh-btns{display:flex;gap:10px}
 @media (prefers-reduced-motion:reduce){.dot{transition:none}}
 </style>
 </head>
@@ -284,7 +306,7 @@ button[aria-pressed="true"]{background:var(--lime)}
 <div class="wrap">
   <header>
     <h1>방구 뀐 놈을 찾아라</h1>
-    <span class="tag" id="mapTag">설산 맵 · 화면 시안</span>
+    <span class="tag" id="mapTag">설산 맵</span>
   </header>
 
   <div class="hud">
@@ -307,7 +329,45 @@ button[aria-pressed="true"]{background:var(--lime)}
     <div class="whois" id="whois" hidden>
       <div class="wh-title" id="whTitle">누가 누구였을까?</div>
       <div class="wh-grid" id="whGrid"></div>
-      <button id="whAgain" type="button" hidden>한 판 더</button>
+      <div class="wh-res" id="whRes" hidden></div>
+      <div class="wh-btns" id="whBtns" hidden><button id="whAgain" type="button">한 판 더</button><button id="whHome" type="button">메인 화면</button></div>
+    </div>
+    <div class="title" id="titleScr" hidden>
+      <div class="tt-logo">방구 뀐 놈을<br>찾아라</div>
+      <div class="tt-sub">2087년, 방구는 불법이 되었다.</div>
+      <div class="tt-row"><span class="tt-lb">맵</span>
+        <span class="seg" role="group" aria-label="맵"><button type="button" class="rd mp" data-m="snow" aria-pressed="true">설산</button><button type="button" class="rd mp" data-m="sea" aria-pressed="false">심해</button><button type="button" class="rd mp" data-m="space" aria-pressed="false">우주</button></span>
+      </div>
+      <div class="tt-row"><span class="tt-lb">길이</span>
+        <span class="seg" role="group" aria-label="라운드 수"><button type="button" class="rd" data-r="3" aria-pressed="true">3라운드</button><button type="button" class="rd" data-r="5" aria-pressed="false">5라운드</button></span>
+      </div>
+      <button type="button" class="tt-go" id="ttGo">게임 시작</button>
+      <button type="button" class="tt-how" id="ttHow">게임 방법</button>
+      <div class="tt-rec" id="ttRec"></div>
+    </div>
+    <div class="howto" id="howto" hidden>
+      <div class="ht-in">
+        <div class="ht-title">게임 방법</div>
+        <h3>기본</h3>
+        <p>입김은 <b>얼굴 앞</b>에서, 방구는 <b>엉덩이 뒤</b>에서 나와요. 겉보기엔 똑같아요.</p>
+        <p>진범은 라운드마다 한 번 몰래 뀌어요. 냄새 구름에 얼굴이 닿은 사람은 찡그리고, 밤에 <b>기절자</b>로 발표돼요.</p>
+        <p>회의 시간에 의심 가는 사람에게 투표해요. 3표 이상 받은 단독 1등이 신고되고, 동점이면 결선을 해요. 마지막 밤까지 못 잡으면 진범이 이겨요.</p>
+        <h3>이동</h3>
+        <p>방향키나 WASD, 폰은 아래 조이스틱. 방구 팀은 자유롭게 다니고, 시민 팀은 떠밀려 다니면서 조금만 조종돼요. 내 캐릭터 머리 위에는 초록 화살표가 있어요.</p>
+        <h3>역할</h3>
+        <dl class="ht-roles">
+          <dt>무취 시민</dt><dd><b>킁킁</b>(Q, 라운드마다 1번): 바로 옆 사람 엉덩이를 맡아요. 6초 안에 뀐 진범이면 "구리다!!"</dd>
+          <dt>냄새 감별사</dt><dd><b>돋보기</b>(한 판에 1번): 5초 동안 동그란 범위 안의 방구김이 노랗게 보여요.</dd>
+          <dt>경비 아저씨</dt><dd><b>CCTV</b>(한 판에 1번): 라운드 하나를 골라 돌려봐요. 방구김이 노랗게 찍혀요. 아래 막대를 끌면 빨리감기.</dd>
+          <dt>진범</dt><dd><b>방구</b>(F, 라운드마다 1번, 마감까지 안 뀌면 저절로 터짐) · <b>찡그리기</b>(G) · <b>엉덩이 툭</b>(T, 한 판에 1번): 조력자를 공범으로 포섭해요.</dd>
+          <dt>진범의 조력자</dt><dd><b>CCTV 가리기</b>(C, 라운드마다 1번): 3초 동안 녹화에 엉덩이만 찍혀요. 공범이 되면 <b>녹화 지우기</b>(E, 직전 5초)와 <b>방구 쿠션</b>(B, 가짜 방구)도 써요.</dd>
+        </dl>
+        <h3>맵</h3>
+        <p><b>심해</b>: 숨 거품은 머리 위 스노클에서, 방구 거품은 엉덩이에서 올라와요. <b>우주</b>: 무중력이라 둥실 떠다니고, 방구를 뀌면 반동으로 살짝 밀려요.</p>
+        <h3>그 밖에</h3>
+        <p>R(또는 내 역할 버튼)로 내 역할 카드를 다시 볼 수 있어요. 소리는 화면을 처음 누르면 켜져요.</p>
+        <button type="button" id="htClose">닫기</button>
+      </div>
     </div>
     <div class="reveal" id="reveal" hidden>
       <div class="rv-top" id="rvTop">당신의 역할은…</div>
@@ -328,7 +388,6 @@ button[aria-pressed="true"]{background:var(--lime)}
           </div>
         </div>
       </div>
-      <div class="rv-note" id="rvNote" hidden>혼자 하는 시안이라 정답이 보일 수 있어요. 모른 척!</div>
       <button id="rvGo" type="button" disabled>역할 확인 중…</button>
     </div>
     <div class="punish" id="punish" hidden>
@@ -413,14 +472,13 @@ button[aria-pressed="true"]{background:var(--lime)}
     <button id="tapBtn" type="button" hidden>엉덩이 툭 (T)</button>
     <button id="lens" type="button">돋보기 (2번 남음)</button>
     <button id="cctv" type="button">CCTV 돌려보기 (1번)</button>
-    <span class="seg" role="group" aria-label="맵"><button type="button" class="rd mp" data-m="snow" aria-pressed="true">설산</button><button type="button" class="rd mp" data-m="sea" aria-pressed="false">심해</button><button type="button" class="rd mp" data-m="space" aria-pressed="false">우주</button></span>
-    <span class="seg" role="group" aria-label="라운드 수"><button type="button" class="rd" data-r="3" aria-pressed="true">3라운드</button><button type="button" class="rd" data-r="5" aria-pressed="false">5라운드</button></span>
     <button id="restart" type="button">다시 하기</button>
+    <button id="home" type="button">메인 화면</button>
+    <button id="howBtn" type="button">게임 방법</button>
     <button id="sound" type="button" aria-pressed="false">소리 켜기</button>
     <button id="bgm" type="button" aria-pressed="true" disabled>BGM 끄기</button>
   </div>
 
-  <p class="hint">입김은 <b>얼굴 앞</b>에서, 방구는 <b>엉덩이 뒤</b>에서 나와요. 겉보기엔 방구김도 입김이랑 똑같아요. 돋보기로 비춰야만 방구김이 노랗게, 그리고 남아 있는 냄새 구름과 바닥 자국까지 보여요. 옆 사람이 찡그리는 것도 단서예요. 진범은 라운드마다 한 번씩 몰래 뀌어요. 하루(라운드)가 끝나면 내레이션과 함께 밤사이 기절한 사람이 발표되고, 회의 시간에 의심 가는 사람에게 투표해요(패스 가능). 찡그린 사람이 밤에 기절자로 발표돼요. 냄새는 얼굴이 구름에 닿아야 맡아요. 진범만은 찡그릴지 말지 직접 정해요(G). 마지막 밤까지 못 잡으면 진범이 이겨요.<br><b>킁킁 (무취 시민)</b>: 라운드마다 1번 바로 옆 사람 엉덩이를 맡아요(Q). 그 사람이 6초 안에 뀐 진범이면 "구리다!!", 아니면 "무취"예요.<br><b>돋보기 (냄새 감별사)</b>: 5초 동안 동그란 범위 안에서만 방구김이 노랗게 보여요. 마우스나 손가락을 천천히 따라와서, 한 번에 다 훑어볼 수는 없어요. 한 판에 1번.<br><b>심해 맵</b>: 숨 거품은 머리 위 스노클에서, 방구 거품은 엉덩이에서 올라와요. 생긴 건 똑같아요.<br><b>우주 맵</b>: 무중력이라 다들 둥실 떠 있고 가끔 아무 이유 없이 밀려나요. 방구를 뀌면 반동으로 앞으로 밀리는데, 그것만으론 티가 안 나요.<br><b>내 역할·위치</b>: 게임 중 언제든 R(또는 버튼)을 누르면 내 역할 카드를 다시 보고, 닫으면 내 캐릭터에 "나는 여기!"가 떠요.<br><b>소리</b>: 화면을 처음 누르면 효과음과 BGM이 켜져요. 아이폰은 무음 모드여도 나오게 했어요. BGM만 따로 끌 수도 있어요.<br><b>CCTV 가리기</b>: 조력자는 라운드마다 1번 CCTV 렌즈를 엉덩이로 가려요(C). 그 3초 동안 녹화에는 엉덩이만 찍히고, CCTV 타임라인에 분홍 빗금으로 표시돼요. 누가 가렸는지는 안 나오지만, 가려진 시간 자체가 단서가 돼요.<br><b>이동</b>: 방향키(또는 WASD, 폰은 아래 동그란 조이스틱)로 내 캐릭터(머리 위 초록 화살표)를 움직여요. 범인 쪽은 자유롭게 다니고, 시민 팀은 자동으로 떠밀려 다니면서 방향키로 조금만 조종돼요.<br><b>엉덩이 툭</b>: 진범은 한 판에 한 번 누군가를 엉덩이로 툭 쳐서 포섭해요. 조력자가 맞으면 공범이 되어 라운드마다 1번 방금 5초 녹화를 지우고(E), 한 판에 1번 방구 쿠션(B)으로 가짜 방구를 뀌어 의심을 대신 받아요. 생김새·냄새·킁킁까지 진짜랑 똑같아요. 공범이 신고되면 방구 쿠션이 나오고 풀려나요. 다른 사람이 맞으면 "?!" 하고 놀라요. 내가 진범이면 F로 직접 방구를 뀌고(라운드마다 1번. 라운드 끝 3초 전 마감까지 안 뀌면 참다가 자동으로 터져요. 마감 5초 전부터는 모두에게 방구 마감 카운트다운이 보여요), 바짝 붙어서 T로 엉덩이 툭을 해요.<br><b>CCTV (경비 아저씨)</b>: 한 판에 1번, 라운드 하나를 골라 처음부터 끝까지 돌려봐요. 언제 쓸지가 관건이에요. 녹화에는 방구김이 노랗게 찍혀요. 아래 막대를 좌우로 끌면 빨리감기·되감기를 할 수 있어요.</p>
 </div>
 
 <script>
@@ -532,19 +590,19 @@ button[aria-pressed="true"]{background:var(--lime)}
     day: (n, k) => [`${n}일차. 귀환 연료가 ${k}칸 남았습니다.`, '모두 숨을 쉬세요… 둥실… 둥실…'],
     night: n => `${n}일차 밤. 정거장이 지구 그림자 속으로 들어갔습니다.`, police: '무취 우주경찰이 도킹했지만…',
     head: (nm, age) => `우주정거장서 무취법 위반… ${nm}(${age}) 지구로 강제 송환`, place: '우주정거장 냄새',
-    never: '그는 다시는 우주에 가지 못했다.', truth: '그날 정거장의 진실은… 아무도 몰랐다.', tag: '우주 맵 · 화면 시안'
+    never: '그는 다시는 우주에 가지 못했다.', truth: '그날 정거장의 진실은… 아무도 몰랐다.', tag: '우주 맵'
   } : MAP === 'sea' ? {
     intro: ['2087년. 공기가 너무 귀해져 "무취법"이 시행되었습니다.', '공공장소에서 방구 1회, 징역 3년.', '국가 지정 청정해역, 심해 연구기지.', '산소 공급 장치가 고장 나 여섯 명이 고립되었습니다.', '그런데… 누군가의 엉덩이에서 나오는 거품이 수상합니다.'],
     day: (n, k) => [`${n}일차. 남은 산소탱크 ${k}개를 열었습니다.`, '모두 숨을 쉬세요… 보글… 보글…'],
     night: n => `${n}일차 밤. 기지의 불이 꺼졌습니다.`, police: '무취 해양경찰이 도착했지만…',
     head: (nm, age) => `심해 청정해역서 무취법 위반… ${nm}(${age}) 현장 체포`, place: '심해 기지 거품',
-    never: '그는 다시는 바다에 들어가지 못했다.', truth: '그날 기지의 진실은… 아무도 몰랐다.', tag: '심해 맵 · 화면 시안'
+    never: '그는 다시는 바다에 들어가지 못했다.', truth: '그날 기지의 진실은… 아무도 몰랐다.', tag: '심해 맵'
   } : {
     intro: ['2087년. 공기가 너무 귀해져 "무취법"이 시행되었습니다.', '공공장소에서 방구 1회, 징역 3년.', '국가 지정 청정구역, 설산 산장.', '폭설로 여섯 명이 이곳에 고립되었습니다.', '그런데… 누군가의 엉덩이가 수상합니다.'],
     day: (n, k) => [`${n}일차 저녁. 남은 장작 ${k}개에 불을 붙였습니다.`, '모두 숨을 쉬세요… 크게… 깊게…'],
     night: n => `${n}일차 밤. 장작불이 꺼졌습니다.`, police: '무취 단속반이 도착했지만…',
     head: (nm, age) => `설산 청정구역서 무취법 위반… ${nm}(${age}) 현장 체포`, place: '설산 산장 냄새',
-    never: '그는 다시는 산에 오르지 못했다.', truth: '그날 산장의 진실은… 아무도 몰랐다.', tag: '설산 맵 · 화면 시안'
+    never: '그는 다시는 산에 오르지 못했다.', truth: '그날 산장의 진실은… 아무도 몰랐다.', tag: '설산 맵'
   };
 
   function depth(c) { return (.8 + c.y * .4) * 1.12; }
@@ -576,7 +634,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     Array.from(box.children).forEach((d, i) => d.classList.toggle('on', i < farts + decoys));
   }
 
-  function reset() {
+  function reset(toTitle) {
     chars = CAST.map((c, i) => ({
       name: c[0], color: c[1], hat: c[2], trait: c[3], bw: c[4], bh: c[5], seed: i * 17 + 3,
       x: R(.12, .88), y: R(.42, .9), tx: .5, ty: .6, spd: R(.05, .08), face: Math.random() < .5 ? 1 : -1,
@@ -601,7 +659,10 @@ button[aria-pressed="true"]{background:var(--lime)}
     gloryTitle = GLORY[Math.floor(Math.random() * GLORY.length)];
     updateMeter(); setBig(''); setCaps(''); again.hidden = true;
     lensLeft = 1; lensT = 0; updateLensBtn();
-    cleared = new Set(); roundSmelled = new Set(); narrEl.hidden = true; voteEl.hidden = true; reviewing = false; myIdx = -1;
+    cleared = new Set(); roundSmelled = new Set(); narrEl.hidden = true; voteEl.hidden = true; reviewing = false; myIdx = -1; myRole = '';
+    resultSaved = false; reveal.hidden = true; $('howto').hidden = true;
+    if (toTitle) { mode = 'intro'; showTitle(); return; }
+    $('titleScr').hidden = true;
     narrate(TX().intro, () => { mode = 'intro'; showReveal(); });
   }
 
@@ -1039,7 +1100,6 @@ button[aria-pressed="true"]{background:var(--lime)}
     const lore = $('cLore');
     myLine = role.key === 'helper' ? helperLine : pick(LINES[role.key]);
     lore.textContent = `"${myLine}"`; lore.hidden = false;
-    $('rvNote').hidden = role.t !== 'fart';
     drawCardChar(me);
     card.classList.remove('flipped');
     reveal.hidden = false;
@@ -1150,13 +1210,27 @@ button[aria-pressed="true"]{background:var(--lime)}
       }, t));
       t += 550;
     });
-    whTimers.push(setTimeout(() => { $('whAgain').hidden = false; }, t));
-    $('whAgain').hidden = true;
+    whTimers.push(setTimeout(() => { showResult(); $('whBtns').hidden = false; }, t));
+    $('whBtns').hidden = true; $('whRes').hidden = true;
     $('whTitle').textContent = '누가 누구였을까?';
     again.hidden = true; setCaps(''); setBig('');
     whois.hidden = false;
   }
   $('whAgain').addEventListener('click', () => { whois.hidden = true; reset(); });
+  $('whHome').addEventListener('click', () => { whois.hidden = true; reset(true); });
+  // win/lose record, kept on this device
+  let resultSaved = false;
+  function loadRec() { try { const r = JSON.parse(localStorage.getItem('bangu-rec') || '{}'); return { w: r.w | 0, l: r.l | 0 }; } catch (e) { return { w: 0, l: 0 }; } }
+  function showResult() {
+    const caught = accused === culprit, fartTeam = myRole === 'culprit' || myRole === 'helper';
+    const win = caught !== fartTeam, el = $('whRes');
+    el.textContent = win ? (fartTeam ? '승리! 끝까지 안 들켰다' : '승리! 진범을 잡았다') : (fartTeam ? '패배… 결국 들켰다' : '패배… 진범이 빠져나갔다');
+    el.className = 'wh-res ' + (win ? 'win' : 'lose'); el.hidden = false;
+    if (resultSaved) return;
+    resultSaved = true;
+    const r = loadRec(); if (win) r.w++; else r.l++;
+    try { localStorage.setItem('bangu-rec', JSON.stringify(r)); } catch (e) {}
+  }
 
   // ---------- moving my own character ----------
   const keys = { up: false, down: false, left: false, right: false };
@@ -1410,7 +1484,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     MAP = m;
     document.querySelectorAll('.mp').forEach(o => o.setAttribute('aria-pressed', String(o.dataset.m === m)));
     $('mapTag').textContent = TX().tag;
-    reset();
+    reset(true);
   }
   document.querySelectorAll('.mp').forEach(b => b.addEventListener('click', () => setMap(b.dataset.m)));
 
@@ -2051,8 +2125,20 @@ button[aria-pressed="true"]{background:var(--lime)}
   document.querySelectorAll('.rd:not(.mp)').forEach(b => b.addEventListener('click', () => {
     rounds = +b.dataset.r;
     document.querySelectorAll('.rd:not(.mp)').forEach(o => o.setAttribute('aria-pressed', String(o === b)));
-    reset();
+    updateMeter();
   }));
+  // ---------- title screen ----------
+  function showTitle() {
+    const r = loadRec(), n = r.w + r.l;
+    $('ttRec').textContent = n ? `내 전적 · ${r.w}승 ${r.l}패` : '첫 판이에요. 행운을 빌어요!';
+    $('titleScr').hidden = false;
+    statusEl.textContent = '맵과 길이를 고르고 시작하세요.';
+  }
+  $('ttGo').addEventListener('click', () => reset());
+  $('home').addEventListener('click', () => reset(true));
+  const openHow = () => { $('howto').hidden = false; };
+  $('ttHow').addEventListener('click', openHow); $('howBtn').addEventListener('click', openHow);
+  $('htClose').addEventListener('click', () => { $('howto').hidden = true; });
   again.addEventListener('click', openWhois);
 
   // ---------- update ----------
@@ -2874,7 +2960,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     requestAnimationFrame(frame);
   }
   placeActions();
-  reset();
+  reset(true);
   requestAnimationFrame(frame);
 })();
 </script>
