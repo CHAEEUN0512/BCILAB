@@ -274,6 +274,12 @@ h1{
   color:var(--hot);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;
   text-shadow:4px 4px 0 var(--ink);transform:rotate(-4deg);padding:0 16px;
 }
+.toast{position:absolute;left:50%;top:12px;translate:-50% 0;z-index:4;width:min(440px,calc(100% - 24px));box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 14px;border:2.5px solid var(--ink);border-radius:14px;box-shadow:3px 3px 0 var(--ink);background:var(--paper);text-align:center;pointer-events:none;animation:toastIn .35s cubic-bezier(.3,1.6,.5,1)}
+.toast b{font-family:var(--font-loud);font-weight:400;font-size:22px;line-height:1.15}
+.toast span{font-size:13px;line-height:1.4;color:#3b3646}
+.toast.good{background:#eaffc9}.toast.bad{background:#ffe0ef}.toast.huh{background:#fff4c2}
+@keyframes toastIn{from{opacity:0;transform:translateY(-10px) scale(.92)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.toast{animation:none}}
 .caps{position:absolute;left:0;right:0;bottom:15%;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 16px;pointer-events:none;text-align:center}
 .cap-main{
   display:inline-block;font-family:var(--font-serious);font-weight:800;
@@ -341,6 +347,7 @@ button[aria-pressed="true"]{background:var(--lime)}
   <div class="stage">
     <canvas id="cv" role="img" aria-label="눈밭에서 롱패딩 입은 사람 여섯 명이 돌아다니며 입김을 뿜는 게임 화면. 그중 한 명은 몰래 방구를 뀝니다."></canvas>
     <div class="big" id="big" hidden></div>
+    <div class="toast" id="toast" hidden><b id="toastT"></b><span id="toastS"></span></div>
     <div class="caps">
       <div class="cap-main" id="capMain" hidden></div>
       <div class="cap-sub" id="capSub" hidden></div>
@@ -683,7 +690,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     updateMeter(); setBig(''); setCaps(''); again.hidden = true;
     lensLeft = 1; lensT = 0; updateLensBtn();
     cleared = new Set(); roundSmelled = new Set(); narrEl.hidden = true; voteEl.hidden = true; reviewing = false; myIdx = -1; myRole = '';
-    resultSaved = false; reveal.hidden = true; $('howto').hidden = true; $('talk').hidden = true; talkTimers.forEach(clearTimeout); talkTimers = []; sway = []; claims = {};
+    resultSaved = false; $('toast').hidden = true; reveal.hidden = true; $('howto').hidden = true; $('talk').hidden = true; talkTimers.forEach(clearTimeout); talkTimers = []; sway = []; claims = {};
     if (toTitle) { mode = 'intro'; showTitle(); return; }
     $('titleScr').hidden = true;
     narrate(TX().intro, () => { mode = 'intro'; showReveal(); });
@@ -1327,7 +1334,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     const best = tapPick();
     if (best < 0) { statusEl.textContent = '너무 멀어요. 바짝 붙어서 툭!'; return; }
     tapTarget = best; doTap();
-    statusEl.textContent = accomplice ? '포섭 성공! 공범이 생겼다.' : '포섭 실패… 들켰을까?';
+    statusEl.textContent = accomplice ? '포섭 성공! 공범이 생겼다.' : '포섭 실패…';
   }
   function updateTapBtn() {
     tapBtn.hidden = myRole !== 'culprit';
@@ -2793,11 +2800,23 @@ button[aria-pressed="true"]{background:var(--lime)}
     tg.x = clamp(tg.x + (tg.x - cu.x) * .5, .06, .94);
     taps.push({ x: (cu.x + tg.x) / 2, y: (cu.y + tg.y) / 2, t: 0 });
     sfx(.12);
-    if (tapTarget === helperIdx) accomplice = true;
-    else {
+    const tn = chars[tapTarget].name, cn = chars[culprit].name;
+    if (tapTarget === helperIdx) {
+      accomplice = true;
+      if (myRole === 'culprit') toast('포섭 성공!', `${ga(tn)} 공범이 됐다. 녹화를 지우고 방구 쿠션으로 의심을 대신 받아 줄 거야.`, 'good');
+      else if (tapTarget === myIdx) toast('엉덩이 신호를 받았다!', `방금 툭 친 ${ga(cn)} 진범이다. 이제 너는 공범! 녹화 지우기·방구 쿠션이 생겼어.`, 'good', 5);
+    } else {
       tapFailed = tapTarget; tg.react = 1.8;
-      if (tapTarget === myIdx && mode === 'play') statusEl.textContent = '방금 누가 엉덩이로 툭 쳤다…?!';
+      if (myRole === 'culprit') toast('포섭 실패…', `${eun(tn)} 조력자가 아니었다. 그냥 깜짝 놀랐을 뿐… 아무도 못 봤기를.`, 'bad');
+      else if (tapTarget === myIdx && mode === 'play') { statusEl.textContent = '방금 누가 엉덩이로 툭 쳤다…?!'; toast('?!', '방금 누가 엉덩이로 툭 쳤다… 뭐지, 수상한데?', 'huh'); }
     }
+  }
+  let toastTimer = 0;
+  function toast(title, sub, kind, secs = 4) {
+    const el = $('toast');
+    $('toastT').textContent = title; $('toastS').textContent = sub;
+    el.className = 'toast ' + kind; el.hidden = true; void el.offsetWidth; el.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, secs * 1000);
   }
   // everyone sees the last five seconds before the fart deadline
   function drawCountdown() {
