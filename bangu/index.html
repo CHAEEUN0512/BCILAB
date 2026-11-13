@@ -716,7 +716,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     lensLeft = 1; lensT = 0; updateLensBtn();
     cleared = new Set(); roundSmelled = new Set(); narrEl.hidden = true; voteEl.hidden = true; reviewing = false; myIdx = -1; myRole = '';
     stats = chars.map(() => ({ got: 0, right: 0, sniff: 0, sniffHit: 0 }));
-    fartPop = 0; resultSaved = false; $('toast').hidden = true; $('confirm').hidden = true; reveal.hidden = true; $('howto').hidden = true; $('talk').hidden = true; talkTimers.forEach(clearTimeout); talkTimers = []; sway = []; claims = {};
+    fartPop = 0; fartLog = []; resultSaved = false; $('toast').hidden = true; $('confirm').hidden = true; reveal.hidden = true; $('howto').hidden = true; $('talk').hidden = true; talkTimers.forEach(clearTimeout); talkTimers = []; sway = []; claims = {};
     if (toTitle) { mode = 'intro'; showTitle(); return; }
     $('titleScr').hidden = true;
     narrate(TX().intro, () => { mode = 'intro'; showReveal(); });
@@ -770,7 +770,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     else {
       farts++; fartedRound = true; updateMeter(); sfx(.35);
       if (helperIdx !== myIdx && !npcCoverUsed && npcCoverAt < 0 && Math.random() < .5) npcCoverAt = gameT + R(.2, 1.2);
-      lastFartT = gameT;
+      lastFartT = gameT; fartLog.push(gameT);
       if (accomplice && helperIdx !== myIdx) eraseAt = gameT + R(.8, 2);
     }
     statusEl.textContent = '방금… 뭔가 났다.';
@@ -1235,11 +1235,11 @@ button[aria-pressed="true"]{background:var(--lime)}
       b.push([accused === culprit ? '결국 잡힘' : '완전범죄', accused === culprit ? 'p' : 'g']);
     }
     if (k === 'helper' || k === 'accomplice') {
-      const cv = covers.filter(x => x[2] === i).length;
-      if (cv) b.push([`CCTV 가림 ${cv}번`, '']);
+      const mine = covers.filter(x => x[2] === i), cvHit = mine.filter(x => caught(x[0], x[1], 1.2)).length;
+      if (mine.length) b.push([`CCTV 가림 ${mine.length}번 · 적중 ${cvHit}`, cvHit ? 'g' : '']);
       if (k === 'accomplice') {
         b.push(['공범 됨', 'p']);
-        if (erased.length) b.push([`녹화 지움 ${erased.length}번`, '']);
+        if (erased.length) { const eh = erased.filter(x => caught(x[0], x[1])).length; b.push([`녹화 지움 ${erased.length}번 · 적중 ${eh}`, eh ? 'g' : '']); }
         if (decoys) b.push(['방구 쿠션 발사', 'y']);
       }
     }
@@ -1386,7 +1386,9 @@ button[aria-pressed="true"]{background:var(--lime)}
     tapTarget = best; doTap();
     statusEl.textContent = accomplice ? '포섭 성공! 공범이 생겼다.' : '포섭 실패…';
   }
-  let tapLabel = '', fartPop = 0;
+  let tapLabel = '', fartPop = 0, fartLog = [];
+  // did a real fart (or its fresh puff) land inside this recording window?
+  const caught = (a, b, lead = 0) => fartLog.some(t => t >= a - lead && t <= b);
   function updateTapBtn() {
     const tl = tapState === 'done' && tapTarget >= 0 ? (isTouch() ? (accomplice ? '툭 성공!' : '툭 실패…') : (accomplice ? `툭 성공 · ${chars[tapTarget].name} 공범` : `툭 실패 · ${chars[tapTarget].name}`)) : '엉덩이 툭' + kh('T');
     if (tl !== tapLabel) { tapLabel = tl; tapBtn.textContent = tl; }
@@ -1879,7 +1881,15 @@ button[aria-pressed="true"]{background:var(--lime)}
     if (t !== coverLabel) { coverBtn.textContent = t; coverLabel = t; }
   }
   function tickCover(dt) {
-    if (coverT > 0) { coverT -= dt; if (coverT <= 0 && mode === 'play') statusEl.textContent = '가리기 끝.'; }
+    if (coverT > 0) {
+      coverT -= dt;
+      if (coverT <= 0 && helperIdx === myIdx) {
+        const cv = covers.filter(x => x[2] === myIdx).pop();
+        const hit = cv && caught(cv[0], cv[1], 1.2); // a fart a moment before still shows as a puff
+        statusEl.textContent = hit ? '가리기 적중!' : '가리기 끝… 헛방.';
+        toast(hit ? '가리기 적중!' : '헛방…', hit ? '가린 3초 사이에 진짜 방구가 있었다. 녹화엔 엉덩이만 찍혔어.' : '가린 동안 아무도 안 뀌었다. 다음엔 타이밍을 노려 봐.', hit ? 'good' : 'bad');
+      }
+    }
     if (mode === 'play' && npcCoverAt > 0 && gameT >= npcCoverAt) { npcCoverAt = -1; npcCoverUsed = true; startCover(helperIdx); }
   }
   // a plain, faceless stand-in squashed against the lens: same for everyone, so it can't tell you who
@@ -1929,8 +1939,10 @@ button[aria-pressed="true"]{background:var(--lime)}
   }
   function tryErase() {
     if (myRole !== 'helper' || !accomplice || mode !== 'play' || eraseLeft <= 0) return;
-    eraseLeft--; erased.push([Math.max(0, gameT - 5), gameT]);
-    statusEl.textContent = '방금 5초 녹화를 지지직으로 날렸다.';
+    eraseLeft--; const a = Math.max(0, gameT - 5); erased.push([a, gameT]);
+    const hit = caught(a, gameT);
+    statusEl.textContent = hit ? '지우기 적중!' : '방금 5초 녹화를 날렸다… 헛방.';
+    toast(hit ? '지우기 적중!' : '헛방…', hit ? '지운 5초 안에 진짜 방구가 찍혀 있었다. 증거 인멸 성공.' : '지운 5초엔 방구가 없었다. 아까운 기회…', hit ? 'good' : 'bad');
   }
   // accomplice: a whoopee-cushion fart. looks, smells and sniffs like the real thing
   const decoyBtn = $('decoyBtn');
