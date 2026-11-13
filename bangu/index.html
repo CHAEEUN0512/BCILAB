@@ -368,7 +368,7 @@ button[aria-pressed="true"]{background:var(--lime)}
         <h3>기본</h3>
         <p>입김은 <b>얼굴 앞</b>에서, 방구는 <b>엉덩이 뒤</b>에서 나와요. 겉보기엔 똑같아요.</p>
         <p>진범은 라운드마다 한 번 몰래 뀌어요. 냄새 구름에 얼굴이 닿은 사람은 찡그리고, 밤에 <b>기절자</b>로 발표돼요.</p>
-        <p>밤이 지나면 회의 시간이에요. 한마디씩 하는데, 나는 <b>지목·증거 대기·변호·해명</b> 중 하나를 골라 사람들을 설득해요. 증거는 능력을 써 본 사람이 대야 더 잘 먹혀요. <b>역할 주장</b>("저 경비 아저씨예요")도 한 번 할 수 있는데, 거짓말도 돼요. 같은 역할을 두 명이 주장하면 둘 중 하나는 거짓말쟁이예요. 그다음 투표해요. 3표 이상 받은 단독 1등이 신고되고, 동점이면 결선을 해요. 마지막 밤까지 못 잡으면 진범이 이겨요.</p>
+        <p>밤이 지나면 회의 시간이에요. 한마디씩 하는데, 내 차례엔 버튼 두 번으로 <b>"나 ○○인데, ○○가 범인인 거 봤어!"</b>를 말해요. 역할은 거짓말이어도 돼요. 같은 역할을 두 명이 주장하면 둘 중 하나는 거짓말쟁이예요. 그다음 투표해요. 3표 이상 받은 단독 1등이 신고되고, 동점이면 결선을 해요. 마지막 밤까지 못 잡으면 진범이 이겨요.</p>
         <h3>이동</h3>
         <p>방향키나 WASD, 폰은 아래 조이스틱. 방구 팀은 자유롭게 다니고, 시민 팀은 떠밀려 다니면서 조금만 조종돼요. 내 캐릭터 머리 위에는 초록 화살표가 있어요.</p>
         <h3>역할</h3>
@@ -2088,7 +2088,10 @@ button[aria-pressed="true"]{background:var(--lime)}
     tkHint('다른 사람들 말을 들어 보세요…');
     let d = 500;
     const claimer = botClaimer();
-    if (claimer >= 0) { const [i, role] = claimer; later(d, () => claimRole(i, role)); d += 1200; const rv = claimConflict(i, role); if (rv >= 0 && rv !== myIdx) d += 1200; }
+    if (claimer !== -1) {
+      const [i, role] = claimer, t = botTarget(i);
+      if (t >= 0) { const rv = claimConflict(i, role); later(d, () => claimRole(i, role, t)); d += 1200 + (rv >= 0 && rv !== myIdx ? 1200 : 0); }
+    }
     const speakers = alive().filter(i => i !== myIdx).sort(() => Math.random() - .5).slice(0, 2);
     speakers.forEach((i, k) => later(d + k * 1200, () => botOpen(i)));
     later(d + 200 + speakers.length * 1200, myTurn);
@@ -2115,86 +2118,71 @@ button[aria-pressed="true"]{background:var(--lime)}
     const other = alive().find(j => j !== i && claims[j] === role);
     return other === undefined ? -1 : other;
   }
-  function claimRole(i, role) {
+  // "나 ○○인데, ○○가 범인인 거 봤어!" — one sentence: who I am (true or not) + who I saw
+  const raMyeonseo = w => w + (hasBatchim(w) ? '이라면서요?' : '라면서요?');
+  function claimRole(i, role, t) {
+    const before = claims[i];
     let rival = claimConflict(i, role);
     if (rival === myIdx && !claims[myIdx]) rival = -1; // a bot took MY real job; I can call it out on my turn
     claims[i] = role;
-    tkSay(i, pick(CLAIM_LINE[role]));
-    if (rival >= 0) {
-      later(1100, () => {
+    const job = ROLE_NAME[role], n = chars[t].name;
+    tkSay(i, i === myIdx ? `나 ${job}인데, ${ga(n)} 범인인 거 봤어!` : `저 ${job}인데요, ${ga(n)} 범인인 거 봤어요.`);
+    let d = 1100, trusted = role !== 'seeker';
+    if (before && before !== role) { // changed story
+      const by = alive().find(j => j !== i && j !== t);
+      if (by !== undefined) { later(d, () => tkSay(by, `아까는 ${raMyeonseo(ROLE_NAME[before])}`)); d += 1200; }
+      sway[i] += 2; trusted = false;
+    }
+    if (rival >= 0) { // two people, one job: someone is lying
+      later(d, () => {
         if (rival === myIdx) tkSay(i, `${ga(chars[myIdx].name)} 거짓말하는 거예요!`);
-        else { claims[rival] = claims[rival] || role; tkSay(rival, `뭐라고요?! 제가 진짜 ${ROLE_NAME[role]}인데요!`); }
+        else { claims[rival] = claims[rival] || role; tkSay(rival, `뭐라고요?! 제가 진짜 ${job}인데요!`); }
       });
-      sway[i] += 1.5; sway[rival] += 1.5; // one of them is lying
-    } else sway[i] -= role === 'seeker' ? .3 : 1.2;
+      d += 1200; sway[i] += 1.5; sway[rival] += 1.5; trusted = false;
+    } else if (role !== 'seeker') sway[i] -= 1;
+    sway[t] += 2.5 + (trusted ? 1 : 0) + (i === myIdx && role === myRole && usedTool() ? 1.5 : 0);
+    return d;
   }
-  function botOpen(i) {
+  function botTarget(i) {
     const fartSide = i === culprit || (i === helperIdx && accomplice);
     const pool = alive().filter(j => j !== i && !(fartSide && j === culprit)); // the fart side never names the culprit
-    if (!pool.length || Math.random() < .25) { tkSay(i, pick(TALK.shrug)); return; }
+    if (!pool.length) return -1;
     const faint = lastFaint.filter(j => pool.includes(j));
-    const t = faint.length && Math.random() < .6 ? pick(faint) : pick(pool);
+    return faint.length && Math.random() < .6 ? pick(faint) : pick(pool);
+  }
+  function botOpen(i) {
+    const t = botTarget(i);
+    if (t < 0 || Math.random() < .25) { tkSay(i, pick(TALK.shrug)); return; }
     sway[t] += claims[i] && claims[i] !== 'seeker' ? 2 : 1; tkSay(i, pick(TALK.accuse)(chars[t].name));
   }
   function usedTool() { return (myRole === 'seeker' && sniffLeft === 0) || (myRole === 'sniffer' && lensLeft === 0) || (myRole === 'cctv' && cctvLeft === 0); }
-  function proofLine(n) {
-    const r = claims[myIdx] && claims[myIdx] !== 'seeker' ? claims[myIdx] : myRole; // a claimed job talks like that job
-    if (r === 'sniffer') return `돋보기로 봤어요. ${n} 엉덩이에서 노란 김이 나왔어요!`;
-    if (r === 'cctv') return `CCTV 돌려봤는데 ${ga(n)} 뀌는 장면이 찍혔어요.`;
-    if (myRole === 'seeker') return `킁킁 해 봤는데 ${n} 엉덩이 진짜 구렸어요!!`;
-    if (myRole === 'sniffer') return `돋보기로 봤어요. ${n} 엉덩이에서 노란 김이 나왔어요!`;
-    if (myRole === 'cctv') return `CCTV 돌려봤는데 ${ga(n)} 뀌는 장면이 찍혔어요.`;
-    return `제가 똑똑히 봤어요. ${ga(n)} 엉덩이를 살짝 들썩이는 거.`;
-  }
   function myTurn() {
     tkAct.textContent = '';
     if (cleared.has(myIdx)) { tkHint('억울함 인증을 받아서 발언권이 없어요.'); later(900, () => tkButton('투표하러 가기', toVote, 'tk-go')); return; }
-    tkHint('내 차례! 한마디 해서 표를 움직여 보세요.');
-    if (!claims[myIdx]) tkButton('역할 주장하기', pickClaim);
-    tkButton('지목하기', () => pickWho('accuse'));
-    tkButton('증거 대기', () => pickWho('proof'));
-    tkButton('변호하기', () => pickWho('defend'));
-    tkButton('해명하기', () => doTalk('alibi', myIdx));
-    tkButton('조용히 있기', () => doTalk('quiet', -1));
+    tkHint('내 차례!  "나 ___인데,"');
+    CLAIMABLE.forEach(r => tkButton(ROLE_NAME[r], () => pickWho(r)));
+    tkButton('조용히 있기', () => { tkAct.textContent = ''; tkSay(myIdx, '…… (조용히 숨만 쉰다)'); afterMine(-1); });
   }
-  function pickClaim() {
+  function pickWho(role) {
     tkAct.textContent = '';
-    tkHint('나는 ○○다! 거짓말이어도 돼요. (주장은 한 판에 1번, 발언 기회는 그대로)');
-    CLAIMABLE.forEach(r => tkButton(ROLE_NAME[r], () => {
-      tkAct.textContent = '';
-      const rival = claimConflict(myIdx, r);
-      claimRole(myIdx, r);
-      if (rival < 0) later(1000, () => { const by = alive().filter(i => i !== myIdx)[0]; if (by !== undefined && r !== 'seeker') tkSay(pick(alive().filter(i => i !== myIdx)), pick(['오, 그럼 믿을 만하겠네요.', '그래요? 그럼 누가 범인이에요?', '흠… 일단 믿어 볼게요.'])); });
-      later(rival >= 0 ? 2400 : 2100, myTurn);
-    }));
+    tkHint(`"나 ${ROLE_NAME[role]}인데, ___ 범인인 거 봤어!"`);
+    alive().filter(i => i !== myIdx).forEach(i => tkButton(chars[i].name, () => { tkAct.textContent = ''; afterMine(i, claimRole(myIdx, role, i)); }));
     tkButton('뒤로', myTurn);
   }
-  function pickWho(kind) {
-    tkAct.textContent = '';
-    tkHint(kind === 'defend' ? '누구 편을 들까요?' : '누구를 찍을까요?');
-    alive().filter(i => i !== myIdx).forEach(i => tkButton(chars[i].name, () => doTalk(kind, i)));
-    tkButton('뒤로', myTurn);
-  }
-  function doTalk(kind, t) {
-    tkAct.textContent = '';
-    const n = t >= 0 ? chars[t].name : '';
-    if (kind === 'accuse') { tkSay(myIdx, pick(TALK.myAccuse)(n)); sway[t] += 2.5; }
-    else if (kind === 'proof') { tkSay(myIdx, proofLine(n)); sway[t] += (usedTool() ? 4 : 2) + (claims[myIdx] && claims[myIdx] !== 'seeker' ? 1 : 0); }
-    else if (kind === 'defend') { tkSay(myIdx, pick(TALK.defend)(n)); sway[t] -= 2.5; }
-    else if (kind === 'alibi') { tkSay(myIdx, pick(TALK.alibi)); sway[myIdx] -= 2.5; }
-    else tkSay(myIdx, '…… (조용히 숨만 쉰다)');
-    let d = 1000;
-    if ((kind === 'accuse' || kind === 'proof') && t >= 0) { later(d, () => tkSay(t, pick(TALK.deny))); d += 1200; }
+  function afterMine(t, d0) {
+    let d = d0 || 1000;
+    if (t >= 0) { later(d, () => tkSay(t, pick(TALK.deny))); d += 1200; }
     const by = alive().filter(i => i !== myIdx && i !== t).sort(() => Math.random() - .5)[0];
-    if (by !== undefined) { later(d, () => react(by, kind, t)); d += 1200; }
+    if (by !== undefined) {
+      later(d, () => {
+        if (t < 0) { tkSay(by, pick(TALK.shrug)); return; }
+        const yes = Math.random() < .6;
+        tkSay(by, yes ? pick(TALK.agree)(chars[t].name) : pick(TALK.doubt));
+        sway[t] += yes ? 1 : -.5;
+      });
+      d += 1200;
+    }
     later(d, () => tkButton('투표하러 가기', toVote, 'tk-go'));
-  }
-  function react(i, kind, t) {
-    if (kind === 'quiet') { tkSay(i, pick(TALK.shrug)); return; }
-    const yes = Math.random() < (kind === 'proof' ? .7 : .5);
-    if (kind === 'alibi' || kind === 'defend') { tkSay(i, yes ? pick(TALK.okay) : pick(TALK.doubt)); if (!yes) sway[t] += 1; return; }
-    tkSay(i, yes ? pick(TALK.agree)(chars[t].name) : pick(TALK.doubt));
-    sway[t] += yes ? 1 : -.5;
   }
   function toVote() { talkTimers.forEach(clearTimeout); talkTimers = []; talkEl.hidden = true; openVote(); }
 
