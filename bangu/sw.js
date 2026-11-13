@@ -1,5 +1,5 @@
 // Offline cache for the game. Bump VERSION whenever index.html changes.
-const VERSION = 'bangu-v19';
+const VERSION = 'bangu-v20';
 const CORE = ['./', './index.html', './manifest.json', './icon-180.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

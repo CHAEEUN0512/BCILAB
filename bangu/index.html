@@ -406,7 +406,7 @@ button[aria-pressed="true"]{background:var(--lime)}
         <p>진범은 라운드마다 한 번 몰래 뀌어요. 냄새 구름에 얼굴이 닿은 사람은 찡그리고, 밤에 <b>기절자</b>로 발표돼요.</p>
         <p>밤이 지나면 회의 시간이에요. 한마디씩 하는데, 내 차례엔 버튼 세 번으로 <b>"나 ○○인데, ○○가 범인인 거 봤어! / 수상해! / 범인 아니야!"</b>를 말해요. 역할은 거짓말이어도 돼요. 같은 역할을 두 명이 주장하면 둘 중 하나는 거짓말쟁이예요. 그다음 투표해요. 3표 이상 받은 단독 1등이 신고되고, 동점이면 결선을 해요. 마지막 밤까지 못 잡으면 진범이 이겨요.</p>
         <h3>이동</h3>
-        <p>방향키나 WASD, 폰은 아래 조이스틱. 방구 팀은 자유롭게 다니고, 시민 팀은 떠밀려 다니면서 조금만 조종돼요. 내 캐릭터 머리 위에는 초록 화살표가 있어요.</p>
+        <p>방향키나 WASD, 폰은 아래 조이스틱. 누구나 자유롭게 다닐 수 있어요. 대신 가장자리에 붙어 있으면 추워서 몇 초 뒤 모닥불 쪽으로 밀려나요. 내 캐릭터 머리 위에는 초록 화살표가 있어요.</p>
         <h3>역할</h3>
         <dl class="ht-roles">
           <dt>무취 시민</dt><dd><b>킁킁</b>(Q, 라운드마다 1번): 바로 옆 사람 엉덩이를 맡아요. 6초 안에 뀐 진범이면 "구리다!!"</dd>
@@ -721,7 +721,7 @@ button[aria-pressed="true"]{background:var(--lime)}
     lensLeft = 1; lensT = 0; updateLensBtn();
     cleared = new Set(); roundSmelled = new Set(); narrEl.hidden = true; voteEl.hidden = true; reviewing = false; myIdx = -1; myRole = '';
     stats = chars.map(() => ({ got: 0, right: 0, sniff: 0, sniffHit: 0 }));
-    fartPop = 0; fartLog = []; resultSaved = false; $('toast').hidden = true; $('confirm').hidden = true; reveal.hidden = true; $('howto').hidden = true; $('talk').hidden = true; talkTimers.forEach(clearTimeout); talkTimers = []; sway = []; claims = {};
+    fartPop = 0; fartLog = []; edgeT = 0; edgeWarned = false; resultSaved = false; $('toast').hidden = true; $('confirm').hidden = true; reveal.hidden = true; $('howto').hidden = true; $('talk').hidden = true; talkTimers.forEach(clearTimeout); talkTimers = []; sway = []; claims = {};
     if (toTitle) { mode = 'intro'; showTitle(); return; }
     $('titleScr').hidden = true;
     narrate(TX().intro, () => { mode = 'intro'; showReveal(); });
@@ -1165,7 +1165,7 @@ button[aria-pressed="true"]{background:var(--lime)}
       row.append(top, d); ab.append(row);
     });
     $('cWin').textContent = role.win;
-    $('cMove').textContent = role.t === 'fart' ? '방향키로 자유롭게' : '자동으로 떠밀려 다니고, 방향키로 조금만 조종';
+    $('cMove').textContent = '방향키로 자유롭게. 가장자리에 오래 있으면 밀려나요';
     const lore = $('cLore');
     myLine = role.key === 'helper' ? helperLine : pick(LINES[role.key]);
     lore.textContent = `"${myLine}"`; lore.hidden = false;
@@ -1379,18 +1379,27 @@ button[aria-pressed="true"]{background:var(--lime)}
     statusEl.textContent = forced ? '참다 참다 결국 터졌다!' : '뿡… 아무도 못 봤겠지?';
   }
   // returns 2 when the player fully drives this character (fart team), 1 when they only nudge it (seeker team)
+  // everyone moves freely; only hanging around the edge is not allowed
+  let edgeT = 0, edgeWarned = false;
   function playerMove(c, dt) {
     const ix = (keys.right ? 1 : 0) - (keys.left ? 1 : 0) + joy.x, iy = (keys.down ? 1 : 0) - (keys.up ? 1 : 0) + joy.y;
-    const free = myRole === 'culprit' || myRole === 'helper';
     const n = Math.hypot(ix, iy);
     if (n > .15) {
-      const v = (free ? 120 : 70) * S * Math.min(1, n); // analog: push further, go faster
+      const v = 115 * S * Math.min(1, n); // analog: push further, go faster
       c.x += ix / n * v * dt / W; c.y += iy / n * v * dt / H;
       if (Math.abs(ix) > .1) c.face = ix > 0 ? 1 : -1;
       c.walk += dt * 10;
-      if (free) c.pause = 0;
-    } else if (free) c.pause = .05;
-    return free ? 2 : 1;
+      c.pause = 0;
+    } else c.pause = .05;
+    // the cold edge: stay out there too long and you get blown back toward the fire
+    const dx = (c.x - AREA.x) * W, dy = (c.y - AREA.y) * H, d = Math.hypot(dx, dy), R0 = areaR();
+    if (d > R0 * .72) edgeT += dt; else { edgeT = Math.max(0, edgeT - dt * 2); if (edgeT === 0) edgeWarned = false; }
+    if (edgeT > 2.5 && d > 1) {
+      const push = Math.min(1, (edgeT - 2.5) / 1.2) * 150 * S;
+      c.x -= dx / d * push * dt / W; c.y -= dy / d * push * dt / H; c.walk += dt * 6;
+      if (!edgeWarned) { edgeWarned = true; statusEl.textContent = '가장자리는 너무 추워요! 모닥불 쪽으로 밀려나요…'; }
+    }
+    return 2;
   }
   // who would get bumped right now: the closest person within reach, preferring whoever is behind my butt
   function tapPick() {
